@@ -22,10 +22,17 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.audio.AudioCapabilities
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -126,34 +133,67 @@ class MainActivity : Activity() {
         col.addView(mkButton("Connect", true) {
             prefs.edit().putString("server", s.text.toString().trim()).putString("user", u.text.toString().trim())
                 .putString("pass", p.text.toString().trim()).putString("m3u", m.text.toString().trim()).apply()
-            startLoading()
+            startLoading(true)
         }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(16) })
         setContentView(col); s.requestFocus()
     }
 
     private fun bigMessage(t: String) = setContentView(TextView(this).apply { text = t; textSize = 26f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; setBackgroundColor(BG) })
 
-    private fun startLoading() {
-        bigMessage("91 TV\n\nConnecting…")
+    private fun setData(l: List<Item>?, m: List<Item>?, se: List<Item>?) {
+        if (l != null) live = l; if (m != null) movies = m; if (se != null) series = se; visCache.clear()
+    }
+
+    /** Opens instantly from the disk cache; downloads (or refreshes in the background when older than 6 h) otherwise. */
+    private fun startLoading(force: Boolean = false) {
         val server = prefs.getString("server", "") ?: ""; val m3uUrl = prefs.getString("m3u", "") ?: ""
+        if (force) Cache.clear(this)
+        if (server.isNotBlank()) xt = Xtream(server, prefs.getString("user", "") ?: "", prefs.getString("pass", "") ?: "") else xt = null
+        val cl = Cache.load(this, "live")
+        if (cl != null && cl.isNotEmpty()) {
+            setData(cl, Cache.load(this, "movie") ?: emptyList(), Cache.load(this, "series") ?: emptyList())
+            buildShell(); nav("home")
+            if (Cache.ageHours(this, "live") >= 6) refreshInBackground(server, m3uUrl)
+            return
+        }
+        bigMessage("91 TV\n\nConnecting…")
         Thread {
             try {
                 if (server.isNotBlank()) {
-                    val x = Xtream(server, prefs.getString("user", "") ?: "", prefs.getString("pass", "") ?: ""); x.login(); xt = x
-                    ui.post { bigMessage("91 TV\n\nLoading channels…") }
-                    live = x.live()
+                    val x = xt!!; x.login()
+                    ui.post { bigMessage("91 TV\n\nLoading channels… (first time only)") }
+                    val l = x.live(); setData(l, null, null); Cache.save(this, "live", l)
                     ui.post { bigMessage("91 TV\n\nLoading movies…") }
-                    movies = try { x.movies() } catch (e: Throwable) { emptyList() }
+                    val m = try { x.movies() } catch (e: Throwable) { emptyList() }; setData(null, m, null); Cache.save(this, "movie", m)
                     ui.post { bigMessage("91 TV\n\nLoading series…") }
-                    series = try { x.series() } catch (e: Throwable) { emptyList() }
+                    val se = try { x.series() } catch (e: Throwable) { emptyList() }; setData(null, null, se); Cache.save(this, "series", se)
                 } else {
-                    xt = null; val all = M3u.parse(Http.get(m3uUrl))
-                    live = all.filter { it.kind == "live" }; movies = all.filter { it.kind == "movie" }; series = all.filter { it.kind == "episode" }
+                    val all = M3u.parse(Http.get(m3uUrl))
+                    val l = all.filter { it.kind == "live" }; val m = all.filter { it.kind == "movie" }; val se = all.filter { it.kind == "episode" }
+                    setData(l, m, se); Cache.save(this, "live", l); Cache.save(this, "movie", m); Cache.save(this, "series", se)
                 }
                 ui.post { buildShell(); nav("home") }
             } catch (e: Throwable) {
                 ui.post { Toast.makeText(this, "Could not connect: ${e.message ?: e.javaClass.simpleName}", Toast.LENGTH_LONG).show(); setupView() }
             }
+        }.start()
+    }
+
+    private fun refreshInBackground(server: String, m3uUrl: String) {
+        Thread {
+            try {
+                if (server.isNotBlank()) {
+                    val x = xt ?: return@Thread
+                    val l = x.live(); Cache.save(this, "live", l)
+                    val m = try { x.movies() } catch (e: Throwable) { null }; if (m != null) Cache.save(this, "movie", m)
+                    val se = try { x.series() } catch (e: Throwable) { null }; if (se != null) Cache.save(this, "series", se)
+                    ui.post { setData(l, m, se) }
+                } else {
+                    val all = M3u.parse(Http.get(m3uUrl))
+                    val l = all.filter { it.kind == "live" }; val m = all.filter { it.kind == "movie" }; val se = all.filter { it.kind == "episode" }
+                    Cache.save(this, "live", l); Cache.save(this, "movie", m); Cache.save(this, "series", se); ui.post { setData(l, m, se) }
+                }
+            } catch (e: Throwable) { }
         }.start()
     }
 
@@ -225,10 +265,14 @@ class MainActivity : Activity() {
     // data helpers: hiding, favourites, recents, epg
     // =====================================================================================
     private fun hidden(): Set<String> = prefs.getStringSet("hidden", emptySet()) ?: emptySet()
-    private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply() }
+    private val visCache = HashMap<String, List<Item>>()
+    private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear() }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         val h = hidden(); if (h.isEmpty()) return items
-        return items.filter { "$kind|${it.group}" !in h && (groupPrefix(it.group).isEmpty() || "$kind|prefix:${groupPrefix(it.group)}" !in h) }
+        visCache[kind]?.let { return it }
+        val bad = HashSet<String>()
+        for (g in items.asSequence().map { it.group }.toSet()) { val pre = groupPrefix(g); if ("$kind|$g" in h || (pre.isNotEmpty() && "$kind|prefix:$pre" in h)) bad.add(g) }
+        val out = items.filter { it.group !in bad }; visCache[kind] = out; return out
     }
     private fun hideKind(it: Item) = if (it.kind == "episode") "series" else it.kind
 
@@ -244,9 +288,10 @@ class MainActivity : Activity() {
     private fun addRecent(it: Item) { val l = recents().toMutableList(); l.removeAll { r -> r.key == it.key }; l.add(0, it); writeList("recent", l.take(60)) }
     private fun savedPos(it: Item): Long = prefs.getLong("pos_" + it.key, 0L)
 
-    fun epgFor(it: Item, cb: (List<Prog>) -> Unit) {
+    fun epgFor(it: Item, fetch: Boolean = true, cb: (List<Prog>) -> Unit) {
         if (it.kind != "live" || it.id.isEmpty() || xt == null) return
         val c = epgCache[it.id]; if (c != null) { cb(c); return }
+        if (!fetch) return
         epgPool.execute {
             val l = try { xt?.shortEpg(it.id) ?: emptyList() } catch (e: Exception) { emptyList() }
             ui.post { epgCache[it.id] = l; cb(l) }
@@ -530,15 +575,16 @@ class MainActivity : Activity() {
         val chAd = ChannelAdapter(this, emptyList(), { it -> onChannelFocus(it) }, { l, p -> lastLiveKey = l[p].key; play(l, p) }, { itemMenu(it) })
         val chRv = RecyclerView(this)
         val catRv = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@MainActivity) }
+        val showCat = { i: Int -> liveCat = i; val l = listFor(i); chAd.items = l; chAd.notifyDataSetChanged(); chRv.scrollToPosition(0); countTv.text = if (l.isEmpty()) "no channels here" else "${l.size} channels" }
         catRv.adapter = ChipAdapter(this, labels, liveCat, true,
-            { i -> liveCat = i; val l = listFor(i); chAd.items = l; chAd.notifyDataSetChanged(); chRv.scrollToPosition(0); countTv.text = "${l.size} channels" },
+            { i -> showCat(i); chRv.post { chRv.getChildAt(0)?.requestFocus() } },
             { i -> if (i >= 3) groupMenu("live", groups[i - 3]) })
         c1.addView(catRv, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(c1, LinearLayout.LayoutParams(dp(230), -1).apply { rightMargin = dp(14) })
 
         // column 2: channels
         val first = listFor(liveCat); chAd.items = first; countTv.text = "${first.size} channels"
-        chRv.apply { layoutManager = LinearLayoutManager(this@MainActivity); adapter = chAd; clipChildren = false; clipToPadding = false; setPadding(0, 0, dp(10), dp(30)); itemAnimator = null }
+        chRv.apply { layoutManager = LinearLayoutManager(this@MainActivity); adapter = chAd; clipChildren = false; clipToPadding = false; setPadding(0, 0, dp(10), dp(30)); itemAnimator = null; setHasFixedSize(true); setItemViewCacheSize(16) }
         root.addView(chRv, LinearLayout.LayoutParams(0, -1, 1f))
 
         // column 3: preview panel
@@ -602,13 +648,16 @@ class MainActivity : Activity() {
 
     private fun startPreview(it: Item) {
         val pn = panel ?: return
-        releasePreview(); previewAttempt = 0
-        val p = newPlayer(); p.volume = 0f; preview = p; pn.video.player = p
-        p.addListener(object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) {
-                if (previewAttempt < 3) { previewAttempt++; loadInto(p, it, previewAttempt) }
-            }
-        })
+        previewAttempt = 0
+        val p: ExoPlayer = preview ?: newPlayer(false).also { np ->
+            np.volume = 0f; preview = np; pn.video.player = np
+            np.addListener(object : Player.Listener {
+                override fun onPlayerError(error: PlaybackException) {
+                    val cur = previewItem ?: return
+                    if (previewAttempt < 3) { previewAttempt++; loadInto(np, cur, previewAttempt) }
+                }
+            })
+        }
         loadInto(p, it, 0)
     }
     private fun releasePreview() { ui.removeCallbacks(previewRun); preview?.release(); preview = null; panel?.video?.player = null }
@@ -630,10 +679,11 @@ class MainActivity : Activity() {
             root.addView(r, LinearLayout.LayoutParams(dp(700), -2).apply { setMargins(0, 0, 0, dp(8)) })
         }
         row("Provider", "Change server, login or M3U playlist") { setupView() }
-        row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
-        row("Reload lists", "Fetch channels, movies and series again") { startLoading() }
+        row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
+        row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
+        row("Audio output", if (prefs.getBoolean("passthrough", false)) "Passthrough to TV / soundbar (can sound distorted)" else "Stereo PCM, decoded by the TV box (recommended)  - press to switch") { prefs.edit().putBoolean("passthrough", !prefs.getBoolean("passthrough", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.1 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.2 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -641,11 +691,35 @@ class MainActivity : Activity() {
     // =====================================================================================
     // PLAYER
     // =====================================================================================
-    private fun newPlayer(): ExoPlayer {
+    private fun newPlayer(main: Boolean = true): ExoPlayer {
         val http = DefaultHttpDataSource.Factory().setUserAgent(Http.UA).setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(15000).setReadTimeoutMs(20000)
         val extractors = DefaultExtractorsFactory().setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS)
         val factory = DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http), extractors)
-        return ExoPlayer.Builder(this, DefaultRenderersFactory(this).setEnableDecoderFallback(true)).setMediaSourceFactory(factory).build()
+        val passthrough = prefs.getBoolean("passthrough", false)
+        val rf = object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink? =
+                DefaultAudioSink.Builder(context)
+                    .setAudioCapabilities(if (passthrough) AudioCapabilities.getCapabilities(context) else AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
+                    .setEnableFloatOutput(false).setEnableAudioTrackPlaybackParams(false).build()
+        }.setEnableDecoderFallback(true)
+        val b = ExoPlayer.Builder(this, rf).setMediaSourceFactory(factory)
+        if (main) b.setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(15000, 50000, 2500, 5000).build())
+        val p = b.build()
+        p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), main)
+        return p
+    }
+
+    private fun audioDialog() {
+        val p = player ?: return
+        val groups = p.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        if (groups.isEmpty()) { showTitle("No audio tracks to choose from"); return }
+        val labels = groups.mapIndexed { n, g ->
+            val f = g.getTrackFormat(0)
+            "Track ${n + 1}:  ${f.language ?: "?"}  ·  ${if (f.channelCount > 0) f.channelCount.toString() + " ch" else ""}  ·  ${(f.sampleMimeType ?: "").removePrefix("audio/")}" + if (g.isSelected) "   ✓" else ""
+        }
+        android.app.AlertDialog.Builder(this).setTitle("Audio track").setItems(labels.toTypedArray()) { _, i ->
+            p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(groups[i].mediaTrackGroup, 0)).build()
+        }.show()
     }
 
     private fun variants(it: Item): List<String> = when {
@@ -689,7 +763,7 @@ class MainActivity : Activity() {
         val start = if (it.kind != "live") savedPos(it) else 0L
         player?.let { loadInto(it, zapList[zapIndex], 0, if (start > 10_000) start else 0L) }
         if (it.kind == "live") {
-            showTitle("${zapIndex + 1}  ${it.name}")
+            showTitle("${zapIndex + 1}  ${it.name}      (→ audio tracks)")
             epgFor(it) { l -> val n = nowOf(l); if (n != null && playing?.key == it.key) showTitle("${zapIndex + 1}  ${it.name}\n${n.title}   ${hm(n.start)} – ${hm(n.end)}") }
         } else showTitle(it.name)
     }
@@ -719,8 +793,10 @@ class MainActivity : Activity() {
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_DPAD_UP -> { zap(1); return true }
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_DPAD_DOWN -> { zap(-1); return true }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { startCurrent(); return true }
+                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MENU -> { audioDialog(); return true }
             }
         }
+        if (playerRoot != null && keyCode == KeyEvent.KEYCODE_MENU) { audioDialog(); return true }
         if (playerRoot != null && keyCode != KeyEvent.KEYCODE_BACK && playerView?.dispatchKeyEvent(event) == true) return true
         return super.onKeyDown(keyCode, event)
     }

@@ -119,7 +119,7 @@ class ChannelAdapter(
         val it = items[position]
         h.num.text = "${position + 1}"; h.name.text = it.name; h.sub.text = it.group; h.bar.frac = 0f
         h.ini.text = it.name.take(2).uppercase(); Img.load(it.logo, h.img, a.dp(54)); h.row.tag = it.key
-        a.epgFor(it) { list ->
+        a.epgFor(it, false) { list ->
             if (h.row.tag == it.key) {
                 val now = a.nowOf(list)
                 if (now != null) { h.sub.text = now.title; h.bar.frac = (System.currentTimeMillis() / 1000 - now.start).toFloat() / maxOf(1L, now.end - now.start) }
