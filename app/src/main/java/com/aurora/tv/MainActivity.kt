@@ -694,7 +694,7 @@ class MainActivity : Activity() {
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.5 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.6 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -772,6 +772,16 @@ class MainActivity : Activity() {
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                ui.postDelayed({
+                    val vf = p.videoFormat; val af = p.audioFormat
+                    val cv = p.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_VIDEO }?.getTrackFormat(0)
+                    val t = "VIDEO in file: " + (cv?.sampleMimeType ?: "?") + " " + (cv?.codecs ?: "") + "\nVIDEO decoding as: " + (vf?.sampleMimeType ?: "?") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
+                        " transfer=" + (vf?.colorInfo?.colorTransfer ?: -1) + (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else "") +
+                        "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
+                    showTitle(t, 9000)
+                }, 1500)
+            }
             override fun onPlayerError(error: PlaybackException) {
                 val cur = zapList[zapIndex]
                 if (attempt < 5) { attempt++; showTitle("Retrying ($attempt/5)…  ${error.errorCodeName}", 4000); loadInto(p, cur, attempt) }
