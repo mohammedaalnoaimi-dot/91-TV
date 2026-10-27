@@ -77,6 +77,7 @@ class MainActivity : Activity() {
     private var zapIndex = 0
     private var attempt = 0
     private var vdec = "?"
+    private var previewChip: TextView? = null
     private var lastDiag = ""
     private var playing: Item? = null
 
@@ -601,10 +602,10 @@ class MainActivity : Activity() {
         // column 3: preview panel
         val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = rbg(Color.parseColor("#14141A"), Color.parseColor("#22FFFFFF"), 16, 1) }
         val vBox = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
-        val pv = PlayerView(this).apply { useController = false; setKeepContentOnPlayerReset(true); setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS) }
+        val pv = android.view.LayoutInflater.from(this).inflate(R.layout.preview_player, null) as PlayerView
         vBox.addView(pv, FrameLayout.LayoutParams(-1, -1))
         p.addView(vBox, LinearLayout.LayoutParams(-1, dp(225)))
-        val chip = mkText("●  LIVE   ·   sound off", 12f, RED, true).apply { setPadding(0, dp(10), 0, dp(4)) }; p.addView(chip)
+        val chip = mkText("●  LIVE   ·   sound off", 12f, RED, true).apply { setPadding(0, dp(10), 0, dp(4)) }; p.addView(chip); previewChip = chip
         val title = mkText("", 24f, Color.WHITE, true).apply { maxLines = 2 }
         val cat = mkText("", 14f, GRAY)
         val nowLabel = mkText("NOW PLAYING", 11f, RED, true).apply { letterSpacing = 0.2f; setPadding(0, dp(10), 0, dp(2)); visibility = View.GONE }
@@ -663,12 +664,15 @@ class MainActivity : Activity() {
         val p: ExoPlayer = preview ?: newPlayer(false).also { np ->
             np.volume = 0f; preview = np; pn.video.player = np
             np.addListener(object : Player.Listener {
+                override fun onRenderedFirstFrame() { previewChip?.text = "●  LIVE   ·   sound off" }
                 override fun onPlayerError(error: PlaybackException) {
                     val cur = previewItem ?: return
-                    if (previewAttempt < 3) { previewAttempt++; loadInto(np, cur, previewAttempt) }
+                    if (previewAttempt < 3) { previewAttempt++; previewChip?.text = "●  retrying preview… (${error.errorCodeName})"; loadInto(np, cur, previewAttempt) }
+                    else previewChip?.text = "●  preview failed: ${error.errorCodeName}  -  press OK to watch full screen"
                 }
             })
         }
+        previewChip?.text = "●  loading preview…"
         loadInto(p, it, 0)
     }
     private fun releasePreview() { ui.removeCallbacks(previewRun); preview?.release(); preview = null; panel?.video?.player = null }
@@ -697,7 +701,7 @@ class MainActivity : Activity() {
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.14 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.15 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
