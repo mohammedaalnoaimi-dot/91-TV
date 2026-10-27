@@ -77,6 +77,7 @@ class MainActivity : Activity() {
     private var zapIndex = 0
     private var attempt = 0
     private var vdec = "?"
+    private var lastDiag = ""
     private var playing: Item? = null
 
     // live preview
@@ -696,7 +697,7 @@ class MainActivity : Activity() {
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.12 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.13 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -767,7 +768,7 @@ class MainActivity : Activity() {
         val info = "INFO  video: " + (vf?.sampleMimeType?.removePrefix("video/") ?: "-") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
             (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else if (vf?.colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084) "  = HDR10" else if (vf?.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG) "  = HLG" else "") +
             "  |  audio: " + (af?.sampleMimeType?.removePrefix("audio/") ?: "-") + " " + (af?.codecs ?: "") + (if (af?.sampleMimeType == "audio/eac3-joc" || af?.codecs?.contains("joc") == true) "  = DOLBY ATMOS" else "")
-        val labels = listOf(info, "Subtitles: " + (if (subs) "ON  (press to turn off)" else "OFF  (press to turn on)")) + groups.mapIndexed { n, g ->
+        val labels = listOf(if (lastDiag.isNotEmpty()) lastDiag.replace("\n", "  |  ") else info, "Subtitles: " + (if (subs) "ON  (press to turn off)" else "OFF  (press to turn on)")) + groups.mapIndexed { n, g ->
             val f = g.getTrackFormat(0)
             "Track ${n + 1}:  ${f.language ?: "?"}  ·  ${if (f.channelCount > 0) f.channelCount.toString() + " ch" else ""}  ·  ${(f.sampleMimeType ?: "").removePrefix("audio/")}" + if (g.isSelected) "   ✓" else ""
         } + listOf("▶ Open in another player (Kodi, VLC, Just Player…)")
@@ -810,13 +811,12 @@ class MainActivity : Activity() {
         releasePreview(); ui.removeCallbacks(previewRun)
         zapList = list; zapIndex = index
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
-        val pv = PlayerView(this).apply { useController = list[index].kind != "live"; keepScreenOn = true; setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS) }
+        val pv = PlayerView(this).apply { useController = list[index].kind != "live"; controllerAutoShow = false; keepScreenOn = true; setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER); setShutterBackgroundColor(Color.TRANSPARENT) }
         root.addView(pv, FrameLayout.LayoutParams(-1, -1))
         titleView = TextView(this).apply { textSize = 24f; setTextColor(Color.WHITE); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)) }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
-        request4k(true)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
@@ -831,7 +831,7 @@ class MainActivity : Activity() {
                     val t = "VIDEO in file: " + (cv?.sampleMimeType ?: "?") + " " + (cv?.codecs ?: "") + "\nVIDEO decoding as: " + (vf?.sampleMimeType ?: "?") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
                         " transfer=" + (vf?.colorInfo?.colorTransfer ?: -1) + (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else "") +
                         "  tunnelled=" + (selectors[p]?.parameters?.tunnelingEnabled ?: false) + "\nDECODER: " + vdec + "\nSCREEN reports: " + hdrTypes() + "   mode: " + modeInfo() + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
-                    showTitle(t, 9000)
+                    lastDiag = t
                 }, 1500)
             }
             override fun onPlayerError(error: PlaybackException) {
@@ -852,7 +852,7 @@ class MainActivity : Activity() {
         if (it.kind == "live") {
             showTitle("${zapIndex + 1}  ${it.name}      (→ audio / subtitles)")
             epgFor(it) { l -> val n = nowOf(l); if (n != null && playing?.key == it.key) showTitle("${zapIndex + 1}  ${it.name}\n${n.title}   ${hm(n.start)} – ${hm(n.end)}") }
-        } else showTitle(it.name)
+        }
     }
 
     private fun savePosition() {
