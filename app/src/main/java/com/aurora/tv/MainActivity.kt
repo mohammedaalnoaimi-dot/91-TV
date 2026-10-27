@@ -97,6 +97,7 @@ class MainActivity : Activity() {
 
     /** Lay out as if the screen were 1280 dp wide whatever the TV reports, so every TV gets the same proportions. */
     override fun attachBaseContext(base: Context) {
+        if (base.getSharedPreferences("aurora", Context.MODE_PRIVATE).getBoolean("classic", false)) { super.attachBaseContext(base); return }
         val cfg = Configuration(base.resources.configuration)
         val w = maxOf(base.resources.displayMetrics.widthPixels, base.resources.displayMetrics.heightPixels)
         cfg.densityDpi = (160f * w / 1280f).toInt().coerceIn(120, 640)
@@ -700,8 +701,9 @@ class MainActivity : Activity() {
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
+        row("CLASSIC PLAYER (test)", (if (prefs.getBoolean("classic", false)) "ON - plain first-version player, screen layout will look too big on this TV" else "OFF") + "  - press to switch, the app restarts") { prefs.edit().putBoolean("classic", !prefs.getBoolean("classic", false)).commit(); recreate() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.15 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.16 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -719,6 +721,14 @@ class MainActivity : Activity() {
         val http = DefaultHttpDataSource.Factory().setUserAgent(Http.UA).setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(15000).setReadTimeoutMs(20000)
         val extractors = DefaultExtractorsFactory().setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS)
         val factory = DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http), extractors)
+        if (prefs.getBoolean("classic", false)) {
+            val cp = ExoPlayer.Builder(this, DefaultRenderersFactory(this).setEnableDecoderFallback(true)).setMediaSourceFactory(factory).build()
+            cp.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+                override fun onVideoDecoderInitialized(eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) { vdec = decoderName }
+            })
+            if (!main) cp.volume = 0f
+            return cp
+        }
         val passthrough = !prefs.getBoolean("pcm", false)
         val rf = object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink? =
@@ -820,7 +830,7 @@ class MainActivity : Activity() {
         titleView = TextView(this).apply { textSize = 24f; setTextColor(Color.WHITE); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)) }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
-        if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
+        if (android.os.Build.VERSION.SDK_INT >= 26 && !prefs.getBoolean("classic", false)) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
