@@ -693,8 +693,9 @@ class MainActivity : Activity() {
         val cap = AudioCapabilities.getCapabilities(this)
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
+        row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.6 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.8 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -757,6 +758,7 @@ class MainActivity : Activity() {
         val url = urlFor(it, att)
         val mi = MediaItem.Builder().setUri(url).apply { if (url.contains(".m3u8")) setMimeType(MimeTypes.APPLICATION_M3U8) }.build()
         if (startMs > 0) p.setMediaItem(mi, startMs) else p.setMediaItem(mi)
+        if (p.trackSelectionParameters.tunnelingEnabled) p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTunnelingEnabled(false).build()
         p.prepare(); p.playWhenReady = true
     }
 
@@ -769,16 +771,22 @@ class MainActivity : Activity() {
         titleView = TextView(this).apply { textSize = 24f; setTextColor(Color.WHITE); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)) }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
+        if (android.os.Build.VERSION.SDK_INT >= 26) window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_HDR
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
+            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                val dv = tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO && it.getTrackFormat(0).sampleMimeType == "video/dolby-vision" }
+                if (dv && !prefs.getBoolean("notunnel", false) && !p.trackSelectionParameters.tunnelingEnabled)
+                    p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTunnelingEnabled(true).build()
+            }
             override fun onRenderedFirstFrame() {
                 ui.postDelayed({
                     val vf = p.videoFormat; val af = p.audioFormat
                     val cv = p.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_VIDEO }?.getTrackFormat(0)
                     val t = "VIDEO in file: " + (cv?.sampleMimeType ?: "?") + " " + (cv?.codecs ?: "") + "\nVIDEO decoding as: " + (vf?.sampleMimeType ?: "?") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
                         " transfer=" + (vf?.colorInfo?.colorTransfer ?: -1) + (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else "") +
-                        "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
+                        "  tunnelled=" + p.trackSelectionParameters.tunnelingEnabled + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
                     showTitle(t, 9000)
                 }, 1500)
             }
@@ -819,6 +827,7 @@ class MainActivity : Activity() {
 
     private fun leavePlayer() {
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
+        if (android.os.Build.VERSION.SDK_INT >= 26) window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT
         shell?.let { setContentView(it) }; refreshPage()
     }
 
