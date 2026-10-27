@@ -694,6 +694,7 @@ class MainActivity : Activity() {
             r.addView(mkText(label, 20f, Color.WHITE, true)); r.addView(mkText(sub, 14f, GRAY))
             root.addView(r, LinearLayout.LayoutParams(dp(700), -2).apply { setMargins(0, 0, 0, dp(8)) })
         }
+        row("CLASSIC PLAYER (test)", (if (prefs.getBoolean("classic", false)) "ON - plain first-version player, screen layout will look too big on this TV" else "OFF") + "  - press to switch, the app restarts") { prefs.edit().putBoolean("classic", !prefs.getBoolean("classic", false)).commit(); recreate() }
         row("Provider", "Change server, login or M3U playlist") { setupView() }
         row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
@@ -701,11 +702,10 @@ class MainActivity : Activity() {
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
-        row("CLASSIC PLAYER (test)", (if (prefs.getBoolean("classic", false)) "ON - plain first-version player, screen layout will look too big on this TV" else "OFF") + "  - press to switch, the app restarts") { prefs.edit().putBoolean("classic", !prefs.getBoolean("classic", false)).commit(); recreate() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.16 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.17 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
-        return root
+        return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
 
     // =====================================================================================
