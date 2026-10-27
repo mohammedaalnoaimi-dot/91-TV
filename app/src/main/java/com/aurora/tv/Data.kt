@@ -103,29 +103,56 @@ class Xtream(base: String, private val user: String, private val pass: String) {
         return m
     }
 
+    /** Streams a big JSON array (30k+ items) object by object so the whole list is never held as one string. */
+    private fun streamArray(action: String, extra: String, keys: Set<String>, each: (Map<String, String>) -> Unit) {
+        val c = Http.open(api(action, extra))
+        try {
+            android.util.JsonReader(c.inputStream.bufferedReader()).use { r ->
+                if (r.peek() != android.util.JsonToken.BEGIN_ARRAY) return
+                r.beginArray()
+                while (r.hasNext()) {
+                    if (r.peek() != android.util.JsonToken.BEGIN_OBJECT) { r.skipValue(); continue }
+                    val m = HashMap<String, String>(8); r.beginObject()
+                    while (r.hasNext()) {
+                        val n = r.nextName()
+                        if (n in keys) {
+                            when (r.peek()) {
+                                android.util.JsonToken.STRING, android.util.JsonToken.NUMBER -> m[n] = r.nextString()
+                                android.util.JsonToken.BOOLEAN -> m[n] = r.nextBoolean().toString()
+                                android.util.JsonToken.NULL -> r.nextNull()
+                                else -> r.skipValue()
+                            }
+                        } else r.skipValue()
+                    }
+                    r.endObject(); each(m)
+                }
+                r.endArray()
+            }
+        } finally { c.disconnect() }
+    }
+
     fun live(): List<Item> {
-        val c = cats("get_live_categories"); val a = arr("get_live_streams"); val out = ArrayList<Item>(a.length())
-        for (i in 0 until a.length()) {
-            val o = a.getJSONObject(i); val id = o.optString("stream_id")
-            out.add(Item(o.optString("name"), "$base/live/$user/$pass/$id.ts", c[o.optString("category_id")] ?: "Other", "live", id, o.optString("stream_icon")))
+        val c = cats("get_live_categories"); val out = ArrayList<Item>()
+        streamArray("get_live_streams", "", setOf("name", "stream_id", "category_id", "stream_icon")) { m ->
+            val id = m["stream_id"] ?: ""
+            out.add(Item(m["name"] ?: "", "$base/live/$user/$pass/$id.ts", c[m["category_id"] ?: ""] ?: "Other", "live", id, m["stream_icon"] ?: ""))
         }
         return out
     }
 
     fun movies(): List<Item> {
-        val c = cats("get_vod_categories"); val a = arr("get_vod_streams"); val out = ArrayList<Item>(a.length())
-        for (i in 0 until a.length()) {
-            val o = a.getJSONObject(i); val id = o.optString("stream_id"); val ext = o.optString("container_extension", "mp4").ifBlank { "mp4" }
-            out.add(Item(o.optString("name"), "$base/movie/$user/$pass/$id.$ext", c[o.optString("category_id")] ?: "Other", "movie", id, o.optString("stream_icon")))
+        val c = cats("get_vod_categories"); val out = ArrayList<Item>()
+        streamArray("get_vod_streams", "", setOf("name", "stream_id", "category_id", "stream_icon", "container_extension")) { m ->
+            val id = m["stream_id"] ?: ""; val ext = (m["container_extension"] ?: "mp4").ifBlank { "mp4" }
+            out.add(Item(m["name"] ?: "", "$base/movie/$user/$pass/$id.$ext", c[m["category_id"] ?: ""] ?: "Other", "movie", id, m["stream_icon"] ?: ""))
         }
         return out
     }
 
     fun series(): List<Item> {
-        val c = cats("get_series_categories"); val a = arr("get_series"); val out = ArrayList<Item>(a.length())
-        for (i in 0 until a.length()) {
-            val o = a.getJSONObject(i); val id = o.optString("series_id")
-            out.add(Item(o.optString("name"), "", c[o.optString("category_id")] ?: "Other", "series", id, o.optString("cover")))
+        val c = cats("get_series_categories"); val out = ArrayList<Item>()
+        streamArray("get_series", "", setOf("name", "series_id", "category_id", "cover")) { m ->
+            out.add(Item(m["name"] ?: "", "", c[m["category_id"] ?: ""] ?: "Other", "series", m["series_id"] ?: "", m["cover"] ?: ""))
         }
         return out
     }

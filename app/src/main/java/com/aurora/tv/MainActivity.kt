@@ -87,7 +87,27 @@ class MainActivity : Activity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         prefs = getSharedPreferences("aurora", Context.MODE_PRIVATE)
+        val old = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            try { prefs.edit().putString("crash", android.util.Log.getStackTraceString(e).take(2500)).commit() } catch (x: Throwable) { }
+            old?.uncaughtException(t, e)
+        }
+        val crash = prefs.getString("crash", "") ?: ""
+        if (crash.isNotBlank()) { prefs.edit().remove("crash").apply(); showCrash(crash) } else begin()
+    }
+
+    private fun begin() {
         if (prefs.getString("server", "").isNullOrBlank() && prefs.getString("m3u", "").isNullOrBlank()) setupView() else startLoading()
+    }
+
+    private fun showCrash(text: String) {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(60), dp(30), dp(60), dp(20)) }
+        col.addView(mkText("91 TV closed unexpectedly last time", 26f, RED, true))
+        col.addView(mkText("Take a photo of this screen and send it, then press Continue.", 16f, GRAY).apply { setPadding(0, dp(6), 0, dp(10)) })
+        val sv = ScrollView(this); sv.addView(mkText(text, 13f, Color.WHITE).apply { typeface = Typeface.MONOSPACE })
+        col.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f))
+        col.addView(mkButton("Continue", true) { begin() }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(12) })
+        setContentView(col)
     }
 
     // =====================================================================================
@@ -123,16 +143,16 @@ class MainActivity : Activity() {
                     ui.post { bigMessage("91 TV\n\nLoading channels…") }
                     live = x.live()
                     ui.post { bigMessage("91 TV\n\nLoading movies…") }
-                    movies = try { x.movies() } catch (e: Exception) { emptyList() }
+                    movies = try { x.movies() } catch (e: Throwable) { emptyList() }
                     ui.post { bigMessage("91 TV\n\nLoading series…") }
-                    series = try { x.series() } catch (e: Exception) { emptyList() }
+                    series = try { x.series() } catch (e: Throwable) { emptyList() }
                 } else {
                     xt = null; val all = M3u.parse(Http.get(m3uUrl))
                     live = all.filter { it.kind == "live" }; movies = all.filter { it.kind == "movie" }; series = all.filter { it.kind == "episode" }
                 }
                 ui.post { buildShell(); nav("home") }
-            } catch (e: Exception) {
-                ui.post { Toast.makeText(this, "Could not connect: ${e.message}", Toast.LENGTH_LONG).show(); setupView() }
+            } catch (e: Throwable) {
+                ui.post { Toast.makeText(this, "Could not connect: ${e.message ?: e.javaClass.simpleName}", Toast.LENGTH_LONG).show(); setupView() }
             }
         }.start()
     }
@@ -613,7 +633,7 @@ class MainActivity : Activity() {
         row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Fetch channels, movies and series again") { startLoading() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.0 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.1 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
