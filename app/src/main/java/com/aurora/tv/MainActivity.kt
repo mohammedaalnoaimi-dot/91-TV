@@ -76,6 +76,7 @@ class MainActivity : Activity() {
     private var zapList: List<Item> = emptyList()
     private var zapIndex = 0
     private var attempt = 0
+    private var vdec = "?"
     private var playing: Item? = null
 
     // live preview
@@ -695,7 +696,7 @@ class MainActivity : Activity() {
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.11 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.12 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -725,9 +726,25 @@ class MainActivity : Activity() {
         if (main) b.setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(15000, 50000, 2500, 5000).build())
         val p = b.build()
         selectors[p] = sel
+        p.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+            override fun onVideoDecoderInitialized(eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) { vdec = decoderName }
+        })
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !prefs.getBoolean("subs", false)).build()
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), main)
         return p
+    }
+
+    @Suppress("DEPRECATION")
+    private fun request4k(on: Boolean) {
+        try {
+            val lp = window.attributes
+            if (on) {
+                val modes = windowManager.defaultDisplay.supportedModes
+                val m = modes.filter { it.physicalWidth >= 3840 }.sortedBy { Math.abs(it.refreshRate - 60f) }.firstOrNull()
+                if (m != null) lp.preferredDisplayModeId = m.modeId
+            } else lp.preferredDisplayModeId = 0
+            window.attributes = lp
+        } catch (e: Throwable) {}
     }
 
     @Suppress("DEPRECATION")
@@ -738,7 +755,7 @@ class MainActivity : Activity() {
 
     @Suppress("DEPRECATION")
     private fun modeInfo(): String = try {
-        val m = windowManager.defaultDisplay.mode; "${m.physicalWidth}x${m.physicalHeight} @${m.refreshRate.toInt()}Hz  colorMode=${window.colorMode}"
+        val m = windowManager.defaultDisplay.mode; "${m.physicalWidth}x${m.physicalHeight} @${m.refreshRate.toInt()}Hz  colorMode=${window.colorMode}  all modes: " + windowManager.defaultDisplay.supportedModes.map { "${it.physicalWidth}x${it.physicalHeight}@${it.refreshRate.toInt()}" }.distinct().joinToString(", ")
     } catch (e: Throwable) { "unknown" }
 
     private fun audioDialog() {
@@ -799,6 +816,7 @@ class MainActivity : Activity() {
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
+        request4k(true)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
@@ -812,7 +830,7 @@ class MainActivity : Activity() {
                     val cv = p.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_VIDEO }?.getTrackFormat(0)
                     val t = "VIDEO in file: " + (cv?.sampleMimeType ?: "?") + " " + (cv?.codecs ?: "") + "\nVIDEO decoding as: " + (vf?.sampleMimeType ?: "?") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
                         " transfer=" + (vf?.colorInfo?.colorTransfer ?: -1) + (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else "") +
-                        "  tunnelled=" + (selectors[p]?.parameters?.tunnelingEnabled ?: false) + "\nSCREEN reports: " + hdrTypes() + "   mode: " + modeInfo() + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
+                        "  tunnelled=" + (selectors[p]?.parameters?.tunnelingEnabled ?: false) + "\nDECODER: " + vdec + "\nSCREEN reports: " + hdrTypes() + "   mode: " + modeInfo() + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
                     showTitle(t, 9000)
                 }, 1500)
             }
@@ -854,6 +872,7 @@ class MainActivity : Activity() {
     private fun leavePlayer() {
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
+        request4k(false)
         shell?.let { setContentView(it) }; refreshPage()
     }
 
