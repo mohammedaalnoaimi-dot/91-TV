@@ -690,9 +690,11 @@ class MainActivity : Activity() {
         row("Provider", "Change server, login or M3U playlist") { setupView() }
         row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
-        row("Audio output", if (prefs.getBoolean("passthrough", false)) "Passthrough to TV / soundbar (can sound distorted)" else "Stereo PCM, decoded by the TV box (recommended)  - press to switch") { prefs.edit().putBoolean("passthrough", !prefs.getBoolean("passthrough", false)).apply(); refreshPage() }
+        val cap = AudioCapabilities.getCapabilities(this)
+        val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
+        row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.3 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.4 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -704,7 +706,7 @@ class MainActivity : Activity() {
         val http = DefaultHttpDataSource.Factory().setUserAgent(Http.UA).setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(15000).setReadTimeoutMs(20000)
         val extractors = DefaultExtractorsFactory().setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS)
         val factory = DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http), extractors)
-        val passthrough = prefs.getBoolean("passthrough", false)
+        val passthrough = !prefs.getBoolean("pcm", false)
         val rf = object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink? =
                 DefaultAudioSink.Builder(context)
@@ -724,17 +726,22 @@ class MainActivity : Activity() {
         val groups = p.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
         
         val subs = prefs.getBoolean("subs", false)
-        val labels = listOf("Subtitles: " + (if (subs) "ON  (press to turn off)" else "OFF  (press to turn on)")) + groups.mapIndexed { n, g ->
+        val vf = p.videoFormat; val af = p.audioFormat
+        val info = "INFO  video: " + (vf?.sampleMimeType?.removePrefix("video/") ?: "-") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
+            (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else if (vf?.colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084) "  = HDR10" else if (vf?.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG) "  = HLG" else "") +
+            "  |  audio: " + (af?.sampleMimeType?.removePrefix("audio/") ?: "-") + " " + (af?.codecs ?: "") + (if (af?.sampleMimeType == "audio/eac3-joc" || af?.codecs?.contains("joc") == true) "  = DOLBY ATMOS" else "")
+        val labels = listOf(info, "Subtitles: " + (if (subs) "ON  (press to turn off)" else "OFF  (press to turn on)")) + groups.mapIndexed { n, g ->
             val f = g.getTrackFormat(0)
             "Track ${n + 1}:  ${f.language ?: "?"}  ·  ${if (f.channelCount > 0) f.channelCount.toString() + " ch" else ""}  ·  ${(f.sampleMimeType ?: "").removePrefix("audio/")}" + if (g.isSelected) "   ✓" else ""
         }
         android.app.AlertDialog.Builder(this).setTitle("Audio / subtitles").setItems(labels.toTypedArray()) { _, i ->
-            if (i == 0) {
+            if (i == 0) { return@setItems }
+            if (i == 1) {
                 val on = !prefs.getBoolean("subs", false); prefs.edit().putBoolean("subs", on).apply()
                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !on).build()
                 playerView?.subtitleView?.visibility = if (on) View.VISIBLE else View.GONE
             } else {
-                p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(groups[i - 1].mediaTrackGroup, 0)).build()
+                p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(groups[i - 2].mediaTrackGroup, 0)).build()
             }
         }.show()
     }
