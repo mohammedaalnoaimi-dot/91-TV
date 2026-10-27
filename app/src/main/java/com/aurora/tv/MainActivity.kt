@@ -702,8 +702,10 @@ class MainActivity : Activity() {
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
+        row("Check Dolby Atmos", "See what your TV and soundbar can receive") { atmosCheck() }
+        row("Screensaver", (if (prefs.getBoolean("nosaver", false)) "OFF" else "ON - after 2 minutes of no button presses") + "  - press to switch") { prefs.edit().putBoolean("nosaver", !prefs.getBoolean("nosaver", false)).apply(); bumpIdle(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.18 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.19 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -772,6 +774,77 @@ class MainActivity : Activity() {
     private fun modeInfo(): String = try {
         val m = windowManager.defaultDisplay.mode; "${m.physicalWidth}x${m.physicalHeight} @${m.refreshRate.toInt()}Hz  colorMode=${window.colorMode}  all modes: " + windowManager.defaultDisplay.supportedModes.map { "${it.physicalWidth}x${it.physicalHeight}@${it.refreshRate.toInt()}" }.distinct().joinToString(", ")
     } catch (e: Throwable) { "unknown" }
+
+
+    // ---------- screensaver (after 2 minutes of no key presses while browsing) ----------
+    private var saver: FrameLayout? = null
+    private var saverFg: ImageView? = null
+    private var saverBg: ImageView? = null
+    private var saverTitle: TextView? = null
+    private var saverList: List<Item> = emptyList()
+    private var saverIdx = 0
+    private val saverStart = Runnable { startSaver() }
+    private val saverStep = Runnable { saverNext() }
+
+    private fun bumpIdle() { ui.removeCallbacks(saverStart); if (playerRoot == null && !prefs.getBoolean("nosaver", false)) ui.postDelayed(saverStart, 120_000) }
+
+    private fun startSaver() {
+        if (playerRoot != null || saver != null) return
+        val pool = (movies + series).filter { it.logo.isNotEmpty() }
+        if (pool.isEmpty()) return
+        saverList = pool.shuffled().take(60); saverIdx = 0
+        val f = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); alpha = 0f }
+        val bg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0.22f }
+        val fg = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; alpha = 0f }
+        f.addView(bg, FrameLayout.LayoutParams(-1, -1))
+        f.addView(fg, FrameLayout.LayoutParams(-1, -1).apply { setMargins(dp(300), dp(40), dp(300), dp(110)) })
+        val brand = mkText("91 TV", 26f, RED, true)
+        f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(40), dp(30), 0, 0) })
+        val t = mkText("", 24f, Color.WHITE, true).apply { gravity = Gravity.CENTER }
+        f.addView(t, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { setMargins(dp(40), 0, dp(40), dp(36)) })
+        (window.decorView as ViewGroup).addView(f, ViewGroup.LayoutParams(-1, -1))
+        f.animate().alpha(1f).setDuration(900).start()
+        saver = f; saverFg = fg; saverBg = bg; saverTitle = t
+        saverNext()
+    }
+
+    private fun saverNext() {
+        if (saver == null) return
+        val item = saverList[saverIdx % saverList.size]; saverIdx++
+        val fg = saverFg ?: return; val bg = saverBg ?: return
+        fg.animate().alpha(0f).setDuration(400).withEndAction {
+            if (saver == null) return@withEndAction
+            Img.load(item.logo, fg, 700); Img.load(item.logo, bg, 400)
+            saverTitle?.text = item.name
+            fg.scaleX = 1f; fg.scaleY = 1f
+            fg.animate().alpha(1f).setDuration(700).start()
+            fg.animate().scaleX(1.1f).scaleY(1.1f).setDuration(9000).start()
+        }.start()
+        ui.removeCallbacks(saverStep); ui.postDelayed(saverStep, 9000)
+    }
+
+    private fun stopSaver() {
+        ui.removeCallbacks(saverStep)
+        val f = saver ?: return
+        saver = null; saverFg = null; saverBg = null; saverTitle = null
+        (f.parent as? ViewGroup)?.removeView(f)
+    }
+
+    private fun atmosCheck() {
+        val c = AudioCapabilities.getCapabilities(this)
+        fun y(e: Int) = if (c.supportsEncoding(e)) "YES" else "no"
+        val msg = "What your TV tells the app it can receive:\n\n" +
+            "Dolby Digital (AC3):  " + y(C.ENCODING_AC3) + "\n" +
+            "Dolby Digital Plus (E-AC3):  " + y(C.ENCODING_E_AC3) + "\n" +
+            "DOLBY ATMOS (E-AC3 JOC):  " + y(C.ENCODING_E_AC3_JOC) + "\n" +
+            "Dolby TrueHD:  " + y(C.ENCODING_DOLBY_TRUEHD) + "\n" +
+            "DTS:  " + y(C.ENCODING_DTS) + "     DTS-HD:  " + y(C.ENCODING_DTS_HD) + "\n" +
+            "Most channels:  " + c.maxChannelCount + "\n\n" +
+            "App audio mode:  " + (if (prefs.getBoolean("pcm", false)) "Stereo PCM (no Dolby) - switch it in Settings" else "Dolby passthrough (correct for Atmos)") + "\n\n" +
+            "To hear Atmos: the movie must have an Atmos track, your soundbar or TV must have Atmos on, and the app must be in passthrough. While a movie plays, press RIGHT: the info line says DOLBY ATMOS only when the track really is Atmos.\n\n" +
+            "This list is what Android reports. I cannot hear your speakers, so only your soundbar can confirm Atmos is really playing."
+        android.app.AlertDialog.Builder(this).setTitle("Dolby Atmos check").setMessage(msg).setPositiveButton("OK", null).show()
+    }
 
     private fun audioDialog() {
         val p = player ?: return
@@ -891,6 +964,8 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
+        if (saver != null) { stopSaver(); bumpIdle(); return true }
+        bumpIdle()
         if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
             val hidden = playerView?.isControllerFullyVisible == false
             if (e.keyCode == KeyEvent.KEYCODE_MENU || e.keyCode == KeyEvent.KEYCODE_INFO || (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && hidden)) { audioDialog(); return true }
@@ -912,6 +987,7 @@ class MainActivity : Activity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onStop() { super.onStop(); savePosition(); player?.pause(); releasePreview() }
+    override fun onResume() { super.onResume(); bumpIdle() }
+    override fun onStop() { super.onStop(); stopSaver(); ui.removeCallbacks(saverStart); savePosition(); player?.pause(); releasePreview() }
     override fun onDestroy() { super.onDestroy(); player?.release(); preview?.release() }
 }
