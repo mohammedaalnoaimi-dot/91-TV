@@ -694,7 +694,7 @@ class MainActivity : Activity() {
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.4 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.5 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
