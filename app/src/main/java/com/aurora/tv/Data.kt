@@ -15,7 +15,7 @@ data class Item(val name: String, val url: String, val group: String, val kind: 
 }
 
 data class Prog(val title: String, val desc: String, val start: Long, val end: Long)
-data class Info(val plot: String = "", val cast: String = "", val genre: String = "", val year: String = "", val rating: String = "", val backdrop: String = "", val poster: String = "")
+data class Info(val plot: String = "", val cast: String = "", val genre: String = "", val year: String = "", val rating: String = "", val backdrop: String = "", val poster: String = "", val trailer: String = "")
 data class SeriesData(val info: Info, val seasons: Map<String, List<Item>>)
 
 object Http {
@@ -176,7 +176,7 @@ class Xtream(base: String, private val user: String, private val pass: String) {
         val date = i.optString("releasedate").ifBlank { i.optString("releaseDate") }.ifBlank { i.optString("release_date") }
         val rating = i.optString("rating").ifBlank { i.optString("rating_5based") }
         return Info(i.optString("plot").ifBlank { i.optString("description") }, i.optString("cast").ifBlank { i.optString("actors") },
-            i.optString("genre"), date.take(4), rating, back, i.optString("movie_image").ifBlank { i.optString("cover") })
+            i.optString("genre"), date.take(4), rating, back, i.optString("movie_image").ifBlank { i.optString("cover") }, i.optString("youtube_trailer").ifBlank { i.optString("trailer") })
     }
 
     fun vodInfo(id: String): Info = infoOf(JSONObject(Http.get(api("get_vod_info", "&vod_id=$id"))).optJSONObject("info"))

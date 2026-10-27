@@ -107,6 +107,7 @@ class MainActivity : Activity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         prefs = getSharedPreferences("aurora", Context.MODE_PRIVATE)
+        lastLiveKey = prefs.getString("lastLive", "") ?: ""; liveCat = prefs.getInt("liveCat", 0)
         val old = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
             try { prefs.edit().putString("crash", android.util.Log.getStackTraceString(e).take(2500)).commit() } catch (x: Throwable) { }
@@ -165,27 +166,29 @@ class MainActivity : Activity() {
         val cl = Cache.load(this, "live")
         if (cl != null && cl.isNotEmpty()) {
             setData(cl, Cache.load(this, "movie") ?: emptyList(), Cache.load(this, "series") ?: emptyList())
-            buildShell(); nav("home")
+            buildShell(); nav(startSection())
             if (Cache.ageHours(this, "live") >= 6) refreshInBackground(server, m3uUrl)
             return
         }
         bigMessage("91 TV\n\nConnecting…")
         Thread {
             try {
+                var shown = false
                 if (server.isNotBlank()) {
                     val x = xt!!; x.login()
                     ui.post { bigMessage("91 TV\n\nLoading channels… (first time only)") }
-                    val l = x.live(); setData(l, null, null); Cache.save(this, "live", l)
-                    ui.post { bigMessage("91 TV\n\nLoading movies…") }
-                    val m = try { x.movies() } catch (e: Throwable) { emptyList() }; setData(null, m, null); Cache.save(this, "movie", m)
-                    ui.post { bigMessage("91 TV\n\nLoading series…") }
-                    val se = try { x.series() } catch (e: Throwable) { emptyList() }; setData(null, null, se); Cache.save(this, "series", se)
+                    val l = x.live(); Cache.save(this, "live", l)
+                    ui.post { setData(l, null, null); buildShell(); nav(startSection()) }; shown = true
+                    val m = try { x.movies() } catch (e: Throwable) { emptyList() }; Cache.save(this, "movie", m)
+                    ui.post { setData(null, m, null) }
+                    val se = try { x.series() } catch (e: Throwable) { emptyList() }; Cache.save(this, "series", se)
+                    ui.post { setData(null, null, se); if (playerRoot == null && shell != null) refreshPage() }
                 } else {
                     val all = M3u.parse(Http.get(m3uUrl))
                     val l = all.filter { it.kind == "live" }; val m = all.filter { it.kind == "movie" }; val se = all.filter { it.kind == "episode" }
                     setData(l, m, se); Cache.save(this, "live", l); Cache.save(this, "movie", m); Cache.save(this, "series", se)
                 }
-                ui.post { buildShell(); nav("home") }
+                if (!shown) ui.post { buildShell(); nav(startSection()) }
             } catch (e: Throwable) {
                 ui.post { Toast.makeText(this, "Could not connect: ${e.message ?: e.javaClass.simpleName}", Toast.LENGTH_LONG).show(); setupView() }
             }
@@ -250,7 +253,10 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun startSection(): String { val x = prefs.getString("lastSection", "home") ?: "home"; return if (x in setOf("home", "live", "movie", "series", "list")) x else "home" }
+
     private fun nav(sec: String) {
+        if (sec != "settings") prefs.edit().putString("lastSection", sec).apply()
         section = sec; pageStack.clear(); markSection()
         showPage {
             when (sec) {
@@ -379,33 +385,79 @@ class MainActivity : Activity() {
     }
 
     private fun heroView(): View {
-        val pool = visible("movie", movies).filter { it.logo.isNotBlank() }.ifEmpty { visible("series", series).filter { it.logo.isNotBlank() } }
-        val feat: Item? = if (pool.isEmpty()) null else pool[(System.currentTimeMillis() / 86_400_000L % minOf(pool.size, 30)).toInt()]
-        val hero = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#14141A")) }
+        val day = System.currentTimeMillis() / 86_400_000L
+        val pool = (visible("movie", movies).filter { it.logo.isNotBlank() }.take(60) + visible("series", series).filter { it.logo.isNotBlank() }.take(40))
+            .shuffled(java.util.Random(day)).take(10)
+        var idx = 0
+        var feat: Item? = pool.firstOrNull()
+        val infoCache = HashMap<String, Info>()
+        val hero = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#14141A")); clipChildren = true }
         val bgImg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0.85f }
         hero.addView(bgImg, FrameLayout.LayoutParams(-1, -1))
         hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#990A0A0D"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#E60A0A0D"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
-        val label = mkText(if (feat?.kind == "series") "SERIES" else "MOVIE", 13f, RED, true).apply { letterSpacing = 0.25f }
-        val title = mkText(feat?.name ?: "Welcome to 91 TV", 38f, Color.WHITE, true).apply { maxLines = 2 }
+        val label = mkText("MOVIE", 13f, RED, true).apply { letterSpacing = 0.25f }
+        val title = mkText("Welcome to 91 TV", 38f, Color.WHITE, true).apply { maxLines = 2 }
         val desc = mkText("", 16f, Color.parseColor("#D0D0D8")).apply { maxLines = 3; setPadding(0, dp(6), 0, dp(12)) }
+        val dots = mkText("", 14f, RED, true).apply { setPadding(0, dp(8), 0, 0) }
         col.addView(label); col.addView(title); col.addView(desc, LinearLayout.LayoutParams(dp(620), -2))
         val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val trailerBtn = mkButton("▶  Trailer", false) {
+            val f = feat ?: return@mkButton
+            val t = infoCache[f.key]?.trailer ?: ""
+            if (t.isNotBlank()) try {
+                startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(if (t.startsWith("http")) t else "https://www.youtube.com/watch?v=$t")))
+            } catch (e: Exception) { Toast.makeText(this, "No YouTube app on this TV to play the trailer", Toast.LENGTH_LONG).show() }
+        }.apply { visibility = View.GONE }
         if (feat != null) {
-            btns.addView(mkButton("▶  Play", true) { if (feat.kind == "movie") play(listOf(feat), 0) else pushPage { detailView(feat) } })
-            btns.addView(mkButton("More info", false) { pushPage { detailView(feat) } }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
-            Img.load(feat.logo, bgImg, dp(900))
-            val x = xt
-            if (x != null) Thread {
-                try {
-                    val inf = if (feat.kind == "movie") x.vodInfo(feat.id) else x.seriesData(feat.id).info
-                    ui.post { desc.text = inf.plot; if (inf.backdrop.startsWith("http")) Img.load(inf.backdrop, bgImg, dp(1200)) }
-                } catch (e: Exception) { }
-            }.start()
+            btns.addView(mkButton("▶  Play", true) { feat?.let { f -> if (f.kind == "movie") play(listOf(f), 0) else pushPage { detailView(f) } } })
+            btns.addView(mkButton("More info", false) { feat?.let { f -> pushPage { detailView(f) } } }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
+            btns.addView(trailerBtn, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
         }
-        col.addView(btns)
+        col.addView(btns); col.addView(dots)
         hero.addView(col, FrameLayout.LayoutParams(-1, -1, Gravity.BOTTOM or Gravity.START).apply { gravity = Gravity.BOTTOM })
+
+        fun showInfo(f: Item, inf: Info) {
+            if (feat?.key != f.key) return
+            desc.text = inf.plot
+            trailerBtn.visibility = if (inf.trailer.isNotBlank()) View.VISIBLE else View.GONE
+            if (inf.backdrop.startsWith("http")) Img.load(inf.backdrop, bgImg, dp(1200))
+        }
+        fun show(i: Int, animate: Boolean) {
+            val f = pool.getOrNull(i) ?: return
+            feat = f
+            label.text = if (f.kind == "series") "SERIES" else "MOVIE"; title.text = f.name; desc.text = ""
+            trailerBtn.visibility = View.GONE
+            dots.text = pool.indices.joinToString(" ") { if (it == i) "●" else "·" }
+            val go = {
+                Img.load(f.logo, bgImg, dp(900))
+                bgImg.scaleX = 1f; bgImg.scaleY = 1f
+                bgImg.animate().alpha(0.85f).setDuration(600).start()
+                bgImg.animate().scaleX(1.08f).scaleY(1.08f).setDuration(11000).start()
+            }
+            if (animate) bgImg.animate().alpha(0f).setDuration(400).withEndAction { go() }.start() else go()
+            val cached = infoCache[f.key]
+            if (cached != null) showInfo(f, cached)
+            else xt?.let { x -> Thread {
+                try {
+                    val inf = if (f.kind == "movie") x.vodInfo(f.id) else x.seriesData(f.id).info
+                    ui.post { infoCache[f.key] = inf; showInfo(f, inf) }
+                } catch (e: Exception) { }
+            }.start() }
+        }
+        if (pool.isNotEmpty()) show(0, false)
+        val tick = object : Runnable {
+            override fun run() {
+                if (!hero.isAttachedToWindow || pool.size < 2 || playerRoot != null) return
+                idx = (idx + 1) % pool.size; show(idx, true)
+                hero.postDelayed(this, 10_000)
+            }
+        }
+        hero.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) { hero.removeCallbacks(tick); hero.postDelayed(tick, 10_000) }
+            override fun onViewDetachedFromWindow(v: View) { hero.removeCallbacks(tick) }
+        })
         return hero
     }
 
@@ -525,7 +577,7 @@ class MainActivity : Activity() {
                     ui.post {
                         fill(d.info); buildSeasons(seasonsBox, d)
                         val first = d.seasons.values.firstOrNull()
-                        playBtn.setOnClickListener { val resume = d.seasons.values.flatten().lastOrNull { savedPos(it) > 10_000 }; val l = d.seasons.values.flatten(); if (l.isNotEmpty()) play(l, if (resume != null) l.indexOf(resume) else 0) }
+                        playBtn.setOnClickListener { val resume = d.seasons.values.flatten().lastOrNull { savedPos(it) > 10_000 }; val l = d.seasons.values.flatten(); if (l.isNotEmpty()) play(l, if (resume != null) l.indexOf(resume) else 0, true) }
                         if (first == null) plot.text = plot.text.toString() + "\n(No episodes listed.)"
                     }
                 }
@@ -548,7 +600,7 @@ class MainActivity : Activity() {
                     orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isFocusable = true; setPadding(dp(16), dp(10), dp(16), dp(10))
                     background = rbg(Color.parseColor("#14FFFFFF"), Color.TRANSPARENT, 10, 2)
                     setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26E50914") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
-                    setOnClickListener { play(eps, i) }
+                    setOnClickListener { play(eps, i, true) }
                 }
                 val thumb = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = rbg(CARD, Color.TRANSPARENT, 6); clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
                 Img.load(e.logo, thumb, dp(160)); row.addView(thumb, LinearLayout.LayoutParams(dp(150), dp(84)).apply { rightMargin = dp(16) })
@@ -588,7 +640,7 @@ class MainActivity : Activity() {
         val chAd = ChannelAdapter(this, emptyList(), { it -> onChannelFocus(it) }, { l, p -> lastLiveKey = l[p].key; play(l, p) }, { itemMenu(it) })
         val chRv = RecyclerView(this)
         val catRv = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@MainActivity) }
-        val showCat = { i: Int -> liveCat = i; val l = listFor(i); chAd.items = l; chAd.notifyDataSetChanged(); chRv.scrollToPosition(0); countTv.text = if (l.isEmpty()) "no channels here" else "${l.size} channels" }
+        val showCat = { i: Int -> liveCat = i; prefs.edit().putInt("liveCat", i).apply(); val l = listFor(i); chAd.items = l; chAd.notifyDataSetChanged(); chRv.scrollToPosition(0); countTv.text = if (l.isEmpty()) "no channels here" else "${l.size} channels" }
         catRv.adapter = ChipAdapter(this, labels, liveCat, true,
             { i -> showCat(i); chRv.post { chRv.getChildAt(0)?.requestFocus() } },
             { i -> if (i >= 3) groupMenu("live", groups[i - 3]) })
@@ -598,7 +650,20 @@ class MainActivity : Activity() {
         // column 2: channels
         val first = listFor(liveCat); chAd.items = first; countTv.text = "${first.size} channels"
         chRv.apply { layoutManager = LinearLayoutManager(this@MainActivity); adapter = chAd; clipChildren = false; clipToPadding = false; setPadding(0, 0, dp(10), dp(30)); itemAnimator = null; setHasFixedSize(true); setItemViewCacheSize(16) }
-        root.addView(chRv, LinearLayout.LayoutParams(0, -1, 1f))
+        val favKeys = favs().map { f -> f.key }.toSet()
+        val favList = base.filter { it.key in favKeys }
+        val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        if (favList.isNotEmpty()) {
+            mid.addView(mkText("★  Your favourite channels", 14f, GRAY, true).apply { setPadding(dp(4), 0, 0, dp(2)) })
+            val fr = RecyclerView(this).apply {
+                layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
+                adapter = ChipAdapter(this@MainActivity, favList.map { it.name }, -1, false, { i -> lastLiveKey = favList[i].key; play(favList, i) }, { i -> itemMenu(favList[i]) })
+                clipChildren = false; clipToPadding = false
+            }
+            mid.addView(fr, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+        mid.addView(chRv, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(mid, LinearLayout.LayoutParams(0, -1, 1f))
 
         // column 3: preview panel
         val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = rbg(Color.parseColor("#14141A"), Color.parseColor("#22FFFFFF"), 16, 1) }
@@ -705,7 +770,7 @@ class MainActivity : Activity() {
         row("Check Dolby Atmos", "See what your TV and soundbar can receive") { atmosCheck() }
         row("Screensaver", (if (prefs.getBoolean("nosaver", false)) "OFF" else "ON - after 2 minutes of no button presses") + "  - press to switch") { prefs.edit().putBoolean("nosaver", !prefs.getBoolean("nosaver", false)).apply(); bumpIdle(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.19 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.20 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -894,8 +959,19 @@ class MainActivity : Activity() {
         p.prepare(); p.playWhenReady = true
     }
 
-    private fun play(list: List<Item>, index: Int) {
-        releasePreview(); ui.removeCallbacks(previewRun)
+    private var chainNext = false
+    private var prevLiveKey = ""
+    private var numBuf = ""
+    private val nextRun = Runnable { if (playerRoot != null && zapIndex + 1 < zapList.size) { zapIndex++; startCurrent() } }
+    private val numRun = Runnable {
+        val n = numBuf.toIntOrNull(); numBuf = ""
+        if (playerRoot == null) return@Runnable
+        if (n != null && n >= 1 && n <= zapList.size) { zapIndex = n - 1; lastLiveKey = zapList[zapIndex].key; startCurrent() } else showTitle("No channel ${n ?: ""} in this list", 2500)
+    }
+
+    private fun play(list: List<Item>, index: Int, chain: Boolean = false) {
+        releasePreview(); ui.removeCallbacks(previewRun); ui.removeCallbacks(nextRun)
+        chainNext = chain
         zapList = list; zapIndex = index
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         val pv = PlayerView(this).apply { useController = list[index].kind != "live"; controllerAutoShow = false; keepScreenOn = true; setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER); setShutterBackgroundColor(Color.TRANSPARENT) }
@@ -910,6 +986,16 @@ class MainActivity : Activity() {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 val dv = tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO && it.getTrackFormat(0).sampleMimeType == "video/dolby-vision" }
                 if (dv && !prefs.getBoolean("notunnel", false)) setTunnel(p, true)
+            }
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state != Player.STATE_ENDED || player !== p) return
+                val cur = zapList.getOrNull(zapIndex) ?: return
+                if (cur.kind == "live") return
+                prefs.edit().remove("pos_" + cur.key).apply()
+                if (chainNext && zapIndex + 1 < zapList.size) {
+                    showTitle("Next episode in 4 seconds:  " + zapList[zapIndex + 1].name + "      (BACK to stop)", 5000)
+                    ui.removeCallbacks(nextRun); ui.postDelayed(nextRun, 4000)
+                } else ui.postDelayed({ if (playerRoot != null && player === p) leavePlayer() }, 1500)
             }
             override fun onRenderedFirstFrame() {
                 ui.postDelayed({
@@ -932,12 +1018,14 @@ class MainActivity : Activity() {
 
     private fun startCurrent() {
         savePosition()
+        val old = playing
         val it = zapList[zapIndex]; playing = it; attempt = 0
+        if (it.kind == "live") { if (old != null && old.kind == "live" && old.key != it.key) prevLiveKey = old.key; prefs.edit().putString("lastLive", it.key).apply() }
         addRecent(it)
         val start = if (it.kind != "live") savedPos(it) else 0L
         player?.let { loadInto(it, zapList[zapIndex], 0, if (start > 10_000) start else 0L) }
         if (it.kind == "live") {
-            showTitle("${zapIndex + 1}  ${it.name}      (→ audio / subtitles)")
+            showTitle("${zapIndex + 1}  ${it.name}      (0-9 channel number  ·  ◀ last channel  ·  ▶ audio / subtitles)")
             epgFor(it) { l -> val n = nowOf(l); if (n != null && playing?.key == it.key) showTitle("${zapIndex + 1}  ${it.name}\n${n.title}   ${hm(n.start)} – ${hm(n.end)}") }
         }
     }
@@ -957,6 +1045,7 @@ class MainActivity : Activity() {
     private fun zap(delta: Int) { if (zapList.size < 2) return; zapIndex = (zapIndex + delta + zapList.size) % zapList.size; lastLiveKey = zapList[zapIndex].key; startCurrent() }
 
     private fun leavePlayer() {
+        ui.removeCallbacks(nextRun); ui.removeCallbacks(numRun); numBuf = ""
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
         request4k(false)
@@ -980,6 +1069,17 @@ class MainActivity : Activity() {
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_DPAD_DOWN -> { zap(-1); return true }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { startCurrent(); return true }
                 KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MENU -> { audioDialog(); return true }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_LAST_CHANNEL -> {
+                    val i = zapList.indexOfFirst { x -> x.key == prevLiveKey }
+                    if (i >= 0) { zapIndex = i; lastLiveKey = zapList[i].key; startCurrent() } else showTitle("No previous channel yet", 2000)
+                    return true
+                }
+                in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> {
+                    if (numBuf.length < 4) numBuf += (keyCode - KeyEvent.KEYCODE_0)
+                    showTitle("Channel  $numBuf", 2500)
+                    ui.removeCallbacks(numRun); ui.postDelayed(numRun, 1800)
+                    return true
+                }
             }
         }
         if (playerRoot != null && keyCode == KeyEvent.KEYCODE_MENU) { audioDialog(); return true }
