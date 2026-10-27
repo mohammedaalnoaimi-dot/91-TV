@@ -600,7 +600,7 @@ class MainActivity : Activity() {
 
         // column 3: preview panel
         val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = rbg(Color.parseColor("#14141A"), Color.parseColor("#22FFFFFF"), 16, 1) }
-        val vBox = FrameLayout(this).apply { background = rbg(Color.BLACK, Color.TRANSPARENT, 10); clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
+        val vBox = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         val pv = PlayerView(this).apply { useController = false; setKeepContentOnPlayerReset(true); setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS) }
         vBox.addView(pv, FrameLayout.LayoutParams(-1, -1))
         p.addView(vBox, LinearLayout.LayoutParams(-1, dp(225)))
@@ -697,7 +697,7 @@ class MainActivity : Activity() {
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.13 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.14 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -874,6 +874,14 @@ class MainActivity : Activity() {
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
         request4k(false)
         shell?.let { setContentView(it) }; refreshPage()
+    }
+
+    override fun dispatchKeyEvent(e: KeyEvent): Boolean {
+        if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
+            val hidden = playerView?.isControllerFullyVisible == false
+            if (e.keyCode == KeyEvent.KEYCODE_MENU || e.keyCode == KeyEvent.KEYCODE_INFO || (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && hidden)) { audioDialog(); return true }
+        }
+        return super.dispatchKeyEvent(e)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
