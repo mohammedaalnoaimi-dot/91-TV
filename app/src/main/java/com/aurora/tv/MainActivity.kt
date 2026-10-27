@@ -695,7 +695,7 @@ class MainActivity : Activity() {
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.10 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.11 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -729,6 +729,17 @@ class MainActivity : Activity() {
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), main)
         return p
     }
+
+    @Suppress("DEPRECATION")
+    private fun hdrTypes(): String = try {
+        val t = windowManager.defaultDisplay.hdrCapabilities?.supportedHdrTypes ?: IntArray(0)
+        if (t.isEmpty()) "NO HDR AT ALL" else t.joinToString(" + ") { when (it) { 1 -> "DOLBY VISION"; 2 -> "HDR10"; 3 -> "HLG"; 4 -> "HDR10+"; else -> "type$it" } }
+    } catch (e: Throwable) { "unknown" }
+
+    @Suppress("DEPRECATION")
+    private fun modeInfo(): String = try {
+        val m = windowManager.defaultDisplay.mode; "${m.physicalWidth}x${m.physicalHeight} @${m.refreshRate.toInt()}Hz  colorMode=${window.colorMode}"
+    } catch (e: Throwable) { "unknown" }
 
     private fun audioDialog() {
         val p = player ?: return
@@ -801,7 +812,7 @@ class MainActivity : Activity() {
                     val cv = p.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_VIDEO }?.getTrackFormat(0)
                     val t = "VIDEO in file: " + (cv?.sampleMimeType ?: "?") + " " + (cv?.codecs ?: "") + "\nVIDEO decoding as: " + (vf?.sampleMimeType ?: "?") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
                         " transfer=" + (vf?.colorInfo?.colorTransfer ?: -1) + (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else "") +
-                        "  tunnelled=" + (selectors[p]?.parameters?.tunnelingEnabled ?: false) + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
+                        "  tunnelled=" + (selectors[p]?.parameters?.tunnelingEnabled ?: false) + "\nSCREEN reports: " + hdrTypes() + "   mode: " + modeInfo() + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
                     showTitle(t, 9000)
                 }, 1500)
             }
