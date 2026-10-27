@@ -695,7 +695,7 @@ class MainActivity : Activity() {
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.8 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.9 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -703,6 +703,12 @@ class MainActivity : Activity() {
     // =====================================================================================
     // PLAYER
     // =====================================================================================
+    private val selectors = java.util.WeakHashMap<ExoPlayer, androidx.media3.exoplayer.trackselection.DefaultTrackSelector>()
+    private fun setTunnel(p: ExoPlayer, on: Boolean) {
+        val sel = selectors[p] ?: return
+        if (sel.parameters.tunnelingEnabled != on) sel.parameters = sel.buildUponParameters().setTunnelingEnabled(on).build()
+    }
+
     private fun newPlayer(main: Boolean = true): ExoPlayer {
         val http = DefaultHttpDataSource.Factory().setUserAgent(Http.UA).setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(15000).setReadTimeoutMs(20000)
         val extractors = DefaultExtractorsFactory().setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS)
@@ -714,9 +720,11 @@ class MainActivity : Activity() {
                     .setAudioCapabilities(if (passthrough) AudioCapabilities.getCapabilities(context) else AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
                     .setEnableFloatOutput(false).setEnableAudioTrackPlaybackParams(false).build()
         }.setEnableDecoderFallback(true)
-        val b = ExoPlayer.Builder(this, rf).setMediaSourceFactory(factory)
+        val sel = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(this)
+        val b = ExoPlayer.Builder(this, rf).setMediaSourceFactory(factory).setTrackSelector(sel)
         if (main) b.setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(15000, 50000, 2500, 5000).build())
         val p = b.build()
+        selectors[p] = sel
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !prefs.getBoolean("subs", false)).build()
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), main)
         return p
@@ -736,12 +744,11 @@ class MainActivity : Activity() {
             "Track ${n + 1}:  ${f.language ?: "?"}  ·  ${if (f.channelCount > 0) f.channelCount.toString() + " ch" else ""}  ·  ${(f.sampleMimeType ?: "").removePrefix("audio/")}" + if (g.isSelected) "   ✓" else ""
         }
         android.app.AlertDialog.Builder(this).setTitle("Audio / subtitles").setItems(labels.toTypedArray()) { _, i ->
-            if (i == 0) { return@setItems }
             if (i == 1) {
                 val on = !prefs.getBoolean("subs", false); prefs.edit().putBoolean("subs", on).apply()
                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !on).build()
                 playerView?.subtitleView?.visibility = if (on) View.VISIBLE else View.GONE
-            } else {
+            } else if (i >= 2) {
                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(groups[i - 2].mediaTrackGroup, 0)).build()
             }
         }.show()
@@ -758,7 +765,7 @@ class MainActivity : Activity() {
         val url = urlFor(it, att)
         val mi = MediaItem.Builder().setUri(url).apply { if (url.contains(".m3u8")) setMimeType(MimeTypes.APPLICATION_M3U8) }.build()
         if (startMs > 0) p.setMediaItem(mi, startMs) else p.setMediaItem(mi)
-        if (p.trackSelectionParameters.tunnelingEnabled) p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTunnelingEnabled(false).build()
+        setTunnel(p, false)
         p.prepare(); p.playWhenReady = true
     }
 
@@ -771,14 +778,13 @@ class MainActivity : Activity() {
         titleView = TextView(this).apply { textSize = 24f; setTextColor(Color.WHITE); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)) }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
-        if (android.os.Build.VERSION.SDK_INT >= 26) window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_HDR
+        if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 val dv = tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO && it.getTrackFormat(0).sampleMimeType == "video/dolby-vision" }
-                if (dv && !prefs.getBoolean("notunnel", false) && !p.trackSelectionParameters.tunnelingEnabled)
-                    p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTunnelingEnabled(true).build()
+                if (dv && !prefs.getBoolean("notunnel", false)) setTunnel(p, true)
             }
             override fun onRenderedFirstFrame() {
                 ui.postDelayed({
@@ -786,7 +792,7 @@ class MainActivity : Activity() {
                     val cv = p.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_VIDEO }?.getTrackFormat(0)
                     val t = "VIDEO in file: " + (cv?.sampleMimeType ?: "?") + " " + (cv?.codecs ?: "") + "\nVIDEO decoding as: " + (vf?.sampleMimeType ?: "?") + " " + (vf?.codecs ?: "") + " " + (vf?.let { "${it.width}x${it.height}" } ?: "") +
                         " transfer=" + (vf?.colorInfo?.colorTransfer ?: -1) + (if (vf?.sampleMimeType == "video/dolby-vision") "  = DOLBY VISION" else "") +
-                        "  tunnelled=" + p.trackSelectionParameters.tunnelingEnabled + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
+                        "  tunnelled=" + (selectors[p]?.parameters?.tunnelingEnabled ?: false) + "\nAUDIO: " + (af?.sampleMimeType ?: "?") + " " + (af?.codecs ?: "") + " " + (af?.channelCount ?: 0) + "ch" + (if (af?.codecs?.contains("joc") == true || af?.sampleMimeType == "audio/eac3-joc") "  = DOLBY ATMOS" else "")
                     showTitle(t, 9000)
                 }, 1500)
             }
@@ -827,7 +833,7 @@ class MainActivity : Activity() {
 
     private fun leavePlayer() {
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
-        if (android.os.Build.VERSION.SDK_INT >= 26) window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT
+        if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
         shell?.let { setContentView(it) }; refreshPage()
     }
 
