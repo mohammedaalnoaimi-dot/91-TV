@@ -3,6 +3,7 @@ package com.aurora.tv
 import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -90,6 +91,14 @@ class MainActivity : Activity() {
 
     class LivePanel(val video: PlayerView, val title: TextView, val cat: TextView, val nowLabel: TextView, val now: TextView, val time: TextView,
                     val bar: Bar, val next: LinearLayout, val fav: TextView)
+
+    /** Lay out as if the screen were 1280 dp wide whatever the TV reports, so every TV gets the same proportions. */
+    override fun attachBaseContext(base: Context) {
+        val cfg = Configuration(base.resources.configuration)
+        val w = maxOf(base.resources.displayMetrics.widthPixels, base.resources.displayMetrics.heightPixels)
+        cfg.densityDpi = (160f * w / 1280f).toInt().coerceIn(120, 640)
+        super.attachBaseContext(base.createConfigurationContext(cfg))
+    }
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
@@ -580,7 +589,7 @@ class MainActivity : Activity() {
             { i -> showCat(i); chRv.post { chRv.getChildAt(0)?.requestFocus() } },
             { i -> if (i >= 3) groupMenu("live", groups[i - 3]) })
         c1.addView(catRv, LinearLayout.LayoutParams(-1, 0, 1f))
-        root.addView(c1, LinearLayout.LayoutParams(dp(230), -1).apply { rightMargin = dp(14) })
+        root.addView(c1, LinearLayout.LayoutParams(dp(215), -1).apply { rightMargin = dp(12) })
 
         // column 2: channels
         val first = listFor(liveCat); chAd.items = first; countTv.text = "${first.size} channels"
@@ -609,7 +618,7 @@ class MainActivity : Activity() {
         val fav = mkButton("♡", false) { previewItem?.let { toggleFav(it); panel?.fav?.text = if (isFav(it)) "♥" else "♡" } }
         btns.addView(watch, LinearLayout.LayoutParams(0, -2, 1f)); btns.addView(fav, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(10) })
         p.addView(btns)
-        root.addView(p, LinearLayout.LayoutParams(dp(440), -1))
+        root.addView(p, LinearLayout.LayoutParams(dp(410), -1))
         panel = LivePanel(pv, title, cat, nowLabel, nowT, time, bar, next, fav)
 
         chRv.post {
@@ -683,7 +692,7 @@ class MainActivity : Activity() {
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
         row("Audio output", if (prefs.getBoolean("passthrough", false)) "Passthrough to TV / soundbar (can sound distorted)" else "Stereo PCM, decoded by the TV box (recommended)  - press to switch") { prefs.edit().putBoolean("passthrough", !prefs.getBoolean("passthrough", false)).apply(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.2 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.3 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return root
     }
@@ -705,6 +714,7 @@ class MainActivity : Activity() {
         val b = ExoPlayer.Builder(this, rf).setMediaSourceFactory(factory)
         if (main) b.setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(15000, 50000, 2500, 5000).build())
         val p = b.build()
+        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !prefs.getBoolean("subs", false)).build()
         p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), main)
         return p
     }
@@ -712,13 +722,20 @@ class MainActivity : Activity() {
     private fun audioDialog() {
         val p = player ?: return
         val groups = p.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
-        if (groups.isEmpty()) { showTitle("No audio tracks to choose from"); return }
-        val labels = groups.mapIndexed { n, g ->
+        
+        val subs = prefs.getBoolean("subs", false)
+        val labels = listOf("Subtitles: " + (if (subs) "ON  (press to turn off)" else "OFF  (press to turn on)")) + groups.mapIndexed { n, g ->
             val f = g.getTrackFormat(0)
             "Track ${n + 1}:  ${f.language ?: "?"}  ·  ${if (f.channelCount > 0) f.channelCount.toString() + " ch" else ""}  ·  ${(f.sampleMimeType ?: "").removePrefix("audio/")}" + if (g.isSelected) "   ✓" else ""
         }
-        android.app.AlertDialog.Builder(this).setTitle("Audio track").setItems(labels.toTypedArray()) { _, i ->
-            p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(groups[i].mediaTrackGroup, 0)).build()
+        android.app.AlertDialog.Builder(this).setTitle("Audio / subtitles").setItems(labels.toTypedArray()) { _, i ->
+            if (i == 0) {
+                val on = !prefs.getBoolean("subs", false); prefs.edit().putBoolean("subs", on).apply()
+                p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !on).build()
+                playerView?.subtitleView?.visibility = if (on) View.VISIBLE else View.GONE
+            } else {
+                p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(groups[i - 1].mediaTrackGroup, 0)).build()
+            }
         }.show()
     }
 
@@ -744,6 +761,7 @@ class MainActivity : Activity() {
         root.addView(pv, FrameLayout.LayoutParams(-1, -1))
         titleView = TextView(this).apply { textSize = 24f; setTextColor(Color.WHITE); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)) }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
+        pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
@@ -763,7 +781,7 @@ class MainActivity : Activity() {
         val start = if (it.kind != "live") savedPos(it) else 0L
         player?.let { loadInto(it, zapList[zapIndex], 0, if (start > 10_000) start else 0L) }
         if (it.kind == "live") {
-            showTitle("${zapIndex + 1}  ${it.name}      (→ audio tracks)")
+            showTitle("${zapIndex + 1}  ${it.name}      (→ audio / subtitles)")
             epgFor(it) { l -> val n = nowOf(l); if (n != null && playing?.key == it.key) showTitle("${zapIndex + 1}  ${it.name}\n${n.title}   ${hm(n.start)} – ${hm(n.end)}") }
         } else showTitle(it.name)
     }
