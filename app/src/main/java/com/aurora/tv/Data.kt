@@ -6,7 +6,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** kind: live | movie | series | episode */
-data class Item(val name: String, val url: String, val group: String, val kind: String, val id: String = "", val logo: String = "") {
+data class Item(val name: String, val url: String, val group: String, val kind: String, val id: String = "", val logo: String = "", val added: Long = 0L, val rating: Float = 0f) {
     val key: String get() = "$kind|${if (id.isNotEmpty()) id else url}"
     fun toJson(): JSONObject = JSONObject().put("n", name).put("u", url).put("g", group).put("k", kind).put("i", id).put("l", logo)
     companion object {
@@ -142,17 +142,17 @@ class Xtream(base: String, private val user: String, private val pass: String) {
 
     fun movies(): List<Item> {
         val c = cats("get_vod_categories"); val out = ArrayList<Item>()
-        streamArray("get_vod_streams", "", setOf("name", "stream_id", "category_id", "stream_icon", "container_extension")) { m ->
+        streamArray("get_vod_streams", "", setOf("name", "stream_id", "category_id", "stream_icon", "container_extension", "added", "rating")) { m ->
             val id = m["stream_id"] ?: ""; val ext = (m["container_extension"] ?: "mp4").ifBlank { "mp4" }
-            out.add(Item(m["name"] ?: "", "$base/movie/$user/$pass/$id.$ext", c[m["category_id"] ?: ""] ?: "Other", "movie", id, m["stream_icon"] ?: ""))
+            out.add(Item(m["name"] ?: "", "$base/movie/$user/$pass/$id.$ext", c[m["category_id"] ?: ""] ?: "Other", "movie", id, m["stream_icon"] ?: "", m["added"]?.toLongOrNull() ?: 0L, m["rating"]?.toFloatOrNull() ?: 0f))
         }
         return out
     }
 
     fun series(): List<Item> {
         val c = cats("get_series_categories"); val out = ArrayList<Item>()
-        streamArray("get_series", "", setOf("name", "series_id", "category_id", "cover")) { m ->
-            out.add(Item(m["name"] ?: "", "", c[m["category_id"] ?: ""] ?: "Other", "series", m["series_id"] ?: "", m["cover"] ?: ""))
+        streamArray("get_series", "", setOf("name", "series_id", "category_id", "cover", "last_modified", "rating")) { m ->
+            out.add(Item(m["name"] ?: "", "", c[m["category_id"] ?: ""] ?: "Other", "series", m["series_id"] ?: "", m["cover"] ?: "", m["last_modified"]?.toLongOrNull() ?: 0L, m["rating"]?.toFloatOrNull() ?: 0f))
         }
         return out
     }

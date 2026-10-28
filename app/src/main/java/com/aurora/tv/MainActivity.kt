@@ -107,6 +107,7 @@ class MainActivity : Activity() {
         super.onCreate(b)
         prefs = getSharedPreferences("aurora", Context.MODE_PRIVATE)
         lastLiveKey = prefs.getString("lastLive", "") ?: ""; liveCat = prefs.getInt("liveCat", 0)
+        if (prefs.getInt("cacheVer", 0) < 2) { Cache.clear(this); prefs.edit().putInt("cacheVer", 2).apply() }
         if (!prefs.contains("favs_mr") && prefs.contains("favs")) prefs.edit().putString("favs_mr", prefs.getString("favs", "")).apply()
         val old = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
@@ -155,7 +156,7 @@ class MainActivity : Activity() {
     private fun bigMessage(t: String) = setContentView(TextView(this).apply { text = t; textSize = 26f; setTextColor(CREAM); gravity = Gravity.CENTER; setBackgroundColor(BG) })
 
     private fun setData(l: List<Item>?, m: List<Item>?, se: List<Item>?) {
-        if (l != null) live = l; if (m != null) movies = m; if (se != null) series = se; visCache.clear()
+        if (l != null) live = l; if (m != null) movies = m; if (se != null) series = se; visCache.clear(); smart.clear()
     }
 
     /** Opens instantly from the disk cache; downloads (or refreshes in the background when older than 6 h) otherwise. */
@@ -333,7 +334,24 @@ class MainActivity : Activity() {
     // =====================================================================================
     private fun hidden(): Set<String> = prefs.getStringSet("hidden", emptySet()) ?: emptySet()
     private val visCache = HashMap<String, List<Item>>()
-    private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear() }
+    private val smart = HashMap<String, List<Item>>()
+    private val HOLLY = Regex("hollywood|english|\\bEN\\b|^\\s*EN\\s*[|:\\-\\]]|\\bUSA?\\b|\\bUK\\b", RegexOption.IGNORE_CASE)
+    private val YEAR = Regex("\\((\\d{4})\\)")
+    private fun yearOf(n: String) = YEAR.find(n)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+    private fun smartTitle(w: String) = when (w) { "@recent" -> "Recently added"; "@top" -> "Top rated"; "@new" -> "New releases"; "@hollywood" -> "Hollywood / English"; else -> w }
+    /** Ready-made lists built from what the provider sends: recently added, top rated, new releases, Hollywood. */
+    private fun smartList(kind: String, which: String): List<Item> = smart.getOrPut("$kind|$which") {
+        val base = visible(kind, if (kind == "movie") movies else series)
+        val thisYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        when (which) {
+            "@recent" -> base.filter { it.added > 0 }.sortedByDescending { it.added }.take(300)
+            "@top" -> base.filter { it.rating > 0f && it.rating <= 10f }.sortedByDescending { it.rating }.take(300)
+            "@new" -> base.filter { yearOf(it.name) >= thisYear - 1 }.sortedByDescending { it.added }.take(300)
+            "@hollywood" -> base.filter { HOLLY.containsMatchIn(it.group) }.sortedByDescending { it.rating }.take(1500)
+            else -> emptyList()
+        }
+    }
+    private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         val h = hidden(); if (h.isEmpty()) return items
         visCache[kind]?.let { return it }
@@ -416,7 +434,10 @@ class MainActivity : Activity() {
         col.addView(heroView(), LinearLayout.LayoutParams(-1, dp(340)))
         val cont = recents().filter { (it.kind == "movie" || it.kind == "episode") && savedPos(it) > 10_000 }
         if (cont.isNotEmpty()) col.addView(rowView("Continue watching", cont))
-        val fv = favs(); if (fv.isNotEmpty()) col.addView(rowView("My List", fv))
+        val fv = favs(); if (fv.isNotEmpty()) col.addView(rowView("${profName()}'s list", fv))
+        smartList("movie", "@recent").let { if (it.isNotEmpty()) col.addView(rowView("Recently added movies", it.take(40))) }
+        smartList("movie", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated movies", it.take(40))) }
+        smartList("series", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated series", it.take(40))) }
         val l = visible("live", live); if (l.isNotEmpty()) col.addView(rowView("Live TV", l.take(40)))
         val m = visible("movie", movies); if (m.isNotEmpty()) col.addView(rowView("Movies", m.take(40)))
         val s = visible("series", series); if (s.isNotEmpty()) col.addView(rowView("TV Series", s.take(40)))
@@ -534,9 +555,11 @@ class MainActivity : Activity() {
     // =====================================================================================
     private fun gridPage(kind: String): View {
         val base = visible(kind, if (kind == "movie") movies else series)
-        val counts = base.groupingBy { it.group }.eachCount(); val groups = counts.keys.sortedBy { it.lowercase() }
+        val counts = base.groupingBy { it.group }.eachCount()
+        val specials = listOf("@recent", "@top", "@new", "@hollywood").filter { kind == "movie" || it != "@hollywood" }.filter { smartList(kind, it).isNotEmpty() }
+        val groups = specials + counts.keys.sortedBy { it.lowercase() }
         var sel = catFor[kind]; if (sel != null && sel !in groups) sel = null; catFor[kind] = sel
-        fun shown(): List<Item> = if (catFor[kind] == null) base else base.filter { it.group == catFor[kind] }
+        fun shown(): List<Item> { val c = catFor[kind]; return if (c == null) base else if (c.startsWith("@")) smartList(kind, c) else base.filter { it.group == c } }
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(22), dp(10), 0) }
         root.addView(eyebrow(if (kind == "movie") "MOVIES" else "TV SERIES"))
         val heading = mkText("", 30f, CREAM, true)
@@ -545,12 +568,12 @@ class MainActivity : Activity() {
         val cards = PosterAdapter(this, shown(), { l, p -> openAny(l, p) }, { itemMenu(it) })
         fun upd() { heading.text = (if (kind == "movie") "Movies" else "TV Series") + "   ·   ${shown().size}" }
         upd()
-        val labels = listOf("All  (${base.size})") + groups.map { "$it  (${counts[it]})" }
+        val labels = listOf("All  (${base.size})") + groups.map { if (it.startsWith("@")) "★ ${smartTitle(it)}  (${smartList(kind, it).size})" else "$it  (${counts[it]})" }
         val chips = RecyclerView(this).apply {
             layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
             adapter = ChipAdapter(this@MainActivity, labels, if (catFor[kind] == null) 0 else groups.indexOf(catFor[kind]) + 1, false,
                 { i -> catFor[kind] = if (i == 0) null else groups[i - 1]; cards.items = shown(); cards.notifyDataSetChanged(); grid.scrollToPosition(0); upd() },
-                { i -> if (i > 0) groupMenu(kind, groups[i - 1]) })
+                { i -> if (i > 0 && !groups[i - 1].startsWith("@")) groupMenu(kind, groups[i - 1]) })
             clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(6))
         }
         root.addView(chips, LinearLayout.LayoutParams(-1, -2))
@@ -611,13 +634,21 @@ class MainActivity : Activity() {
 
     private fun searchView(): View {
         val q = query
-        val all = (visible("live", live) + visible("movie", movies) + visible("series", series)).filter { it.name.contains(q, true) }.take(240)
+        val toks = q.lowercase().split(' ', '-', '.', '_').filter { it.isNotBlank() }
+        val first = toks.firstOrNull() ?: q.lowercase()
+        fun score(it: Item): Int {
+            val n = it.name.lowercase()
+            val k = when (it.kind) { "movie" -> 0; "series" -> 1; else -> 2 }
+            val w = if (n.startsWith(first)) 0 else if (n.contains(" $first")) 1 else 2
+            return w * 3 + k
+        }
+        val all = (visible("movie", movies) + visible("series", series) + visible("live", live))
+            .filter { x -> val n = x.name.lowercase(); toks.all { t -> n.contains(t) } }
+            .sortedWith(compareBy({ score(it) }, { -it.rating }))
+            .take(300)
         return plainGrid("SEARCH", "“$q”   ·   ${all.size}", all, "Nothing matches “$q”.")
     }
 
-    // =====================================================================================
-    // DETAIL (movie / series)
-    // =====================================================================================
     private fun detailView(item: Item): View {
         val scroll = ScrollView(this).apply { setBackgroundColor(BG); isFillViewport = true; clipChildren = false }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -876,7 +907,7 @@ class MainActivity : Activity() {
         head("LIBRARY")
         row("CLASSIC PLAYER (test)", (if (prefs.getBoolean("classic", false)) "ON - plain first-version player, screen layout will look too big on this TV" else "OFF") + "  - press to switch, the app restarts") { prefs.edit().putBoolean("classic", !prefs.getBoolean("classic", false)).commit(); recreate() }
         row("Provider", "Change server, login or M3U playlist") { setupView() }
-        row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
+        row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); smart.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
         head("PICTURE AND SOUND")
         val cap = AudioCapabilities.getCapabilities(this)
@@ -889,7 +920,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.4.3 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.5.0 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }

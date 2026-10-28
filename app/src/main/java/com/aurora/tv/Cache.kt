@@ -13,7 +13,7 @@ object Cache {
             val tmp = File(ctx.cacheDir, "list_$name.tmp")
             tmp.bufferedWriter().use { w ->
                 for (it in items) { w.write(clean(it.name)); w.write("\t"); w.write(clean(it.url)); w.write("\t"); w.write(clean(it.group)); w.write("\t")
-                    w.write(it.kind); w.write("\t"); w.write(clean(it.id)); w.write("\t"); w.write(clean(it.logo)); w.write("\n") }
+                    w.write(it.kind); w.write("\t"); w.write(clean(it.id)); w.write("\t"); w.write(clean(it.logo)); w.write("\t"); w.write(it.added.toString()); w.write("\t"); w.write(it.rating.toString()); w.write("\n") }
             }
             tmp.renameTo(file(ctx, name))
         } catch (e: Exception) { }
@@ -24,7 +24,7 @@ object Cache {
         return try {
             val out = ArrayList<Item>()
             f.bufferedReader().useLines { lines ->
-                for (line in lines) { val p = line.split('\t'); if (p.size >= 6) out.add(Item(p[0], p[1], p[2], p[3], p[4], p[5])) }
+                for (line in lines) { val p = line.split('\t'); if (p.size >= 6) out.add(Item(p[0], p[1], p[2], p[3], p[4], p[5], p.getOrNull(6)?.toLongOrNull() ?: 0L, p.getOrNull(7)?.toFloatOrNull() ?: 0f)) }
             }
             out
         } catch (e: Exception) { null }
