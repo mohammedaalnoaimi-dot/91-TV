@@ -237,10 +237,9 @@ class MainActivity : Activity() {
         val brandBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         val brand = mkText("", 22f, CREAM, true).apply {
             letterSpacing = 0.2f
-            text = android.text.SpannableString("MR & MRS ALNOAIMI").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 3, 4, 0) }
+            text = android.text.SpannableString("91 TV").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 0, 2, 0) }
         }
         brandBox.addView(brand)
-        brandBox.addView(mkText("BEDROOM TV", 10f, GOLD, true).apply { letterSpacing = 0.5f; gravity = Gravity.CENTER })
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
         val rightBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
         hdrClock = mkText("", 26f, CREAM).apply { gravity = Gravity.END }
@@ -890,7 +889,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.4.2 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.4.3 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -989,8 +988,7 @@ class MainActivity : Activity() {
         val up = mkItalic("", 17f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) }
         box.addView(clock); box.addView(date); box.addView(next); box.addView(up)
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        brand.addView(mkText("", 16f, MUTED, true).apply { letterSpacing = 0.3f; text = android.text.SpannableString("MR & MRS ALNOAIMI").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 3, 4, 0) } })
-        brand.addView(mkText("BEDROOM TV", 9f, MUTED, true).apply { letterSpacing = 0.5f })
+        brand.addView(mkText("", 16f, MUTED, true).apply { letterSpacing = 0.3f; text = android.text.SpannableString("91 TV").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 0, 2, 0) } })
         f.addView(box, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(34) })
         (window.decorView as ViewGroup).addView(f, ViewGroup.LayoutParams(-1, -1))
@@ -1025,7 +1023,7 @@ class MainActivity : Activity() {
         val bg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0f }
         f.addView(bg, FrameLayout.LayoutParams(-1, -1))
         f.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, dp(220), Gravity.BOTTOM))
-        val brand = mkText("MR & MRS ALNOAIMI", 20f, CREAM, true)
+        val brand = mkText("91 TV", 26f, ROSE, true)
         f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(40), dp(30), 0, 0) })
         val t = mkText("", 24f, CREAM, true).apply { gravity = Gravity.CENTER }
         f.addView(t, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { setMargins(dp(40), 0, dp(40), dp(36)) })
