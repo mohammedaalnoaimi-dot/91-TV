@@ -346,6 +346,18 @@ class MainActivity : Activity() {
         if (key.isBlank()) return
         Thread { val r = Ratings.lookup(prefs, key, item.name, year, item.kind); if (r != null) ui.post { cb(r) } }.start()
     }
+    private val rateExec = Executors.newSingleThreadExecutor()
+    private val rateMemo = HashMap<String, String>()
+    /** Rating line under a poster: provider score at once, IMDb / Rotten Tomatoes when an OMDb key is set (looked up one by one, then remembered). */
+    fun cardRating(item: Item, cb: (String) -> Unit) {
+        if (item.kind == "live") return
+        val prov = if (item.rating > 0f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else ""
+        val key = prefs.getString("omdb", "") ?: ""
+        if (key.isBlank()) { cb(prov); return }
+        rateMemo[item.key]?.let { cb(it); return }
+        cb(prov)
+        rateExec.execute { val r = Ratings.lookup(prefs, key, item.name, Ratings.yearOf(item.name), item.kind); if (r != null) ui.post { rateMemo[item.key] = r; cb(r) } }
+    }
     private fun smartTitle(w: String) = when (w) { "@recent" -> "Recently added"; "@top" -> "Top rated"; "@new" -> "New releases"; "@hollywood" -> "Hollywood / English"; else -> w }
     /** Ready-made lists built from what the provider sends: recently added, top rated, new releases, Hollywood. */
     private fun smartList(kind: String, which: String): List<Item> = smart.getOrPut("$kind|$which") {
@@ -557,7 +569,7 @@ class MainActivity : Activity() {
             adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
             clipChildren = false; clipToPadding = false; setPadding(0, dp(6), dp(30), dp(10)); itemAnimator = null
         }
-        box.addView(rv, LinearLayout.LayoutParams(-1, dp(225 + 56)))
+        box.addView(rv, LinearLayout.LayoutParams(-1, dp(225 + 74)))
         return box
     }
 
@@ -941,7 +953,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.6.0 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.6.1 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }

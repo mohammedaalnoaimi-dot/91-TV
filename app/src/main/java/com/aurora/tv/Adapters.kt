@@ -47,7 +47,7 @@ class PosterAdapter(
     private val a: MainActivity, var items: List<Item>,
     private val onPick: (List<Item>, Int) -> Unit, private val onLong: (Item) -> Unit
 ) : RecyclerView.Adapter<PosterAdapter.VH>() {
-    class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val bg: GradientDrawable) : RecyclerView.ViewHolder(cell)
+    class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val rate: TextView, val bg: GradientDrawable) : RecyclerView.ViewHolder(cell)
     override fun getItemCount() = items.size
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val bg = a.rbg(CARD, Color.TRANSPARENT, 3, 3)
@@ -62,16 +62,19 @@ class PosterAdapter(
         cell.addView(box, LinearLayout.LayoutParams(a.dp(150), a.dp(225)))
         val label = TextView(a).apply { typeface = a.fBody(); setTextColor(CREAM); textSize = 13f; maxLines = 2; ellipsize = TextUtils.TruncateAt.END; setPadding(a.dp(2), a.dp(6), a.dp(2), 0) }
         cell.addView(label, LinearLayout.LayoutParams(-1, -2))
+        val rate = TextView(a).apply { typeface = a.fMedium(); setTextColor(GOLD); textSize = 11f; maxLines = 1; setPadding(a.dp(2), a.dp(1), a.dp(2), 0) }
+        cell.addView(rate, LinearLayout.LayoutParams(-1, -2))
         cell.setOnFocusChangeListener { v, f ->
             v.animate().scaleX(if (f) 1.07f else 1f).scaleY(if (f) 1.07f else 1f).setDuration(120).start()
             v.elevation = if (f) 24f else 0f
             bg.setStroke(a.dp(3), if (f) CREAM else Color.TRANSPARENT)
         }
-        return VH(cell, img, ini, label, bg)
+        return VH(cell, img, ini, label, rate, bg)
     }
     override fun onBindViewHolder(h: VH, position: Int) {
         val it = items[position]
         h.label.text = it.name
+        h.rate.text = ""; h.cell.tag = it.key; a.cardRating(it) { t -> if (h.cell.tag == it.key) h.rate.text = t }
         h.bg.setColor(hueColor(it.name))
         val live = it.kind == "live"
         h.img.scaleType = if (live) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER_CROP
