@@ -473,6 +473,7 @@ class MainActivity : Activity() {
         hero.addView(bgImg, FrameLayout.LayoutParams(-1, -1))
         hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#99070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { setBackgroundColor(BG) }, FrameLayout.LayoutParams(-1, dp(4), Gravity.BOTTOM))   // hides the thin line the zoom left at the bottom edge
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
         val label = mkText("MOVIE", 11f, GOLD, true).apply { letterSpacing = 0.34f }
         val title = mkText("Tonight, together", 36f, CREAM, true).apply { maxLines = 2; letterSpacing = 0.06f }
@@ -511,7 +512,7 @@ class MainActivity : Activity() {
                 Img.load(f.logo, bgImg, dp(900))
                 bgImg.scaleX = 1f; bgImg.scaleY = 1f
                 bgImg.animate().alpha(0.85f).setDuration(600).start()
-                bgImg.animate().scaleX(1.08f).scaleY(1.08f).setDuration(11000).start()
+                bgImg.animate().scaleX(1.05f).scaleY(1.05f).setDuration(11000).start()
             }
             if (animate) bgImg.animate().alpha(0f).setDuration(400).withEndAction { go() }.start() else go()
             val cached = infoCache[f.key]
@@ -920,7 +921,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.5.0 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.5.1 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
