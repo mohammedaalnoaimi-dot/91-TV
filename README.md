@@ -19,3 +19,10 @@ The APK is signed with the key in `app/aurora.jks`, so new builds install over o
 
 ## Status
 NOT compiled or run by the author (no Android toolchain available in the build sandbox). The first GitHub Actions build may fail on a compile error: send the log and it will be fixed.
+
+## 0.4.0 - "Dark Luxury Theatre" look
+Top menu + header (clock, next prayer), Prayer page for Bahrain (Aladhan API, Gulf Region method by default),
+Mr / Mrs / Together watchlists, quiet clock screensaver.
+
+Fonts bundled in `app/src/main/assets/fonts` (all SIL Open Font License, licence texts included):
+Cinzel, Jost, EB Garamond Italic. Prayer times: https://aladhan.com (free public API).

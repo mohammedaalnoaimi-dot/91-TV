@@ -59,7 +59,6 @@ class MainActivity : Activity() {
 
     private var shell: View? = null
     private lateinit var content: FrameLayout
-    private val sideItems = LinkedHashMap<String, TextView>()
     private var section = "home"
     private val pageStack = ArrayDeque<() -> Unit>()
     private var currentPage: (() -> Unit)? = null
@@ -108,6 +107,7 @@ class MainActivity : Activity() {
         super.onCreate(b)
         prefs = getSharedPreferences("aurora", Context.MODE_PRIVATE)
         lastLiveKey = prefs.getString("lastLive", "") ?: ""; liveCat = prefs.getInt("liveCat", 0)
+        if (!prefs.contains("favs_mr") && prefs.contains("favs")) prefs.edit().putString("favs_mr", prefs.getString("favs", "")).apply()
         val old = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
             try { prefs.edit().putString("crash", android.util.Log.getStackTraceString(e).take(2500)).commit() } catch (x: Throwable) { }
@@ -125,7 +125,7 @@ class MainActivity : Activity() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(60), dp(30), dp(60), dp(20)) }
         col.addView(mkText("91 TV closed unexpectedly last time", 26f, RED, true))
         col.addView(mkText("Take a photo of this screen and send it, then press Continue.", 16f, GRAY).apply { setPadding(0, dp(6), 0, dp(10)) })
-        val sv = ScrollView(this); sv.addView(mkText(text, 13f, Color.WHITE).apply { typeface = Typeface.MONOSPACE })
+        val sv = ScrollView(this); sv.addView(mkText(text, 13f, CREAM).apply { typeface = Typeface.MONOSPACE })
         col.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f))
         col.addView(mkButton("Continue", true) { begin() }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(12) })
         setContentView(col)
@@ -136,9 +136,9 @@ class MainActivity : Activity() {
     // =====================================================================================
     private fun setupView() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(80), dp(40), dp(80), dp(20)) }
-        col.addView(mkText("91 TV - add your provider", 28f, Color.WHITE, true).apply { setPadding(0, 0, 0, dp(16)) })
+        col.addView(mkText("91 TV - add your provider", 28f, CREAM, true).apply { setPadding(0, 0, 0, dp(16)) })
         fun field(hint: String, key: String, pw: Boolean = false) = EditText(this).apply {
-            this.hint = hint; textSize = 20f; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); setSingleLine()
+            this.hint = hint; textSize = 20f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine()
             setText(prefs.getString(key, "")); if (pw) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         val s = field("Server  (http://host:port)", "server"); val u = field("Username", "user"); val p = field("Password", "pass", true)
@@ -152,7 +152,7 @@ class MainActivity : Activity() {
         setContentView(col); s.requestFocus()
     }
 
-    private fun bigMessage(t: String) = setContentView(TextView(this).apply { text = t; textSize = 26f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; setBackgroundColor(BG) })
+    private fun bigMessage(t: String) = setContentView(TextView(this).apply { text = t; textSize = 26f; setTextColor(CREAM); gravity = Gravity.CENTER; setBackgroundColor(BG) })
 
     private fun setData(l: List<Item>?, m: List<Item>?, se: List<Item>?) {
         if (l != null) live = l; if (m != null) movies = m; if (se != null) series = se; visCache.clear()
@@ -214,46 +214,95 @@ class MainActivity : Activity() {
     }
 
     // =====================================================================================
-    // shell: sidebar + content
+    // shell: header + top menu + content   (C3 "Dark Luxury Theatre")
     // =====================================================================================
+    private var hdrClock: TextView? = null
+    private var hdrDate: TextView? = null
+    private var hdrNext: TextView? = null
+    private var hdrNextSub: TextView? = null
+    private val navItems = LinkedHashMap<String, NavItem>()
+    private val chromeTick = object : Runnable {
+        override fun run() { updateChrome(); ui.postDelayed(this, 15_000) }
+    }
+
     private fun buildShell() {
-        val root = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setBackgroundColor(BG) }
-        val side = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#0F0F14")); setPadding(dp(14), dp(26), dp(14), dp(16)) }
-        val logo = TextView(this).apply {
-            text = android.text.SpannableString("91 TV").apply { setSpan(android.text.style.ForegroundColorSpan(RED), 0, 2, 0) }
-            textSize = 28f; setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD; letterSpacing = 0.15f; setPadding(dp(12), 0, 0, dp(22))
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG) }
+        // ---- header
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(36), dp(14), dp(36), dp(2)) }
+        val leftBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        hdrNext = mkText("", 13f, CREAM, true).apply { letterSpacing = 0.14f }
+        hdrNextSub = mkItalic("", 14f, GRAY)
+        leftBox.addView(hdrNext); leftBox.addView(hdrNextSub)
+        head.addView(leftBox, LinearLayout.LayoutParams(0, -2, 1f))
+        val brandBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val brand = mkText("", 22f, CREAM, true).apply {
+            letterSpacing = 0.2f
+            text = android.text.SpannableString("MR & MRS ALNOAIMI").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 3, 4, 0) }
         }
-        side.addView(logo)
-        sideItems.clear()
-        val entries = listOf("home" to "⌂   Home", "live" to "📺   Live TV", "movie" to "🎬   Movies", "series" to "📚   TV Series",
-            "list" to "♡   My List", "search" to "🔍   Search", "settings" to "⚙   Settings")
+        brandBox.addView(brand)
+        brandBox.addView(mkText("BEDROOM TV", 10f, GOLD, true).apply { letterSpacing = 0.5f; gravity = Gravity.CENTER })
+        head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
+        val rightBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
+        hdrClock = mkText("", 26f, CREAM).apply { gravity = Gravity.END }
+        hdrDate = mkText("", 13f, GRAY).apply { gravity = Gravity.END }
+        rightBox.addView(hdrClock); rightBox.addView(hdrDate)
+        head.addView(rightBox, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(head, LinearLayout.LayoutParams(-1, -2))
+        // ---- top menu
+        val navRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) }
+        navItems.clear()
+        val entries = listOf("home" to "HOME", "live" to "LIVE TV", "movie" to "MOVIES", "series" to "TV SERIES",
+            "list" to "MY LIST", "prayer" to "PRAYER", "search" to "SEARCH", "settings" to "SETTINGS")
         for ((k, label) in entries) {
-            val tv = TextView(this).apply {
-                text = label; textSize = 19f; setTextColor(Color.parseColor("#B5B5C0")); setPadding(dp(16), dp(13), dp(16), dp(13)); isFocusable = true
-                background = rbg(Color.TRANSPARENT, Color.TRANSPARENT, 10, 2)
-                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33E50914") else Color.TRANSPARENT, if (f) RED else Color.TRANSPARENT, 10, 2); (v as TextView).setTextColor(if (f || k == section) Color.WHITE else Color.parseColor("#B5B5C0")) }
-                setOnClickListener { if (k == "search") searchDialog() else nav(k) }
-            }
-            sideItems[k] = tv; side.addView(tv, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(4)) })
+            val ni = NavItem(this, label).apply { setOnClickListener { if (k == "search") searchDialog() else nav(k) } }
+            navItems[k] = ni; navRow.addView(ni, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(6), 0, dp(6), 0) })
         }
-        side.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
-        side.addView(mkText("${live.size} channels · ${movies.size} movies · ${series.size} series", 12f, GRAY).apply { setPadding(dp(8), 0, 0, dp(6)) })
-        side.addView(mkText("Profile: Default", 13f, GRAY).apply { setPadding(dp(8), 0, 0, 0) })
-        root.addView(side, LinearLayout.LayoutParams(dp(220), -1))
+        root.addView(navRow, LinearLayout.LayoutParams(-1, -2))
+        root.addView(View(this).apply { setBackgroundColor(Color.parseColor("#1FEBDDC4")) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(36), 0, dp(36), 0) })
         content = FrameLayout(this)
-        root.addView(content, LinearLayout.LayoutParams(0, -1, 1f))
+        root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         shell = root; setContentView(root)
+        ui.removeCallbacks(chromeTick); updateChrome(); ui.postDelayed(chromeTick, 15_000)
     }
 
-    private fun markSection() {
-        for ((k, tv) in sideItems) {
-            val sel = k == section
-            tv.setTextColor(if (sel) Color.WHITE else Color.parseColor("#B5B5C0"))
-            tv.typeface = if (sel) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-        }
+    private fun markSection() { for ((k, v) in navItems) v.sel = k == section }
+
+    private var lastRemind = ""
+    private fun updateChrome() {
+        val now = System.currentTimeMillis()
+        hdrClock?.text = Prayer.clock(now); hdrDate?.text = Prayer.shortDate(now).uppercase()
+        if (prefs.getBoolean("ptWidget", true)) {
+            val nx = Prayer.next(now)
+            if (nx != null) { hdrNext?.text = "${nx.first.uppercase()}  ·  ${Prayer.clock(nx.second)}"; hdrNextSub?.text = "in " + Prayer.left(nx.second - now) }
+            else { hdrNext?.text = ""; hdrNextSub?.text = "" }
+        } else { hdrNext?.text = ""; hdrNextSub?.text = "" }
+        Prayer.ensure(prefs) { updateChrome() }
+        checkReminder(now)
     }
 
-    private fun startSection(): String { val x = prefs.getString("lastSection", "home") ?: "home"; return if (x in setOf("home", "live", "movie", "series", "list")) x else "home" }
+    private var prevNext: Pair<String, Long>? = null
+    private fun checkReminder(now: Long) {
+        val nx = Prayer.next(now) ?: return
+        val prev = prevNext; prevNext = nx
+        val mins = prefs.getInt("ptRemind", 0); if (mins <= 0) return
+        if (prev != null && prev.second != nx.second && now - prev.second in 0..120_000L) { remindUser("It is time for ${prev.first.uppercase()}"); return }
+        val diff = nx.second - now
+        val pre = "${nx.first}@${nx.second}"
+        if (diff in 1..(mins * 60_000L) && lastRemind != pre) { lastRemind = pre; remindUser("${nx.first.uppercase()} in ${Prayer.left(diff)}  ·  ${Prayer.clock(nx.second)}") }
+    }
+
+    private var banner: TextView? = null
+    private val dropBanner = Runnable { banner?.let { (it.parent as? ViewGroup)?.removeView(it) }; banner = null }
+    private fun remindUser(msg: String) {
+        try { android.media.RingtoneManager.getRingtone(this, android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION))?.play() } catch (e: Throwable) { }
+        if (playerRoot != null && titleView != null) { showTitle(msg, 9000); return }
+        ui.removeCallbacks(dropBanner); dropBanner.run()
+        val t = mkText(msg, 20f, CREAM, true).apply { setPadding(dp(26), dp(14), dp(26), dp(14)); background = rbg(Color.parseColor("#F2120A0C"), ROSE, 3, 2); gravity = Gravity.CENTER }
+        (window.decorView as ViewGroup).addView(t, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(24) })
+        banner = t; ui.postDelayed(dropBanner, 9000)
+    }
+
+    private fun startSection(): String { val x = prefs.getString("lastSection", "home") ?: "home"; return if (x in setOf("home", "live", "movie", "series", "list", "prayer")) x else "home" }
 
     private fun nav(sec: String) {
         if (sec != "settings") prefs.edit().putString("lastSection", sec).apply()
@@ -261,14 +310,14 @@ class MainActivity : Activity() {
         showPage {
             when (sec) {
                 "home" -> homeView(); "live" -> liveView(); "movie" -> gridPage("movie"); "series" -> gridPage("series")
-                "list" -> listPage(); "settings" -> settingsView(); else -> homeView()
+                "list" -> listPage(); "prayer" -> Prayer.page(this, prefs) { if (section == "prayer" && playerRoot == null) refreshPage() }; "settings" -> settingsView(); else -> homeView()
             }
         }
     }
 
-    private fun showPage(builder: () -> View) { currentPage = { show(builder()) }; currentPage!!() }
+    private fun showPage(builder: () -> View) { currentPage = { releasePreview(); panel = null; show(builder()) }; currentPage!!() }
     private fun pushPage(builder: () -> View) { currentPage?.let { pageStack.addLast(it) }; showPage(builder) }
-    private fun show(v: View) { releasePreview(); panel = null; content.removeAllViews(); content.addView(v, FrameLayout.LayoutParams(-1, -1)) }
+    private fun show(v: View) { content.removeAllViews(); content.addView(v, FrameLayout.LayoutParams(-1, -1)) }
     private fun refreshPage() { currentPage?.invoke() }
 
     @Deprecated("Deprecated in Java")
@@ -300,9 +349,15 @@ class MainActivity : Activity() {
         return try { val a = JSONArray(s); (0 until a.length()).map { Item.fromJson(a.getJSONObject(it)) } } catch (e: Exception) { emptyList() }
     }
     private fun writeList(key: String, l: List<Item>) { val a = JSONArray(); l.forEach { a.put(it.toJson()) }; prefs.edit().putString(key, a.toString()).apply() }
-    private fun favs() = readList("favs")
+    private fun profile(): String = prefs.getString("profile", "mr") ?: "mr"
+    private fun profName(p: String = profile()) = if (p == "mrs") "Mrs" else "Mr"
+    private fun favsOf(p: String) = readList("favs_$p")
+    private fun favs() = favsOf(profile())
     private fun isFav(it: Item) = favs().any { f -> f.key == it.key }
-    private fun toggleFav(it: Item) { val l = favs().toMutableList(); if (!l.removeAll { f -> f.key == it.key }) l.add(0, it); writeList("favs", l) }
+    private fun isFavOf(p: String, it: Item) = favsOf(p).any { f -> f.key == it.key }
+    private fun toggleFav(it: Item) { val l = favs().toMutableList(); if (!l.removeAll { f -> f.key == it.key }) l.add(0, it); writeList("favs_" + profile(), l) }
+    private fun addFavTo(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.none { f -> f.key == it.key }) { l.add(0, it); writeList("favs_$p", l) } }
+    private fun removeFavFrom(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.removeAll { f -> f.key == it.key }) writeList("favs_$p", l) }
     private fun recents() = readList("recent")
     private fun addRecent(it: Item) { val l = recents().toMutableList(); l.removeAll { r -> r.key == it.key }; l.add(0, it); writeList("recent", l.take(60)) }
     private fun savedPos(it: Item): Long = prefs.getLong("pos_" + it.key, 0L)
@@ -331,7 +386,9 @@ class MainActivity : Activity() {
 
     private fun itemMenu(it: Item) {
         val opts = ArrayList<String>(); val acts = ArrayList<() -> Unit>()
-        opts += if (isFav(it)) "Remove from My List" else "Add to My List"; acts += { toggleFav(it); refreshPage() }
+        opts += if (isFav(it)) "Remove from ${profName()}'s list" else "Add to ${profName()}'s list"; acts += { toggleFav(it); refreshPage() }
+        if (isFavOf("mr", it) && isFavOf("mrs", it)) { opts += "Remove from both lists"; acts += { removeFavFrom("mr", it); removeFavFrom("mrs", it); refreshPage() } }
+        else { opts += "Add to both lists (Together)"; acts += { addFavTo("mr", it); addFavTo("mrs", it); refreshPage() } }
         val kind = hideKind(it); val pre = groupPrefix(it.group)
         opts += "Hide category “${it.group}”"; acts += { addHidden("$kind|${it.group}"); refreshPage() }
         if (pre.isNotEmpty()) { opts += "Hide every category starting with $pre"; acts += { addHidden("$kind|prefix:$pre"); refreshPage() } }
@@ -391,15 +448,15 @@ class MainActivity : Activity() {
         var idx = 0
         var feat: Item? = pool.firstOrNull()
         val infoCache = HashMap<String, Info>()
-        val hero = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#14141A")); clipChildren = true }
+        val hero = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#120C0D")); clipChildren = true }
         val bgImg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0.85f }
         hero.addView(bgImg, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#990A0A0D"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#E60A0A0D"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#99070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
-        val label = mkText("MOVIE", 13f, RED, true).apply { letterSpacing = 0.25f }
-        val title = mkText("Welcome to 91 TV", 38f, Color.WHITE, true).apply { maxLines = 2 }
-        val desc = mkText("", 16f, Color.parseColor("#D0D0D8")).apply { maxLines = 3; setPadding(0, dp(6), 0, dp(12)) }
+        val label = mkText("MOVIE", 11f, GOLD, true).apply { letterSpacing = 0.34f }
+        val title = mkText("Tonight, together", 36f, CREAM, true).apply { maxLines = 2; letterSpacing = 0.06f }
+        val desc = mkText("", 16f, Color.parseColor("#cdbb9e")).apply { maxLines = 3; setPadding(0, dp(6), 0, dp(12)) }
         val dots = mkText("", 14f, RED, true).apply { setPadding(0, dp(8), 0, 0) }
         col.addView(label); col.addView(title); col.addView(desc, LinearLayout.LayoutParams(dp(620), -2))
         val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -463,7 +520,7 @@ class MainActivity : Activity() {
 
     private fun rowView(titleText: String, items: List<Item>): View {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(dp(32), dp(14), 0, dp(6)) }
-        box.addView(mkText(titleText, 22f, Color.WHITE, true).apply { setPadding(dp(4), 0, 0, dp(2)) })
+        box.addView(mkText(titleText.uppercase(), 15f, GOLD, true).apply { letterSpacing = 0.26f; setPadding(dp(4), 0, 0, dp(2)) })
         val rv = RecyclerView(this).apply {
             layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
             adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
@@ -482,8 +539,8 @@ class MainActivity : Activity() {
         var sel = catFor[kind]; if (sel != null && sel !in groups) sel = null; catFor[kind] = sel
         fun shown(): List<Item> = if (catFor[kind] == null) base else base.filter { it.group == catFor[kind] }
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(22), dp(10), 0) }
-        root.addView(mkText(if (kind == "movie") "MOVIES" else "TV SERIES", 13f, RED, true).apply { letterSpacing = 0.25f })
-        val heading = mkText("", 30f, Color.WHITE, true)
+        root.addView(eyebrow(if (kind == "movie") "MOVIES" else "TV SERIES"))
+        val heading = mkText("", 30f, CREAM, true)
         root.addView(heading)
         val grid = RecyclerView(this)
         val cards = PosterAdapter(this, shown(), { l, p -> openAny(l, p) }, { itemMenu(it) })
@@ -498,7 +555,7 @@ class MainActivity : Activity() {
             clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(6))
         }
         root.addView(chips, LinearLayout.LayoutParams(-1, -2))
-        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(220) - dp(60)) / (dp(150) + dp(14)))
+        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(60)) / (dp(150) + dp(14)))
         grid.apply { layoutManager = GridLayoutManager(this@MainActivity, span); adapter = cards; clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(40)); itemAnimator = null }
         root.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
         grid.post { (grid.getChildAt(0) ?: chips.getChildAt(0))?.requestFocus() }
@@ -507,10 +564,10 @@ class MainActivity : Activity() {
 
     private fun plainGrid(label: String, headingText: String, items: List<Item>, emptyMsg: String): View {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(22), dp(10), 0) }
-        root.addView(mkText(label, 13f, RED, true).apply { letterSpacing = 0.25f })
-        root.addView(mkText(headingText, 30f, Color.WHITE, true).apply { setPadding(0, 0, 0, dp(8)) })
+        root.addView(eyebrow(label))
+        root.addView(mkText(headingText, 30f, CREAM, true).apply { setPadding(0, 0, 0, dp(8)) })
         if (items.isEmpty()) { root.addView(mkText(emptyMsg, 18f, GRAY)); return root }
-        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(220) - dp(60)) / (dp(150) + dp(14)))
+        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(60)) / (dp(150) + dp(14)))
         val grid = RecyclerView(this).apply {
             layoutManager = GridLayoutManager(this@MainActivity, span); adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
             clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(40)); itemAnimator = null
@@ -519,7 +576,39 @@ class MainActivity : Activity() {
         return root
     }
 
-    private fun listPage(): View = plainGrid("MY LIST", "My List", favs(), "Long-press OK on any channel, movie or series and choose “Add to My List”.")
+    private fun listPage(): View {
+        val mr = favsOf("mr"); val mrs = favsOf("mrs")
+        val mrsKeys = mrs.map { it.key }.toSet()
+        val both = mr.filter { it.key in mrsKeys }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(18), dp(24), 0) }
+        root.addView(eyebrow("WATCHLIST"))
+        root.addView(mkText("What shall we watch tonight?", 26f, CREAM, true).apply { setPadding(0, dp(6), 0, 0) })
+        root.addView(mkItalic("You are adding as ${profName()}  ·  change who is watching in Settings  ·  hold OK on any title for more", 14f, GRAY).apply { setPadding(0, dp(2), 0, dp(10)) })
+        val cols = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; clipChildren = false }
+        val grids = ArrayList<RecyclerView>()
+        fun column(title: String, sub: String, items: List<Item>, accent: Int, empty: String) {
+            val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(dp(8), 0, dp(8), 0) }
+            c.addView(mkText("$title  ·  ${items.size}", 14f, accent, true).apply { letterSpacing = 0.2f })
+            c.addView(mkItalic(sub, 13f, MUTED).apply { setPadding(0, 0, 0, dp(4)) })
+            c.addView(View(this).apply { setBackgroundColor(Color.parseColor("#1FEBDDC4")) }, LinearLayout.LayoutParams(-1, dp(1)))
+            if (items.isEmpty()) c.addView(mkItalic(empty, 15f, MUTED).apply { setPadding(0, dp(14), dp(10), 0) })
+            else {
+                val g = RecyclerView(this).apply {
+                    layoutManager = GridLayoutManager(this@MainActivity, 2)
+                    adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
+                    clipChildren = false; clipToPadding = false; setPadding(0, dp(10), 0, dp(40)); itemAnimator = null
+                }
+                grids.add(g); c.addView(g, LinearLayout.LayoutParams(-1, 0, 1f))
+            }
+            cols.addView(c, LinearLayout.LayoutParams(0, -1, 1f))
+        }
+        column("MR'S LIST", "saved by him", mr, GOLD, "Nothing yet.")
+        column("TOGETHER", "on both lists", both, ROSE, "Titles you both saved appear here. Hold OK on a title and choose “Add to both lists”.")
+        column("MRS'S LIST", "saved by her", mrs, GOLD, "Nothing yet.")
+        root.addView(cols, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.post { grids.firstOrNull { g -> g.getChildAt(0) != null }?.getChildAt(0)?.requestFocus() }
+        return root
+    }
 
     private fun searchView(): View {
         val q = query
@@ -536,23 +625,27 @@ class MainActivity : Activity() {
         val hero = FrameLayout(this)
         val bgImg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0.9f }
         hero.addView(bgImg, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#B30A0A0D"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#F00A0A0D"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#B3070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#F0070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         Img.load(item.logo, bgImg, dp(900))
         val back = mkButton("←  Back", false) { onBackPressed() }
         hero.addView(back, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(32), dp(22), 0, 0) })
         val info = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
-        info.addView(mkText(if (item.kind == "series") "SERIES" else "MOVIE", 13f, RED, true).apply { letterSpacing = 0.25f })
-        info.addView(mkText(item.name, 38f, Color.WHITE, true).apply { maxLines = 2 })
-        val meta = mkText(item.group, 16f, Color.parseColor("#D0D0D8")).apply { setPadding(0, dp(6), 0, dp(4)) }
-        val plot = mkText("Loading details…", 16f, Color.parseColor("#D0D0D8")).apply { maxLines = 5 }
+        info.addView(eyebrow(if (item.kind == "series") "SERIES" else "MOVIE"))
+        info.addView(mkText(item.name, 34f, CREAM, true).apply { maxLines = 2; setPadding(0, dp(6), 0, 0) })
+        val meta = mkItalic(item.group, 17f, GOLD).apply { setPadding(0, dp(6), 0, dp(4)) }
+        val plot = mkText("Loading details…", 16f, Color.parseColor("#cdbb9e")).apply { maxLines = 5 }
         val cast = mkText("", 14f, GRAY).apply { setPadding(0, dp(4), 0, dp(12)); maxLines = 2 }
         info.addView(meta); info.addView(plot, LinearLayout.LayoutParams(dp(680), -2)); info.addView(cast, LinearLayout.LayoutParams(dp(680), -2))
         val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val favBtn = mkButton(if (isFav(item)) "♥  In My List" else "♡  My List", false) {}
-        favBtn.setOnClickListener { toggleFav(item); favBtn.text = if (isFav(item)) "♥  In My List" else "♡  My List" }
+        fun favLabel() = (if (isFav(item)) "♥  In ${profName()}'s list" else "♡  ${profName()}'s list").uppercase()
+        val favBtn = mkButton("", false) {}
+        favBtn.text = favLabel()
+        favBtn.setOnClickListener { toggleFav(item); favBtn.text = favLabel() }
+        val trailerBtn = mkButton("▶  Trailer", false) {}.apply { visibility = View.GONE }
         val playBtn = mkButton("▶  Play", true) { if (item.kind == "movie") play(listOf(item), 0) }
         btnRow.addView(playBtn); btnRow.addView(favBtn, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
+        btnRow.addView(trailerBtn, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
         info.addView(btnRow)
         hero.addView(info, FrameLayout.LayoutParams(-1, -1, Gravity.BOTTOM or Gravity.START).apply { gravity = Gravity.BOTTOM })
         col.addView(hero, LinearLayout.LayoutParams(-1, dp(420)))
@@ -566,6 +659,14 @@ class MainActivity : Activity() {
             plot.text = inf.plot.ifBlank { "No description from your provider." }
             cast.text = if (inf.cast.isNotBlank()) "Starring: ${inf.cast}" else ""
             if (inf.backdrop.startsWith("http")) Img.load(inf.backdrop, bgImg, dp(1200))
+            if (inf.trailer.isNotBlank()) {
+                trailerBtn.visibility = View.VISIBLE
+                trailerBtn.setOnClickListener {
+                    val t = inf.trailer
+                    try { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(if (t.startsWith("http")) t else "https://www.youtube.com/watch?v=$t"))) }
+                    catch (e: Exception) { Toast.makeText(this, "No YouTube app on this TV to play the trailer", Toast.LENGTH_LONG).show() }
+                }
+            }
         }
         val x = xt
         if (x == null) { plot.text = ""; }
@@ -599,12 +700,12 @@ class MainActivity : Activity() {
                 val row = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isFocusable = true; setPadding(dp(16), dp(10), dp(16), dp(10))
                     background = rbg(Color.parseColor("#14FFFFFF"), Color.TRANSPARENT, 10, 2)
-                    setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26E50914") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
+                    setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
                     setOnClickListener { play(eps, i, true) }
                 }
                 val thumb = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = rbg(CARD, Color.TRANSPARENT, 6); clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
                 Img.load(e.logo, thumb, dp(160)); row.addView(thumb, LinearLayout.LayoutParams(dp(150), dp(84)).apply { rightMargin = dp(16) })
-                row.addView(mkText(e.name + if (done) "     ✓ started" else "", 18f, Color.WHITE, true))
+                row.addView(mkText(e.name + if (done) "     ✓ started" else "", 18f, CREAM, true))
                 epBox.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) })
             }
         }
@@ -635,7 +736,7 @@ class MainActivity : Activity() {
         // column 1: categories
         val c1 = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c1.addView(mkText("LIVE TV", 12f, RED, true).apply { letterSpacing = 0.25f })
-        c1.addView(mkText("Channels", 30f, Color.WHITE, true))
+        c1.addView(mkText("Channels", 30f, CREAM, true))
         val countTv = mkText("", 13f, GRAY).apply { setPadding(0, 0, 0, dp(10)) }; c1.addView(countTv)
         val chAd = ChannelAdapter(this, emptyList(), { it -> onChannelFocus(it) }, { l, p -> lastLiveKey = l[p].key; play(l, p) }, { itemMenu(it) })
         val chRv = RecyclerView(this)
@@ -666,16 +767,16 @@ class MainActivity : Activity() {
         root.addView(mid, LinearLayout.LayoutParams(0, -1, 1f))
 
         // column 3: preview panel
-        val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = rbg(Color.parseColor("#14141A"), Color.parseColor("#22FFFFFF"), 16, 1) }
+        val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = rbg(Color.parseColor("#120C0D"), Color.parseColor("#22FFFFFF"), 16, 1) }
         val vBox = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         val pv = android.view.LayoutInflater.from(this).inflate(R.layout.preview_player, null) as PlayerView
         vBox.addView(pv, FrameLayout.LayoutParams(-1, -1))
         p.addView(vBox, LinearLayout.LayoutParams(-1, dp(225)))
         val chip = mkText("●  LIVE   ·   sound off", 12f, RED, true).apply { setPadding(0, dp(10), 0, dp(4)) }; p.addView(chip); previewChip = chip
-        val title = mkText("", 24f, Color.WHITE, true).apply { maxLines = 2 }
+        val title = mkText("", 24f, CREAM, true).apply { maxLines = 2 }
         val cat = mkText("", 14f, GRAY)
         val nowLabel = mkText("NOW PLAYING", 11f, RED, true).apply { letterSpacing = 0.2f; setPadding(0, dp(10), 0, dp(2)); visibility = View.GONE }
-        val nowT = mkText("", 18f, Color.WHITE, true).apply { maxLines = 2 }
+        val nowT = mkText("", 18f, CREAM, true).apply { maxLines = 2 }
         val time = mkText("", 13f, GRAY)
         val bar = Bar(this)
         val next = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, 0) }
@@ -715,7 +816,7 @@ class MainActivity : Activity() {
                     for (n in list.filter { x -> x.start >= now.end }.take(5)) {
                         pp.next.addView(TextView(this).apply {
                             text = android.text.SpannableString(hm(n.start) + "   " + n.title).apply { setSpan(android.text.style.ForegroundColorSpan(RED), 0, 5, 0) }
-                            textSize = 14f; setTextColor(Color.WHITE); maxLines = 1; setPadding(0, dp(2), 0, dp(2))
+                            textSize = 14f; setTextColor(CREAM); maxLines = 1; setPadding(0, dp(2), 0, dp(2))
                         })
                     }
                 }
@@ -748,30 +849,49 @@ class MainActivity : Activity() {
     // =====================================================================================
     private fun settingsView(): View {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(40), dp(26), dp(40), dp(20)) }
-        root.addView(mkText("SETTINGS", 13f, RED, true).apply { letterSpacing = 0.25f })
-        root.addView(mkText("Settings", 30f, Color.WHITE, true).apply { setPadding(0, 0, 0, dp(14)) })
+        root.addView(eyebrow("SETTINGS"))
+        root.addView(mkText("Settings", 28f, CREAM, true).apply { setPadding(0, dp(4), 0, dp(10)) })
+        var firstRow: View? = null
+        fun head(t: String) { root.addView(mkText(t, 11f, GOLD, true).apply { letterSpacing = 0.34f; setPadding(dp(4), dp(14), 0, dp(6)) }) }
         fun row(label: String, sub: String, act: () -> Unit) {
             val r = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL; isFocusable = true; setPadding(dp(20), dp(14), dp(20), dp(14)); background = rbg(Color.parseColor("#14FFFFFF"), Color.TRANSPARENT, 10, 2)
-                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26E50914") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
+                orientation = LinearLayout.VERTICAL; isFocusable = true; setPadding(dp(20), dp(11), dp(20), dp(11)); background = rbg(Color.parseColor("#14EBDDC4"), Color.TRANSPARENT, 2, 2)
+                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#14EBDDC4"), if (f) CREAM else Color.TRANSPARENT, 2, 2) }
                 setOnClickListener { act() }
             }
-            r.addView(mkText(label, 20f, Color.WHITE, true)); r.addView(mkText(sub, 14f, GRAY))
-            root.addView(r, LinearLayout.LayoutParams(dp(700), -2).apply { setMargins(0, 0, 0, dp(8)) })
+            r.addView(mkText(label, 17f, CREAM, true)); r.addView(mkText(sub, 14f, GRAY))
+            root.addView(r, LinearLayout.LayoutParams(dp(760), -2).apply { setMargins(0, 0, 0, dp(6)) })
+            if (firstRow == null) firstRow = r
         }
+        head("YOU")
+        row("Who is watching", "Now: ${profName()}.  Titles you save go to the ${profName()}'s list  - press to switch to ${if (profile() == "mr") "Mrs" else "Mr"}") { prefs.edit().putString("profile", if (profile() == "mr") "mrs" else "mr").apply(); refreshPage() }
+        head("PRAYER TIMES  ·  BAHRAIN")
+        row("Calculation method", "${Prayer.methodName(prefs)}  - press to change (Gulf Region is the usual one for Bahrain). Times come from Aladhan and can differ by a minute or two from the official timetable") {
+            val i = Prayer.METHODS.indexOfFirst { it.first == prefs.getInt("ptMethod", 8) }
+            prefs.edit().putInt("ptMethod", Prayer.METHODS[(i + 1) % Prayer.METHODS.size].first).apply(); Prayer.reset(); Prayer.ensure(prefs) { refreshPage() }; refreshPage()
+        }
+        row("Next prayer in the top bar", (if (prefs.getBoolean("ptWidget", true)) "ON" else "OFF") + "  - press to switch") { prefs.edit().putBoolean("ptWidget", !prefs.getBoolean("ptWidget", true)).apply(); updateChrome(); refreshPage() }
+        row("Prayer reminder", (prefs.getInt("ptRemind", 0).let { if (it == 0) "OFF" else "$it minutes before each prayer, and again at prayer time (small notice and a sound)" }) + "  - press to change") {
+            val i = Prayer.REMIND.indexOf(prefs.getInt("ptRemind", 0)); prefs.edit().putInt("ptRemind", Prayer.REMIND[(i + 1) % Prayer.REMIND.size]).apply(); refreshPage()
+        }
+        head("LIBRARY")
         row("CLASSIC PLAYER (test)", (if (prefs.getBoolean("classic", false)) "ON - plain first-version player, screen layout will look too big on this TV" else "OFF") + "  - press to switch, the app restarts") { prefs.edit().putBoolean("classic", !prefs.getBoolean("classic", false)).commit(); recreate() }
         row("Provider", "Change server, login or M3U playlist") { setupView() }
         row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
+        head("PICTURE AND SOUND")
         val cap = AudioCapabilities.getCapabilities(this)
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
         row("HDR / Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal (try this if HDR looks wrong)" else "Tunnelled (used automatically for Dolby Vision, HDR10 and HLG, fixes washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Check Dolby Atmos", "See what your TV and soundbar can receive") { atmosCheck() }
+        head("SCREENSAVER")
         row("Screensaver", (if (prefs.getBoolean("nosaver", false)) "OFF" else "ON - after 2 minutes of no button presses") + "  - press to switch") { prefs.edit().putBoolean("nosaver", !prefs.getBoolean("nosaver", false)).apply(); bumpIdle(); refreshPage() }
+        row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
+        head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.21 · long-press OK on anything to add to My List or hide its category") { }
-        root.post { (root.getChildAt(2))?.requestFocus() }
+        row("About", "91 TV 0.4.2 · long-press OK on anything to add to My List or hide its category") { }
+        root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
 
@@ -853,38 +973,89 @@ class MainActivity : Activity() {
 
     private fun bumpIdle() { ui.removeCallbacks(saverStart); if (playerRoot == null && !prefs.getBoolean("nosaver", false)) ui.postDelayed(saverStart, 120_000) }
 
+    private var ambBox: LinearLayout? = null
+    private var ambClock: TextView? = null
+    private var ambDate: TextView? = null
+    private var ambNext: TextView? = null
+    private var ambUp: TextView? = null
+    private var ambCount = 0
+
+    private fun startAmbient() {
+        val f = FrameLayout(this).apply { setBackgroundColor(BG); alpha = 0f }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val clock = mkText("", 120f, CREAM).apply { gravity = Gravity.CENTER; letterSpacing = 0.04f; includeFontPadding = false }
+        val date = mkText("", 15f, GOLD, true).apply { letterSpacing = 0.3f; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) }
+        val next = mkItalic("", 22f, SOFT).apply { gravity = Gravity.CENTER; setPadding(0, dp(26), 0, 0) }
+        val up = mkItalic("", 17f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) }
+        box.addView(clock); box.addView(date); box.addView(next); box.addView(up)
+        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        brand.addView(mkText("", 16f, MUTED, true).apply { letterSpacing = 0.3f; text = android.text.SpannableString("MR & MRS ALNOAIMI").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 3, 4, 0) } })
+        brand.addView(mkText("BEDROOM TV", 9f, MUTED, true).apply { letterSpacing = 0.5f })
+        f.addView(box, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+        f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(34) })
+        (window.decorView as ViewGroup).addView(f, ViewGroup.LayoutParams(-1, -1))
+        f.animate().alpha(1f).setDuration(900).start()
+        saver = f; ambBox = box; ambClock = clock; ambDate = date; ambNext = next; ambUp = up; ambCount = 0
+        ambientTick()
+    }
+
+    private fun ambientTick() {
+        val box = ambBox ?: return
+        val now = System.currentTimeMillis()
+        ambClock?.text = Prayer.clock(now)
+        ambDate?.text = (Prayer.longDate(now) + (Prayer.today?.hijri?.takeIf { it.isNotBlank() }?.let { "   ·   $it" } ?: "")).uppercase()
+        val nx = Prayer.next(now)
+        ambNext?.text = if (nx != null) "${nx.first} at ${Prayer.clock(nx.second)}   ·   in ${Prayer.left(nx.second - now)}" else ""
+        val up = recents().firstOrNull { (it.kind == "movie" || it.kind == "episode") && savedPos(it) > 10_000 }
+        ambUp?.text = if (up != null) "Continue watching:  ${up.name}" else ""
+        if (ambCount++ % 6 == 0) {   // every minute drift a little so no pixel stays lit in one place
+            val r = java.util.Random()
+            box.animate().translationX((r.nextInt(120) - 60) * resources.displayMetrics.density).translationY((r.nextInt(80) - 40) * resources.displayMetrics.density).setDuration(5000).start()
+        }
+        ui.removeCallbacks(saverStep); ui.postDelayed(saverStep, 10_000)
+    }
+
     private fun startSaver() {
         if (playerRoot != null || saver != null) return
+        if ((prefs.getString("saverStyle", "clock") ?: "clock") == "clock") { startAmbient(); return }
         val pool = (movies + series).filter { it.logo.isNotEmpty() }
         if (pool.isEmpty()) return
         saverList = pool.shuffled().take(60); saverIdx = 0
         val f = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); alpha = 0f }
-        val bg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0.22f }
-        val fg = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; alpha = 0f }
+        val bg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0f }
         f.addView(bg, FrameLayout.LayoutParams(-1, -1))
-        f.addView(fg, FrameLayout.LayoutParams(-1, -1).apply { setMargins(dp(300), dp(40), dp(300), dp(110)) })
-        val brand = mkText("91 TV", 26f, RED, true)
+        f.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, dp(220), Gravity.BOTTOM))
+        val brand = mkText("MR & MRS ALNOAIMI", 20f, CREAM, true)
         f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(40), dp(30), 0, 0) })
-        val t = mkText("", 24f, Color.WHITE, true).apply { gravity = Gravity.CENTER }
+        val t = mkText("", 24f, CREAM, true).apply { gravity = Gravity.CENTER }
         f.addView(t, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { setMargins(dp(40), 0, dp(40), dp(36)) })
         (window.decorView as ViewGroup).addView(f, ViewGroup.LayoutParams(-1, -1))
         f.animate().alpha(1f).setDuration(900).start()
-        saver = f; saverFg = fg; saverBg = bg; saverTitle = t
+        saver = f; saverFg = null; saverBg = bg; saverTitle = t
         saverNext()
     }
 
+    /** Full-screen background only (no poster in the middle). Uses the film's wide backdrop when the provider has one. */
     private fun saverNext() {
         if (saver == null) return
+        if (ambBox != null) { ambientTick(); return }
         val item = saverList[saverIdx % saverList.size]; saverIdx++
-        val fg = saverFg ?: return; val bg = saverBg ?: return
-        fg.animate().alpha(0f).setDuration(400).withEndAction {
-            if (saver == null) return@withEndAction
-            Img.load(item.logo, fg, 700); Img.load(item.logo, bg, 400)
-            saverTitle?.text = item.name
-            fg.scaleX = 1f; fg.scaleY = 1f
-            fg.animate().alpha(1f).setDuration(700).start()
-            fg.animate().scaleX(1.1f).scaleY(1.1f).setDuration(9000).start()
-        }.start()
+        val bg = saverBg ?: return
+        fun show(url: String) {
+            if (saver == null) return
+            bg.animate().alpha(0f).setDuration(400).withEndAction {
+                if (saver == null) return@withEndAction
+                Img.load(url, bg, 1200); saverTitle?.text = item.name
+                bg.scaleX = 1f; bg.scaleY = 1f
+                bg.animate().alpha(0.95f).setDuration(700).start()
+                bg.animate().scaleX(1.1f).scaleY(1.1f).setDuration(9000).start()
+            }.start()
+        }
+        val x = xt
+        if (x != null && item.kind != "live") Thread {
+            val back = try { (if (item.kind == "movie") x.vodInfo(item.id) else x.seriesData(item.id).info).backdrop } catch (e: Exception) { "" }
+            ui.post { show(if (back.startsWith("http")) back else item.logo) }
+        }.start() else show(item.logo)
         ui.removeCallbacks(saverStep); ui.postDelayed(saverStep, 9000)
     }
 
@@ -892,6 +1063,7 @@ class MainActivity : Activity() {
         ui.removeCallbacks(saverStep)
         val f = saver ?: return
         saver = null; saverFg = null; saverBg = null; saverTitle = null
+        ambBox = null; ambClock = null; ambDate = null; ambNext = null; ambUp = null
         (f.parent as? ViewGroup)?.removeView(f)
     }
 
@@ -976,7 +1148,7 @@ class MainActivity : Activity() {
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         val pv = PlayerView(this).apply { useController = list[index].kind != "live"; controllerAutoShow = false; keepScreenOn = true; setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER); setShutterBackgroundColor(Color.TRANSPARENT) }
         root.addView(pv, FrameLayout.LayoutParams(-1, -1))
-        titleView = TextView(this).apply { textSize = 24f; setTextColor(Color.WHITE); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)); visibility = View.GONE }
+        titleView = TextView(this).apply { textSize = 24f; setTextColor(CREAM); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)); visibility = View.GONE }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
         if (android.os.Build.VERSION.SDK_INT >= 26 && !prefs.getBoolean("classic", false)) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
@@ -1092,7 +1264,7 @@ class MainActivity : Activity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onResume() { super.onResume(); bumpIdle() }
-    override fun onStop() { super.onStop(); stopSaver(); ui.removeCallbacks(saverStart); savePosition(); player?.pause(); releasePreview() }
+    override fun onResume() { super.onResume(); bumpIdle(); if (shell != null) { ui.removeCallbacks(chromeTick); ui.post(chromeTick) } }
+    override fun onStop() { super.onStop(); ui.removeCallbacks(chromeTick); stopSaver(); ui.removeCallbacks(saverStart); savePosition(); player?.pause(); releasePreview() }
     override fun onDestroy() { super.onDestroy(); player?.release(); preview?.release() }
 }

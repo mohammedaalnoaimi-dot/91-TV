@@ -1,4 +1,4 @@
-name: Build 91 TV APK
+name: Build AURORA TV APK
 on:
   workflow_dispatch:
   push:
@@ -15,13 +15,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v3
         with: { gradle-version: "8.7" }
       - run: gradle :app:assembleDebug --stacktrace
-      - run: cp app/build/outputs/apk/debug/app-debug.apk 91TV.apk
+      - run: cp app/build/outputs/apk/debug/app-debug.apk AuroraTV.apk
       - uses: actions/upload-artifact@v4
-        with: { name: 91TV-apk, path: 91TV.apk }
+        with: { name: AuroraTV-apk, path: AuroraTV.apk }
       - name: Publish as the latest release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-build
-          name: 91 TV (latest build)
-          files: 91TV.apk
+          name: AURORA TV (latest build)
+          files: AuroraTV.apk
           make_latest: true

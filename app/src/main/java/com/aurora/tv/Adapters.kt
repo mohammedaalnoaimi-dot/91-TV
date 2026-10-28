@@ -20,7 +20,7 @@ class ChipAdapter(
     class VH(val tv: TextView) : RecyclerView.ViewHolder(tv)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val tv = TextView(a).apply {
-            textSize = if (vertical) 17f else 16f; setTextColor(Color.WHITE); isFocusable = true; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+            textSize = if (vertical) 16f else 15f; typeface = a.fMedium(); setTextColor(CREAM); isFocusable = true; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
             setPadding(a.dp(16), a.dp(10), a.dp(16), a.dp(10))
             layoutParams = RecyclerView.LayoutParams(if (vertical) -1 else -2, -2).apply { setMargins(a.dp(3), a.dp(3), a.dp(3), a.dp(3)) }
         }
@@ -28,12 +28,12 @@ class ChipAdapter(
     }
     override fun getItemCount() = labels.size
     override fun onBindViewHolder(h: VH, position: Int) {
-        val r = if (vertical) 10 else 24
+        val r = 3
         fun paint(focused: Boolean) {
             val selected = position == sel
-            h.tv.background = a.rbg(if (focused) Color.parseColor("#33E50914") else if (selected) Color.parseColor("#26FFFFFF") else Color.TRANSPARENT,
-                if (focused) RED else if (selected && vertical) Color.parseColor("#55E50914") else Color.TRANSPARENT, r, 2)
-            h.tv.setTextColor(if (selected || focused) Color.WHITE else Color.parseColor("#B5B5C0"))
+            h.tv.background = a.rbg(if (focused) Color.parseColor("#33C9475C") else if (selected) Color.parseColor("#26FFFFFF") else Color.TRANSPARENT,
+                if (focused) RED else if (selected && vertical) Color.parseColor("#55C9475C") else Color.TRANSPARENT, r, 2)
+            h.tv.setTextColor(if (selected || focused) CREAM else Color.parseColor("#a8977e"))
         }
         h.tv.text = labels[position]; paint(false)
         h.tv.setOnFocusChangeListener { _, f -> paint(f) }
@@ -50,7 +50,7 @@ class PosterAdapter(
     class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val bg: GradientDrawable) : RecyclerView.ViewHolder(cell)
     override fun getItemCount() = items.size
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val bg = a.rbg(CARD, Color.TRANSPARENT, 12, 3)
+        val bg = a.rbg(CARD, Color.TRANSPARENT, 3, 3)
         val cell = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL; isFocusable = true
             layoutParams = RecyclerView.LayoutParams(a.dp(150), -2).apply { setMargins(a.dp(7), a.dp(7), a.dp(7), a.dp(7)) }
@@ -60,12 +60,12 @@ class PosterAdapter(
         box.addView(ini, FrameLayout.LayoutParams(-1, -1))
         val img = ImageView(a); box.addView(img, FrameLayout.LayoutParams(-1, -1))
         cell.addView(box, LinearLayout.LayoutParams(a.dp(150), a.dp(225)))
-        val label = TextView(a).apply { setTextColor(Color.WHITE); textSize = 13f; maxLines = 2; ellipsize = TextUtils.TruncateAt.END; setPadding(a.dp(2), a.dp(6), a.dp(2), 0) }
+        val label = TextView(a).apply { typeface = a.fBody(); setTextColor(CREAM); textSize = 13f; maxLines = 2; ellipsize = TextUtils.TruncateAt.END; setPadding(a.dp(2), a.dp(6), a.dp(2), 0) }
         cell.addView(label, LinearLayout.LayoutParams(-1, -2))
         cell.setOnFocusChangeListener { v, f ->
             v.animate().scaleX(if (f) 1.07f else 1f).scaleY(if (f) 1.07f else 1f).setDuration(120).start()
             v.elevation = if (f) 24f else 0f
-            bg.setStroke(a.dp(3), if (f) RED else Color.TRANSPARENT)
+            bg.setStroke(a.dp(3), if (f) CREAM else Color.TRANSPARENT)
         }
         return VH(cell, img, ini, label, bg)
     }
@@ -97,21 +97,21 @@ class ChannelAdapter(
             setPadding(a.dp(12), a.dp(8), a.dp(12), a.dp(8))
             layoutParams = RecyclerView.LayoutParams(-1, a.dp(72)).apply { setMargins(0, a.dp(3), 0, a.dp(3)) }
         }
-        val num = TextView(a).apply { setTextColor(Color.parseColor("#8A8A96")); textSize = 15f; gravity = Gravity.CENTER }
+        val num = TextView(a).apply { setTextColor(Color.parseColor("#8f806c")); textSize = 15f; gravity = Gravity.CENTER }
         row.addView(num, LinearLayout.LayoutParams(a.dp(44), -2))
-        val tile = FrameLayout(a).apply { background = a.rbg(Color.parseColor("#22222A"), Color.TRANSPARENT, 8); clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
-        val ini = TextView(a).apply { setTextColor(Color.parseColor("#88FFFFFF")); textSize = 15f; gravity = Gravity.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD }
+        val tile = FrameLayout(a).apply { background = a.rbg(Color.parseColor("#1c1412"), Color.TRANSPARENT, 8); clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
+        val ini = TextView(a).apply { setTextColor(Color.parseColor("#88FFFFFF")); textSize = 15f; gravity = Gravity.CENTER; typeface = a.fMedium() }
         tile.addView(ini, FrameLayout.LayoutParams(-1, -1))
         val img = ImageView(a).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(a.dp(5), a.dp(5), a.dp(5), a.dp(5)) }
         tile.addView(img, FrameLayout.LayoutParams(-1, -1))
         row.addView(tile, LinearLayout.LayoutParams(a.dp(54), a.dp(54)).apply { setMargins(0, 0, a.dp(14), 0) })
         val col = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
-        val name = TextView(a).apply { setTextColor(Color.WHITE); textSize = 17f; typeface = android.graphics.Typeface.DEFAULT_BOLD; maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
+        val name = TextView(a).apply { setTextColor(CREAM); textSize = 17f; typeface = a.fMedium(); maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
         val sub = TextView(a).apply { setTextColor(GRAY); textSize = 13f; maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
         val bar = Bar(a)
         col.addView(name); col.addView(sub); col.addView(bar, LinearLayout.LayoutParams(-1, a.dp(3)).apply { topMargin = a.dp(5) })
         row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-        row.setOnFocusChangeListener { v, f -> v.background = a.rbg(if (f) Color.parseColor("#26E50914") else Color.parseColor("#12FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
+        row.setOnFocusChangeListener { v, f -> v.background = a.rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#12FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
         row.background = a.rbg(Color.parseColor("#12FFFFFF"), Color.TRANSPARENT, 10, 2)
         return VH(row, num, tile, img, ini, name, sub, bar)
     }
@@ -126,7 +126,7 @@ class ChannelAdapter(
             }
         }
         h.row.setOnFocusChangeListener { v, f ->
-            v.background = a.rbg(if (f) Color.parseColor("#26E50914") else Color.parseColor("#12FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2)
+            v.background = a.rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#12FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2)
             if (f) onFocus(it)
         }
         h.row.setOnClickListener { onOpen(items, h.adapterPosition) }
