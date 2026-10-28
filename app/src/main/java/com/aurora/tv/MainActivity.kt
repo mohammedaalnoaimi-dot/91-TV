@@ -766,11 +766,11 @@ class MainActivity : Activity() {
         val cap = AudioCapabilities.getCapabilities(this)
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
-        row("Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal" else "Tunnelled (used automatically for Dolby Vision, fixes blue / washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
+        row("HDR / Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal (try this if HDR looks wrong)" else "Tunnelled (used automatically for Dolby Vision, HDR10 and HLG, fixes washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Check Dolby Atmos", "See what your TV and soundbar can receive") { atmosCheck() }
         row("Screensaver", (if (prefs.getBoolean("nosaver", false)) "OFF" else "ON - after 2 minutes of no button presses") + "  - press to switch") { prefs.edit().putBoolean("nosaver", !prefs.getBoolean("nosaver", false)).apply(); bumpIdle(); refreshPage() }
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.3.20 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.3.21 · long-press OK on anything to add to My List or hide its category") { }
         root.post { (root.getChildAt(2))?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -984,8 +984,13 @@ class MainActivity : Activity() {
         val p = newPlayer(); player = p; pv.player = p
         p.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
-                val dv = tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO && it.getTrackFormat(0).sampleMimeType == "video/dolby-vision" }
-                if (dv && !prefs.getBoolean("notunnel", false)) setTunnel(p, true)
+                val hdr = tracks.groups.any { g ->
+                    g.type == C.TRACK_TYPE_VIDEO && g.getTrackFormat(0).let { f ->
+                        val t = f.colorInfo?.colorTransfer; val c = f.codecs ?: ""
+                        f.sampleMimeType == "video/dolby-vision" || t == C.COLOR_TRANSFER_ST2084 || t == C.COLOR_TRANSFER_HLG || c.startsWith("hvc1.2") || c.startsWith("hev1.2")
+                    }
+                }
+                if (hdr && !prefs.getBoolean("notunnel", false)) setTunnel(p, true)
             }
             override fun onPlaybackStateChanged(state: Int) {
                 if (state != Player.STATE_ENDED || player !== p) return
