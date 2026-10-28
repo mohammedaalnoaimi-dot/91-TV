@@ -338,6 +338,14 @@ class MainActivity : Activity() {
     private val HOLLY = Regex("hollywood|english|\\bEN\\b|^\\s*EN\\s*[|:\\-\\]]|\\bUSA?\\b|\\bUK\\b", RegexOption.IGNORE_CASE)
     private val YEAR = Regex("\\((\\d{4})\\)")
     private fun yearOf(n: String) = YEAR.find(n)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+    /** Shows the provider's rating straight away, then IMDb / Rotten Tomatoes from OMDb when a key is set in Settings. */
+    private fun loadRatings(item: Item, year: String, cb: (String) -> Unit) {
+        if (item.kind == "live") return
+        cb(if (item.rating > 0f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else "")
+        val key = prefs.getString("omdb", "") ?: ""
+        if (key.isBlank()) return
+        Thread { val r = Ratings.lookup(prefs, key, item.name, year, item.kind); if (r != null) ui.post { cb(r) } }.start()
+    }
     private fun smartTitle(w: String) = when (w) { "@recent" -> "Recently added"; "@top" -> "Top rated"; "@new" -> "New releases"; "@hollywood" -> "Hollywood / English"; else -> w }
     /** Ready-made lists built from what the provider sends: recently added, top rated, new releases, Hollywood. */
     private fun smartList(kind: String, which: String): List<Item> = smart.getOrPut("$kind|$which") {
@@ -479,7 +487,8 @@ class MainActivity : Activity() {
         val title = mkText("Tonight, together", 36f, CREAM, true).apply { maxLines = 2; letterSpacing = 0.06f }
         val desc = mkText("", 16f, Color.parseColor("#cdbb9e")).apply { maxLines = 3; setPadding(0, dp(6), 0, dp(12)) }
         val dots = mkText("", 14f, RED, true).apply { setPadding(0, dp(8), 0, 0) }
-        col.addView(label); col.addView(title); col.addView(desc, LinearLayout.LayoutParams(dp(620), -2))
+        val rateTv = mkText("", 16f, GOLD, true).apply { letterSpacing = 0.08f; setPadding(0, dp(4), 0, 0) }
+        col.addView(label); col.addView(title); col.addView(rateTv); col.addView(desc, LinearLayout.LayoutParams(dp(620), -2))
         val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val trailerBtn = mkButton("▶  Trailer", false) {
             val f = feat ?: return@mkButton
@@ -507,6 +516,7 @@ class MainActivity : Activity() {
             feat = f
             label.text = if (f.kind == "series") "SERIES" else "MOVIE"; title.text = f.name; desc.text = ""
             trailerBtn.visibility = View.GONE
+            rateTv.text = ""; loadRatings(f, Ratings.yearOf(f.name)) { t -> if (feat?.key == f.key) rateTv.text = t }
             dots.text = pool.indices.joinToString(" ") { if (it == i) "●" else "·" }
             val go = {
                 Img.load(f.logo, bgImg, dp(900))
@@ -664,6 +674,8 @@ class MainActivity : Activity() {
         val info = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
         info.addView(eyebrow(if (item.kind == "series") "SERIES" else "MOVIE"))
         info.addView(mkText(item.name, 34f, CREAM, true).apply { maxLines = 2; setPadding(0, dp(6), 0, 0) })
+        val rate = mkText("", 16f, GOLD, true).apply { letterSpacing = 0.08f; setPadding(0, dp(4), 0, 0) }
+        info.addView(rate)
         val meta = mkItalic(item.group, 17f, GOLD).apply { setPadding(0, dp(6), 0, dp(4)) }
         val plot = mkText("Loading details…", 16f, Color.parseColor("#cdbb9e")).apply { maxLines = 5 }
         val cast = mkText("", 14f, GRAY).apply { setPadding(0, dp(4), 0, dp(12)); maxLines = 2 }
@@ -683,6 +695,7 @@ class MainActivity : Activity() {
         val seasonsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(32), dp(10), dp(32), dp(40)) }
         col.addView(seasonsBox)
         scroll.addView(col, FrameLayout.LayoutParams(-1, -2))
+        loadRatings(item, Ratings.yearOf(item.name)) { t -> if (rate.isAttachedToWindow || t.isNotBlank()) rate.text = t }
         fun fill(inf: Info) {
             val bits = ArrayList<String>(); if (inf.year.isNotBlank()) bits += inf.year
             if ((inf.rating.toDoubleOrNull() ?: 0.0) > 0) bits += "★ ${inf.rating}"; if (inf.genre.isNotBlank()) bits += inf.genre
@@ -910,6 +923,13 @@ class MainActivity : Activity() {
         row("Provider", "Change server, login or M3U playlist") { setupView() }
         row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); smart.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
+        head("RATINGS")
+        row("IMDb and Rotten Tomatoes", (if ((prefs.getString("omdb", "") ?: "").isBlank()) "OFF - press OK and type your free OMDb key (omdbapi.com). Until then only the provider's score is shown" else "ON - key saved. Press OK to change it") ) {
+            val et = EditText(this).apply { hint = "OMDb key, e.g. a1b2c3d4"; setSingleLine(); setText(prefs.getString("omdb", "")); textSize = 22f }
+            android.app.AlertDialog.Builder(this).setTitle("OMDb key").setView(et)
+                .setPositiveButton("Save") { _, _ -> prefs.edit().putString("omdb", et.text.toString().trim()).apply(); refreshPage() }
+                .setNegativeButton("Cancel", null).show()
+        }
         head("PICTURE AND SOUND")
         val cap = AudioCapabilities.getCapabilities(this)
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
@@ -921,7 +941,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.5.1 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.6.0 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
