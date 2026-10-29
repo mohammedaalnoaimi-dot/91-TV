@@ -237,11 +237,8 @@ class MainActivity : Activity() {
         leftBox.addView(hdrNext); leftBox.addView(hdrNextSub)
         head.addView(leftBox, LinearLayout.LayoutParams(0, -2, 1f))
         val brandBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        val brand = mkText("", 22f, CREAM, true).apply {
-            letterSpacing = 0.2f
-            text = android.text.SpannableString("91 TV").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 0, 2, 0) }
-        }
-        brandBox.addView(brand)
+        val brand = android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
+        brandBox.addView(brand, LinearLayout.LayoutParams(dp(190), dp(29)))
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
         val rightBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
         hdrClock = mkText("", 26f, CREAM).apply { gravity = Gravity.END }
@@ -1010,7 +1007,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.0 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.1 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
