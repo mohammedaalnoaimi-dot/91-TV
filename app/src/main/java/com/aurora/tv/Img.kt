@@ -29,7 +29,7 @@ object Img {
                 val o = BitmapFactory.Options(); o.inJustDecodeBounds = true
                 BitmapFactory.decodeByteArray(data, 0, data.size, o)
                 var s = 1; while (o.outWidth / (s * 2) >= targetW * 2) s *= 2
-                val o2 = BitmapFactory.Options(); o2.inSampleSize = s
+                val o2 = BitmapFactory.Options(); o2.inSampleSize = s; o2.inPreferredConfig = Bitmap.Config.RGB_565      // half the memory and GPU upload of ARGB_8888; fine for posters
                 val bm = BitmapFactory.decodeByteArray(data, 0, data.size, o2)
                 if (bm != null) { cache.put(url, bm); ui.post { if (iv.tag == url) iv.setImageBitmap(bm) } }
                 else synchronized(failed) { failed.add(url) }

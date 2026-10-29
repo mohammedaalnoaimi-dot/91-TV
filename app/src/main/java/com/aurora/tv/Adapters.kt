@@ -66,8 +66,7 @@ class PosterAdapter(
         val rate = TextView(a).apply { typeface = a.fMedium(); setTextColor(GOLD); textSize = 11f; maxLines = 1; setPadding(a.dp(2), a.dp(1), a.dp(2), 0) }
         cell.addView(rate, LinearLayout.LayoutParams(-1, -2))
         cell.setOnFocusChangeListener { v, f ->
-            v.animate().scaleX(if (f) 1.07f else 1f).scaleY(if (f) 1.07f else 1f).setDuration(120).start()
-            v.elevation = if (f) 24f else 0f
+            v.animate().scaleX(if (f) 1.06f else 1f).scaleY(if (f) 1.06f else 1f).setDuration(100).start()
             bg.setStroke(a.dp(3), if (f) CREAM else Color.TRANSPARENT)
         }
         return VH(cell, img, ini, label, rate, bg, prog)

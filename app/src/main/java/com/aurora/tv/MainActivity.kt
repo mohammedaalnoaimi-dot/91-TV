@@ -501,13 +501,13 @@ class MainActivity : Activity() {
         becauseRows.forEach { (t, l) -> col.addView(rowView("Because you watched  " + Ratings.cleanTitle(t), l)) }
         val fv = favs(); if (fv.isNotEmpty()) col.addView(rowView("${profName()}'s list", fv))
         fun cached(k: String, w: String) = smart["$k|$w"] ?: emptyList()
-        cached("movie", "@recent").let { if (it.isNotEmpty()) col.addView(rowView("Recently added movies", it.take(40))) }
-        cached("movie", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated movies", it.take(40))) }
-        cached("movie", "@new").let { if (it.isNotEmpty()) col.addView(rowView("New releases", it.take(40))) }
-        cached("series", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated series", it.take(40))) }
-        val l = visible("live", live); if (l.isNotEmpty()) col.addView(rowView("Live TV", l.take(40)))
-        val m = visible("movie", movies); if (m.isNotEmpty()) col.addView(rowView("Movies", m.take(40)))
-        val s = visible("series", series); if (s.isNotEmpty()) col.addView(rowView("TV Series", s.take(40)))
+        cached("movie", "@recent").let { if (it.isNotEmpty()) col.addView(rowView("Recently added movies", it.take(24))) }
+        cached("movie", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated movies", it.take(24))) }
+        cached("movie", "@new").let { if (it.isNotEmpty()) col.addView(rowView("New releases", it.take(24))) }
+        cached("series", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated series", it.take(24))) }
+        val l = visible("live", live); if (l.isNotEmpty()) col.addView(rowView("Live TV", l.take(30)))
+        val m = visible("movie", movies); if (m.isNotEmpty()) col.addView(rowView("Movies", m.take(24)))
+        val s = visible("series", series); if (s.isNotEmpty()) col.addView(rowView("TV Series", s.take(24)))
         scroll.addView(col, FrameLayout.LayoutParams(-1, -2))
         scroll.post { (findFirstFocusable(col, 1))?.requestFocus() }
         return scroll
@@ -571,7 +571,7 @@ class MainActivity : Activity() {
             if (feat?.key != f.key) return
             desc.text = inf.plot
             trailerBtn.visibility = if (inf.trailer.isNotBlank()) View.VISIBLE else View.GONE
-            if (inf.backdrop.startsWith("http")) Img.load(inf.backdrop, bgImg, dp(1200))
+            if (inf.backdrop.startsWith("http")) Img.load(inf.backdrop, bgImg, dp(900))
         }
         fun show(i: Int, animate: Boolean) {
             val f = pool.getOrNull(i) ?: return
@@ -584,7 +584,7 @@ class MainActivity : Activity() {
                 Img.load(f.logo, bgImg, dp(900))
                 bgImg.scaleX = 1f; bgImg.scaleY = 1f
                 bgImg.animate().alpha(0.85f).setDuration(600).start()
-                bgImg.animate().scaleX(1.05f).scaleY(1.05f).setDuration(11000).start()
+                // (slow zoom removed: it kept the GPU busy all the time and made the whole home screen stutter)
             }
             if (animate) bgImg.animate().alpha(0f).setDuration(400).withEndAction { go() }.start() else go()
             val cached = infoCache[f.key]
@@ -611,11 +611,15 @@ class MainActivity : Activity() {
         return hero
     }
 
+    /** One pool of poster cards shared by every home row, so scrolling down does not inflate hundreds of new cards. */
+    private val posterPool = RecyclerView.RecycledViewPool().apply { setMaxRecycledViews(0, 40) }
+
     private fun rowView(titleText: String, items: List<Item>): View {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(dp(32), dp(14), 0, dp(6)) }
         box.addView(mkText(titleText.uppercase(), 15f, GOLD, true).apply { letterSpacing = 0.26f; setPadding(dp(4), 0, 0, dp(2)) })
         val rv = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
+            layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false).apply { initialPrefetchItemCount = 6 }
+            setHasFixedSize(true); setItemViewCacheSize(6); setRecycledViewPool(posterPool)
             adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
             clipChildren = false; clipToPadding = false; setPadding(0, dp(6), dp(30), dp(10)); itemAnimator = null
         }
@@ -764,7 +768,7 @@ class MainActivity : Activity() {
             meta.text = if (bits.isEmpty()) item.group else bits.joinToString("   ·   ")
             plot.text = inf.plot.ifBlank { "No description from your provider." }
             cast.text = if (inf.cast.isNotBlank()) "Starring: ${inf.cast}" else ""
-            if (inf.backdrop.startsWith("http")) Img.load(inf.backdrop, bgImg, dp(1200))
+            if (inf.backdrop.startsWith("http")) Img.load(inf.backdrop, bgImg, dp(900))
             if (inf.trailer.isNotBlank()) {
                 trailerBtn.visibility = View.VISIBLE
                 trailerBtn.setOnClickListener {
@@ -1003,7 +1007,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.8.0 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.8.1 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
