@@ -138,7 +138,7 @@ class MainActivity : Activity() {
     // =====================================================================================
     private fun setupView() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(80), dp(40), dp(80), dp(20)) }
-        col.addView(mkText("91 TV - add your provider", 28f, CREAM, true).apply { setPadding(0, 0, 0, dp(16)) })
+        col.addView(mkText("Add your provider", 28f, CREAM, true).apply { setPadding(0, 0, 0, dp(16)) })
         fun field(hint: String, key: String, pw: Boolean = false) = EditText(this).apply {
             this.hint = hint; textSize = 20f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine()
             setText(prefs.getString(key, "")); if (pw) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -161,7 +161,12 @@ class MainActivity : Activity() {
         setContentView(f)
     }
 
-    private fun bigMessage(t: String) = setContentView(TextView(this).apply { text = t; textSize = 26f; setTextColor(CREAM); gravity = Gravity.CENTER; setBackgroundColor(BG) })
+    private fun bigMessage(t: String) {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setBackgroundColor(BG) }
+        col.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(420), dp(64)))
+        col.addView(TextView(this).apply { text = t.removePrefix("91 TV").trim(); textSize = 22f; setTextColor(CREAM); gravity = Gravity.CENTER; setPadding(0, dp(24), 0, 0) })
+        setContentView(col)
+    }
 
     private fun setData(l: List<Item>?, m: List<Item>?, se: List<Item>?) {
         if (l != null) live = l; if (m != null) movies = m; if (se != null) series = se; visCache.clear(); smart.clear()
@@ -1019,7 +1024,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.3 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.4 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -1118,7 +1123,7 @@ class MainActivity : Activity() {
         val up = mkItalic("", 17f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) }
         box.addView(clock); box.addView(date); box.addView(next); box.addView(up)
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        brand.addView(mkText("", 16f, MUTED, true).apply { letterSpacing = 0.3f; text = android.text.SpannableString("91 TV").apply { setSpan(android.text.style.ForegroundColorSpan(ROSE), 0, 2, 0) } })
+        brand.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER; alpha = 0.85f }, LinearLayout.LayoutParams(dp(150), dp(23)))
         f.addView(box, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(34) })
         (window.decorView as ViewGroup).addView(f, ViewGroup.LayoutParams(-1, -1))
@@ -1153,8 +1158,8 @@ class MainActivity : Activity() {
         val bg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0f }
         f.addView(bg, FrameLayout.LayoutParams(-1, -1))
         f.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, dp(220), Gravity.BOTTOM))
-        val brand = mkText("91 TV", 26f, ROSE, true)
-        f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(40), dp(30), 0, 0) })
+        val brand = ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_START }
+        f.addView(brand, FrameLayout.LayoutParams(dp(190), dp(29), Gravity.TOP or Gravity.START).apply { setMargins(dp(40), dp(30), 0, 0) })
         val t = mkText("", 24f, CREAM, true).apply { gravity = Gravity.CENTER }
         f.addView(t, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { setMargins(dp(40), 0, dp(40), dp(36)) })
         (window.decorView as ViewGroup).addView(f, ViewGroup.LayoutParams(-1, -1))
