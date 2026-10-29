@@ -3,4 +3,10 @@
     <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
     </style>
+    <style name="NfBtn">
+        <item name="android:background">@drawable/ctl_focus</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:padding">8dp</item>
+        <item name="android:focusable">true</item>
+    </style>
 </resources>

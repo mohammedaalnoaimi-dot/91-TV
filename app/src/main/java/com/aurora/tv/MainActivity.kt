@@ -374,7 +374,9 @@ class MainActivity : Activity() {
     /** Sorting ~90k titles takes a moment, so the three home lists are built off the UI thread; the home page is redrawn once when they are ready. */
     private fun warmSmart() {
         val keys = listOf("movie" to "@recent", "movie" to "@top", "movie" to "@new", "series" to "@top", "series" to "@new")
-        if (keys.all { smart.containsKey("${it.first}|${it.second}") } || smartBusy) return
+        val rec = recents().filter { it.kind == "movie" || it.kind == "series" || it.kind == "episode" }.take(12)
+        val bsig = rec.take(6).joinToString("|") { it.key }
+        if ((keys.all { smart.containsKey("${it.first}|${it.second}") } && bsig == becauseSig) || smartBusy) return
         smartBusy = true
         val bases = mapOf("movie" to visible("movie", movies), "series" to visible("series", series))
         val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
@@ -388,13 +390,28 @@ class MainActivity : Activity() {
                     else -> base.filter { yearOf(it.name) >= year - 1 }.sortedByDescending { it.added }.take(300)
                 }
             }
+            // "Because you watched ...": same category as something you watched, not watched yet, better rated first (built only from this TV's own history)
+            val watched = rec.map { it.key }.toSet(); val rows = ArrayList<Pair<String, List<Item>>>(); val used = HashSet<String>()
+            val all = (bases["movie"] ?: emptyList()) + (bases["series"] ?: emptyList())
+            val byGroup = all.groupBy { it.kind + "|" + it.group }
+            for (r in rec) {
+                val kind = if (r.kind == "episode") "series" else r.kind
+                val gk = kind + "|" + r.group
+                if (r.group.isBlank() || !used.add(gk)) continue
+                val cand = (byGroup[gk] ?: emptyList()).filter { it.key !in watched }
+                if (cand.size < 6) continue
+                rows.add(r.name to cand.sortedByDescending { it.rating }.take(30)); if (rows.size >= 3) break
+            }
             ui.post {
+                becauseRows = rows; becauseSig = bsig
                 smartBusy = false; smart.putAll(out)
                 if (section == "home" && pageStack.isEmpty() && playerRoot == null) refreshPage()
             }
         }.start()
     }
     private var smartBusy = false
+    private var becauseRows: List<Pair<String, List<Item>>> = emptyList()
+    private var becauseSig = ""
     private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         val h = hidden(); if (h.isEmpty()) return items
@@ -481,6 +498,7 @@ class MainActivity : Activity() {
         col.addView(heroView(), LinearLayout.LayoutParams(-1, dp(340)))
         val cont = recents().filter { (it.kind == "movie" || it.kind == "episode") && savedPos(it) > 10_000 }
         if (cont.isNotEmpty()) col.addView(rowView("Continue watching", cont))
+        becauseRows.forEach { (t, l) -> col.addView(rowView("Because you watched  " + Ratings.cleanTitle(t), l)) }
         val fv = favs(); if (fv.isNotEmpty()) col.addView(rowView("${profName()}'s list", fv))
         fun cached(k: String, w: String) = smart["$k|$w"] ?: emptyList()
         cached("movie", "@recent").let { if (it.isNotEmpty()) col.addView(rowView("Recently added movies", it.take(40))) }
@@ -985,7 +1003,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.7.0 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.8.0 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -1240,7 +1258,7 @@ class MainActivity : Activity() {
         chainNext = chain
         zapList = list; zapIndex = index
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
-        val pv = PlayerView(this).apply { useController = list[index].kind != "live"; controllerAutoShow = false; keepScreenOn = true; setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER); setShutterBackgroundColor(Color.TRANSPARENT) }
+        val pv = (android.view.LayoutInflater.from(this).inflate(R.layout.player_view, null) as PlayerView).apply { useController = list[index].kind != "live"; controllerAutoShow = false; keepScreenOn = true; setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER); setShutterBackgroundColor(Color.TRANSPARENT) }
         root.addView(pv, FrameLayout.LayoutParams(-1, -1))
         titleView = TextView(this).apply { textSize = 24f; setTextColor(CREAM); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)); visibility = View.GONE }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
@@ -1248,6 +1266,9 @@ class MainActivity : Activity() {
         if (android.os.Build.VERSION.SDK_INT >= 26 && !prefs.getBoolean("classic", false)) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
+        // Netflix-style buttons: +/-10 seconds (the stock buttons use 5 / 15 s)
+        pv.findViewById<View>(androidx.media3.ui.R.id.exo_rew)?.setOnClickListener { p.seekTo(maxOf(0L, p.currentPosition - 10_000L)) }
+        pv.findViewById<View>(androidx.media3.ui.R.id.exo_ffwd)?.setOnClickListener { val d = p.duration; val t = p.currentPosition + 10_000L; p.seekTo(if (d > 0) minOf(t, d) else t) }
         p.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 val hdr = tracks.groups.any { g ->
@@ -1287,6 +1308,22 @@ class MainActivity : Activity() {
         startCurrent()
     }
 
+    private val warmed = HashMap<String, Long>()
+    /** Contacts the next and previous channel in the background (DNS, TLS, provider redirect) so switching to them has less to do. It does not decode video in advance. */
+    private fun prewarm(items: List<Item>) {
+        val now = System.currentTimeMillis()
+        val urls = items.map { it.url }.filter { it.startsWith("http") && now - (warmed[it] ?: 0L) > 120_000L }
+        if (urls.isEmpty()) return
+        if (warmed.size > 300) warmed.clear(); urls.forEach { warmed[it] = now }
+        Thread {
+            for (u in urls) try {
+                val c = java.net.URL(u).openConnection() as java.net.HttpURLConnection
+                c.connectTimeout = 4000; c.readTimeout = 4000; c.setRequestProperty("Range", "bytes=0-2047"); c.setRequestProperty("User-Agent", Http.UA)
+                c.inputStream.use { it.read(ByteArray(2048)) }; c.disconnect()
+            } catch (e: Exception) { }
+        }.start()
+    }
+
     private fun startCurrent() {
         savePosition()
         val old = playing
@@ -1296,6 +1333,7 @@ class MainActivity : Activity() {
         val start = if (it.kind != "live") savedPos(it) else 0L
         player?.let { loadInto(it, zapList[zapIndex], 0, if (start > 10_000) start else 0L) }
         if (it.kind == "live") {
+            prewarm(listOf(zapList[(zapIndex + 1) % zapList.size], zapList[(zapIndex - 1 + zapList.size) % zapList.size]))
             showTitle("${zapIndex + 1}  ${it.name}      (0-9 channel number  ·  ◀ last channel  ·  ▶ audio / subtitles)")
             epgFor(it) { l -> val n = nowOf(l); if (n != null && playing?.key == it.key) showTitle("${zapIndex + 1}  ${it.name}\n${n.title}   ${hm(n.start)} – ${hm(n.end)}") }
         }

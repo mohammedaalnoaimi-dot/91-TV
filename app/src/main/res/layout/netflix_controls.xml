@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layoutDirection="ltr">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/ctl_gradient"
+        android:orientation="vertical"
+        android:paddingStart="48dp"
+        android:paddingEnd="48dp"
+        android:paddingTop="64dp"
+        android:paddingBottom="26dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <androidx.media3.ui.DefaultTimeBar
+                android:id="@id/exo_progress"
+                android:layout_width="0dp"
+                android:layout_height="26dp"
+                android:layout_weight="1"
+                app:bar_height="4dp"
+                app:played_color="#C9475C"
+                app:scrubber_color="#C9475C"
+                app:buffered_color="#66FFFFFF"
+                app:unplayed_color="#44FFFFFF"
+                app:scrubber_enabled_size="18dp"
+                app:scrubber_dragged_size="26dp"
+                app:touch_target_height="40dp" />
+            <TextView
+                android:id="@id/exo_position"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:textColor="#EBDDC4"
+                android:textSize="15sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" / "
+                android:textColor="#A8977E"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@id/exo_duration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#A8977E"
+                android:textSize="15sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <ImageButton
+                android:id="@id/exo_play_pause"
+                style="@style/NfBtn"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:contentDescription="Play or pause" />
+            <FrameLayout android:layout_width="56dp" android:layout_height="56dp" android:layout_marginStart="10dp">
+                <ImageButton
+                    android:id="@id/exo_rew"
+                    style="@style/NfBtn"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:src="@drawable/ic_back10"
+                    android:contentDescription="Back 10 seconds" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
+                    android:text="10" android:textColor="#FFFFFF" android:textSize="10sp" android:textStyle="bold" android:layout_marginTop="2dp" />
+            </FrameLayout>
+            <FrameLayout android:layout_width="56dp" android:layout_height="56dp" android:layout_marginStart="6dp">
+                <ImageButton
+                    android:id="@id/exo_ffwd"
+                    style="@style/NfBtn"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:src="@drawable/ic_fwd10"
+                    android:contentDescription="Forward 10 seconds" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
+                    android:text="10" android:textColor="#FFFFFF" android:textSize="10sp" android:textStyle="bold" android:layout_marginTop="2dp" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
