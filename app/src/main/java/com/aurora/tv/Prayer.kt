@@ -23,7 +23,7 @@ object Prayer {
     val METHODS = listOf(8 to "Gulf Region", 4 to "Umm Al-Qura (Makkah)", 9 to "Kuwait", 10 to "Qatar", 3 to "Muslim World League")
     val REMIND = listOf(0, 5, 10, 15, 30)
 
-    class Day(val key: String, val times: Map<String, String>, val hijri: String)
+    class Day(val key: String, val times: Map<String, String>, val hijri: String, val hijriMonth: Int = 0)
 
     @Volatile var today: Day? = null
     @Volatile var tomorrow: Day? = null
@@ -48,11 +48,11 @@ object Prayer {
     private fun parse(raw: String, key: String): Day? = try {
         val o = JSONObject(raw); val t = o.getJSONObject("t"); val m = LinkedHashMap<String, String>()
         for (n in ORDER) m[n] = t.getString(n)
-        Day(key, m, o.optString("h", ""))
+        Day(key, m, o.optString("h", ""), o.optInt("hm", 0))
     } catch (e: Exception) { null }
 
     private fun load(prefs: SharedPreferences, method: Int, key: String): Day? {
-        val ck = "pt_${method}_$key"
+        val ck = "pt2_${method}_$key"
         prefs.getString(ck, null)?.let { parse(it, key)?.let { d -> return d } }
         return try {
             val resp = JSONObject(Http.get("https://api.aladhan.com/v1/timingsByCity/$key?city=Manama&country=Bahrain&method=$method"))
@@ -60,7 +60,7 @@ object Prayer {
             val t = JSONObject(); for (n in ORDER) t.put(n, tm.getString(n).trim().take(5))
             val h = data.optJSONObject("date")?.optJSONObject("hijri")
             val hs = if (h != null) "${h.optString("day").trimStart('0')} ${h.optJSONObject("month")?.optString("en") ?: ""} ${h.optString("year")} AH" else ""
-            val raw = JSONObject().put("t", t).put("h", hs).toString()
+            val raw = JSONObject().put("t", t).put("h", hs).put("hm", h?.optJSONObject("month")?.optInt("number") ?: 0).toString()
             prefs.edit().putString(ck, raw).apply()
             parse(raw, key)
         } catch (e: Throwable) { null }
@@ -68,7 +68,7 @@ object Prayer {
 
     private fun prune(prefs: SharedPreferences, keep: Set<String>) {
         val e = prefs.edit(); var any = false
-        for (k in prefs.all.keys) if (k.startsWith("pt_") && keep.none { k.endsWith(it) }) { e.remove(k); any = true }
+        for (k in prefs.all.keys) if ((k.startsWith("pt_") || k.startsWith("pt2_")) && keep.none { k.endsWith(it) }) { e.remove(k); any = true }
         if (any) e.apply()
     }
 
@@ -107,7 +107,7 @@ object Prayer {
     fun hms(ms: Long): String { val s = maxOf(0L, ms / 1000); return String.format(Locale.US, "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60) }
 
     // ---------------- the Prayer screen ----------------
-    fun page(a: Activity, prefs: SharedPreferences, again: () -> Unit): View {
+    fun page(a: Activity, prefs: SharedPreferences, again: () -> Unit, openMonth: () -> Unit = {}): View {
         val root = FrameLayout(a).apply { setBackgroundColor(BG) }
         root.addView(NightView(a), FrameLayout.LayoutParams(-1, -1))
         ensure(prefs, again)
@@ -126,6 +126,12 @@ object Prayer {
         left.addView(name); left.addView(arab); left.addView(count); left.addView(sub)
         left.addView(a.mkText(longDate(System.currentTimeMillis()), 17f, CREAM))
         if (day.hijri.isNotBlank()) left.addView(a.mkText(day.hijri, 17f, GOLD).apply { setPadding(0, a.dp(2), 0, 0) })
+        val ramadan = day.hijriMonth == 9
+        val rLabel = a.mkText("", 15f, GOLD, true).apply { letterSpacing = 0.22f; setPadding(0, a.dp(22), 0, 0) }
+        val rCount = a.mkText("", 34f, CREAM).apply { letterSpacing = 0.05f }
+        val rSub = a.mkItalic("", 17f, SOFT)
+        if (ramadan) { left.addView(a.mkText("RAMADAN MUBARAK", 13f, RED, true).apply { letterSpacing = 0.3f; setPadding(0, a.dp(24), 0, 0) }); left.addView(rLabel); left.addView(rCount); left.addView(rSub) }
+        left.addView(a.mkButton("Monthly timetable", false) { openMonth() }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = a.dp(24) })
         root.addView(left, FrameLayout.LayoutParams(a.dp(640), -1))
 
         val panel = LinearLayout(a).apply {
@@ -164,6 +170,15 @@ object Prayer {
                         }
                     }
                 } else name.text = "—"
+                if (ramadan) {
+                    val t0 = today; val t1 = tomorrow
+                    if (t0 != null) {
+                        val fajr = millis(t0, "Fajr"); val mag = millis(t0, "Maghrib")
+                        if (now < fajr) { rLabel.text = "SUHOOR ENDS (FAJR)"; rCount.text = "in " + hms(fajr - now); rSub.text = "at ${clock(fajr)}" }
+                        else if (now < mag) { rLabel.text = "IFTAR (MAGHRIB)"; rCount.text = "in " + hms(mag - now); rSub.text = "at ${clock(mag)}  ·  fast ends then" }
+                        else if (t1 != null) { val f2 = millis(t1, "Fajr"); rLabel.text = "SUHOOR ENDS (FAJR) TOMORROW"; rCount.text = "in " + hms(f2 - now); rSub.text = "at ${clock(f2)}" }
+                    }
+                }
                 ensure(prefs, again)
                 root.postDelayed(this, 1000)
             }
@@ -172,6 +187,67 @@ object Prayer {
             override fun onViewAttachedToWindow(v: View) { root.removeCallbacks(tick); root.post(tick) }
             override fun onViewDetachedFromWindow(v: View) { root.removeCallbacks(tick) }
         })
+        return root
+    }
+
+    // ---------------- monthly timetable ----------------
+    /** One row per day: date, hijri day, six times. Cached per month so it works offline after the first visit. */
+    private fun loadMonth(prefs: SharedPreferences, method: Int, year: Int, month: Int): List<List<String>>? {
+        val ck = "ptm_${method}_${year}_$month"
+        fun parseRows(raw: String): List<List<String>> { val a = org.json.JSONArray(raw); return (0 until a.length()).map { i -> val r = a.getJSONArray(i); (0 until r.length()).map { r.getString(it) } } }
+        prefs.getString(ck, null)?.let { try { return parseRows(it) } catch (e: Exception) { } }
+        return try {
+            val resp = JSONObject(Http.get("https://api.aladhan.com/v1/calendarByCity/$year/$month?city=Manama&country=Bahrain&method=$method"))
+            val arr = resp.getJSONArray("data"); val out = org.json.JSONArray()
+            for (i in 0 until arr.length()) {
+                val d = arr.getJSONObject(i); val tm = d.getJSONObject("timings"); val row = org.json.JSONArray()
+                row.put(d.getJSONObject("date").getJSONObject("gregorian").getString("date"))
+                row.put(d.getJSONObject("date").getJSONObject("hijri").optString("day").trimStart('0'))
+                row.put(d.getJSONObject("date").getJSONObject("hijri").getJSONObject("month").optInt("number").toString())
+                for (n in ORDER) row.put(tm.getString(n).trim().take(5))
+                out.put(row)
+            }
+            prefs.edit().putString(ck, out.toString()).apply(); parseRows(out.toString())
+        } catch (e: Throwable) { null }
+    }
+
+    fun monthPage(a: Activity, prefs: SharedPreferences): View {
+        val root = FrameLayout(a).apply { setBackgroundColor(BG) }
+        val cal = java.util.Calendar.getInstance(TZ); val y = cal.get(java.util.Calendar.YEAR); val m = cal.get(java.util.Calendar.MONTH) + 1
+        val col = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; setPadding(a.dp(56), a.dp(26), a.dp(56), a.dp(10)) }
+        col.addView(a.eyebrow("MONTHLY TIMETABLE · MANAMA"))
+        col.addView(a.mkText(SimpleDateFormat("MMMM yyyy", Locale.US).apply { timeZone = TZ }.format(java.util.Date()), 30f, CREAM, true).apply { letterSpacing = 0.06f; setPadding(0, a.dp(4), 0, a.dp(10)) })
+        val body = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = android.widget.ScrollView(a).apply { addView(body); isFocusable = false }
+        col.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f)); root.addView(col, FrameLayout.LayoutParams(-1, -1))
+        body.addView(a.mkText("Loading…", 18f, SOFT))
+        val method = prefs.getInt("ptMethod", 8)
+        Thread {
+            val rows = loadMonth(prefs, method, y, m)
+            a.runOnUiThread {
+                body.removeAllViews()
+                if (rows == null) { body.addView(a.mkText("Could not load the timetable (needs the internet the first time).", 18f, SOFT)); return@runOnUiThread }
+                fun line(cells: List<String>, head: Boolean, today: Boolean, ram: Boolean): View {
+                    val r = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(a.dp(14), a.dp(7), a.dp(14), a.dp(7)); isFocusable = !head
+                        background = if (today) a.rbg(Color.parseColor("#33C9475C"), Color.parseColor("#C9475C"), 2, 1) else if (head) null else a.rbg(Color.parseColor("#0FFFFFFF"), Color.TRANSPARENT, 2, 1)
+                        setOnFocusChangeListener { v, f -> if (!head && !today) v.background = a.rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#0FFFFFFF"), if (f) RED else Color.TRANSPARENT, 2, 1) } }
+                    cells.forEachIndexed { i, t ->
+                        val w = if (i == 0) 2.2f else if (i == 1) 1.1f else 1f
+                        r.addView(a.mkText(t, if (head) 12f else 17f, if (head) GOLD else if (today) CREAM else SOFT, head).apply { if (i > 1) gravity = Gravity.CENTER; if (head) letterSpacing = 0.14f }, LinearLayout.LayoutParams(0, -2, w))
+                    }
+                    return r
+                }
+                body.addView(line(listOf("DATE", if (rows.any { it[2] == "9" }) "RAMADAN" else "HIJRI") + ORDER.map { it.uppercase() }, true, false, false))
+                val todayKey = key(System.currentTimeMillis()); var focusRow: View? = null
+                for (r in rows) {
+                    val isToday = r[0] == todayKey; val ram = r[2] == "9"
+                    val dateTxt = try { SimpleDateFormat("EEE d MMM", Locale.US).apply { timeZone = TZ }.format(SimpleDateFormat("dd-MM-yyyy", Locale.US).apply { timeZone = TZ }.parse(r[0])!!) } catch (e: Exception) { r[0] }
+                    val v = line(listOf(dateTxt, if (ram) "Ramadan ${r[1]}" else r[1]) + r.drop(3), false, isToday, ram)
+                    body.addView(v, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = a.dp(2) }); if (isToday) focusRow = v
+                }
+                focusRow?.let { f -> f.post { f.requestFocus() } }
+            }
+        }.start()
         return root
     }
 }

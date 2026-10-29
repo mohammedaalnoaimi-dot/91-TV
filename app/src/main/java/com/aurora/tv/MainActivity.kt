@@ -106,6 +106,7 @@ class MainActivity : Activity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         prefs = getSharedPreferences("aurora", Context.MODE_PRIVATE)
+        Img.init(this); Click.init()
         lastLiveKey = prefs.getString("lastLive", "") ?: ""; liveCat = prefs.getInt("liveCat", 0)
         if (prefs.getInt("cacheVer", 0) < 2) { Cache.clear(this); prefs.edit().putInt("cacheVer", 2).apply() }
         if (!prefs.contains("favs_mr") && prefs.contains("favs")) prefs.edit().putString("favs_mr", prefs.getString("favs", "")).apply()
@@ -273,7 +274,8 @@ class MainActivity : Activity() {
         hdrClock?.text = Prayer.clock(now); hdrDate?.text = Prayer.shortDate(now).uppercase()
         if (prefs.getBoolean("ptWidget", true)) {
             val nx = Prayer.next(now)
-            if (nx != null) { hdrNext?.text = "${nx.first.uppercase()}  ·  ${Prayer.clock(nx.second)}"; hdrNextSub?.text = "in " + Prayer.left(nx.second - now) }
+            val ram = Prayer.today?.hijriMonth == 9       // Ramadan: the header names Maghrib "Iftar" and Fajr "Suhoor ends"
+            if (nx != null) { hdrNext?.text = "${(if (ram && nx.first == "Maghrib") "IFTAR" else if (ram && nx.first == "Fajr") "SUHOOR ENDS" else nx.first.uppercase())}  ·  ${Prayer.clock(nx.second)}"; hdrNextSub?.text = "in " + Prayer.left(nx.second - now) }
             else { hdrNext?.text = ""; hdrNextSub?.text = "" }
         } else { hdrNext?.text = ""; hdrNextSub?.text = "" }
         Prayer.ensure(prefs) { updateChrome() }
@@ -310,7 +312,7 @@ class MainActivity : Activity() {
         showPage {
             when (sec) {
                 "home" -> homeView(); "live" -> liveView(); "movie" -> gridPage("movie"); "series" -> gridPage("series")
-                "list" -> listPage(); "prayer" -> Prayer.page(this, prefs) { if (section == "prayer" && playerRoot == null) refreshPage() }; "settings" -> settingsView(); else -> homeView()
+                "list" -> listPage(); "prayer" -> Prayer.page(this, prefs, { if (section == "prayer" && playerRoot == null) refreshPage() }, { pushPage { Prayer.monthPage(this, prefs) } }); "settings" -> settingsView(); else -> homeView()
             }
         }
     }
@@ -1003,11 +1005,12 @@ class MainActivity : Activity() {
         row("HDR / Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal (try this if HDR looks wrong)" else "Tunnelled (used automatically for Dolby Vision, HDR10 and HLG, fixes washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
         row("Check Dolby Atmos", "See what your TV and soundbar can receive") { atmosCheck() }
         head("SCREENSAVER")
+        row("Remote click sound", (if (prefs.getBoolean("noclick", false)) "OFF" else "ON - soft click when moving between tiles") + "  - press to switch") { prefs.edit().putBoolean("noclick", !prefs.getBoolean("noclick", false)).apply(); refreshPage() }
         row("Screensaver", (if (prefs.getBoolean("nosaver", false)) "OFF" else "ON - after 2 minutes of no button presses") + "  - press to switch") { prefs.edit().putBoolean("nosaver", !prefs.getBoolean("nosaver", false)).apply(); bumpIdle(); refreshPage() }
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.8.1 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.0 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -1366,9 +1369,26 @@ class MainActivity : Activity() {
         shell?.let { setContentView(it) }; refreshPage()
     }
 
+    /** Moving between tiles: a soft click, and holding a direction jumps several tiles per repeat so long rows scroll quickly. */
+    @Volatile var holdUntil = 0L
+    fun tick() { if (playerRoot == null && !prefs.getBoolean("noclick", false)) Click.tick() }
+    private var lastHold = 0L
+    private fun fastScroll(e: KeyEvent): Boolean {
+        val dir = when (e.keyCode) { KeyEvent.KEYCODE_DPAD_RIGHT -> View.FOCUS_RIGHT; KeyEvent.KEYCODE_DPAD_LEFT -> View.FOCUS_LEFT; else -> return false }
+        if (e.repeatCount < 3) return false
+        holdUntil = System.currentTimeMillis() + 250
+        val start = currentFocus ?: return false
+        if (start.parent !is RecyclerView) return false
+        var v: View = start
+        repeat(2) { val n = v.focusSearch(dir) ?: return@repeat; if (n.parent === start.parent) v = n }
+        if (v !== start) { v.requestFocus(); return true }
+        return false
+    }
+
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
         if (saver != null) { stopSaver(); bumpIdle(); return true }
         bumpIdle()
+        if (playerRoot == null && e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0) { if (fastScroll(e)) return true }
         if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
             val hidden = playerView?.isControllerFullyVisible == false
             if (e.keyCode == KeyEvent.KEYCODE_MENU || e.keyCode == KeyEvent.KEYCODE_INFO || (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && hidden)) { audioDialog(); return true }

@@ -130,3 +130,25 @@ class NavItem(ctx: Context, label: String) : TextView(ctx) {
         }
     }
 }
+
+
+/** A very short, soft synthetic click for moving between tiles. Generated in code (no audio file), plays at low volume and never blocks. */
+object Click {
+    private var track: android.media.AudioTrack? = null
+    private var last = 0L
+    fun init() {
+        try {
+            val rate = 22050; val n = rate * 28 / 1000; val pcm = ShortArray(n)
+            for (i in 0 until n) { val env = Math.exp(-i / (n * 0.22)); pcm[i] = (Math.sin(2 * Math.PI * 1500.0 * i / rate) * env * 9000).toInt().toShort() }
+            val t = android.media.AudioTrack.Builder()
+                .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                .setAudioFormat(android.media.AudioFormat.Builder().setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT).setSampleRate(rate).setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO).build())
+                .setBufferSizeInBytes(n * 2).setTransferMode(android.media.AudioTrack.MODE_STATIC).build()
+            t.write(pcm, 0, n); t.setVolume(0.35f); track = t
+        } catch (e: Throwable) { track = null }
+    }
+    fun tick() {
+        val now = System.currentTimeMillis(); if (now - last < 70) return; last = now
+        try { track?.let { it.stop(); it.reloadStaticData(); it.play() } } catch (e: Throwable) { }
+    }
+}
