@@ -174,7 +174,9 @@ class Xtream(base: String, private val user: String, private val pass: String) {
         val raw = i.opt("backdrop_path")
         val back = when (raw) { is JSONArray -> if (raw.length() > 0) raw.optString(0) else ""; is String -> raw; else -> "" }
         val date = i.optString("releasedate").ifBlank { i.optString("releaseDate") }.ifBlank { i.optString("release_date") }
-        val rating = i.optString("rating").ifBlank { i.optString("rating_5based") }
+        val r10 = i.optString("rating").toDoubleOrNull()?.takeIf { it > 0 && it <= 10 }
+        val r5 = i.optString("rating_5based").toDoubleOrNull()?.takeIf { it > 0 && it <= 5 }?.times(2)
+        val rating = (r10 ?: r5)?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: ""
         return Info(i.optString("plot").ifBlank { i.optString("description") }, i.optString("cast").ifBlank { i.optString("actors") },
             i.optString("genre"), date.take(4), rating, back, i.optString("movie_image").ifBlank { i.optString("cover") }, i.optString("youtube_trailer").ifBlank { i.optString("trailer") })
     }

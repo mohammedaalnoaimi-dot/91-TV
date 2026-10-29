@@ -352,7 +352,7 @@ class MainActivity : Activity() {
     /** Shows the provider's rating straight away, then IMDb / Rotten Tomatoes from OMDb when a key is set in Settings. */
     private fun loadRatings(item: Item, year: String, cb: (String) -> Unit) {
         if (item.kind == "live") return
-        cb(if (item.rating > 0f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else "")
+        cb(if (item.rating > 0f && item.rating <= 10f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else "")
         val key = prefs.getString("omdb", "") ?: ""
         if (key.isBlank()) return
         Thread { val r = Ratings.lookup(prefs, key, item.name, year, item.kind); if (r != null) ui.post { cb(r) } }.start()
@@ -362,7 +362,7 @@ class MainActivity : Activity() {
     /** Rating line under a poster: provider score at once, IMDb / Rotten Tomatoes when an OMDb key is set (looked up one by one, then remembered). */
     fun cardRating(item: Item, cb: (String) -> Unit) {
         if (item.kind == "live") return
-        val prov = if (item.rating > 0f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else ""
+        val prov = if (item.rating > 0f && item.rating <= 10f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else ""
         val key = prefs.getString("omdb", "") ?: ""
         if (key.isBlank()) { cb(prov); return }
         rateMemo[item.key]?.let { cb(it); return }
@@ -1019,7 +1019,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.2 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.3 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
