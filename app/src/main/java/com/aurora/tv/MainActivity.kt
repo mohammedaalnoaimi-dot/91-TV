@@ -154,6 +154,13 @@ class MainActivity : Activity() {
         setContentView(col); s.requestFocus()
     }
 
+    private fun splash() {
+        val f = FrameLayout(this).apply { setBackgroundColor(BG) }
+        f.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER },
+            FrameLayout.LayoutParams(dp(420), dp(64), Gravity.CENTER))
+        setContentView(f)
+    }
+
     private fun bigMessage(t: String) = setContentView(TextView(this).apply { text = t; textSize = 26f; setTextColor(CREAM); gravity = Gravity.CENTER; setBackgroundColor(BG) })
 
     private fun setData(l: List<Item>?, m: List<Item>?, se: List<Item>?) {
@@ -165,11 +172,16 @@ class MainActivity : Activity() {
         val server = prefs.getString("server", "") ?: ""; val m3uUrl = prefs.getString("m3u", "") ?: ""
         if (force) Cache.clear(this)
         if (server.isNotBlank()) xt = Xtream(server, prefs.getString("user", "") ?: "", prefs.getString("pass", "") ?: "") else xt = null
-        val cl = Cache.load(this, "live")
-        if (cl != null && cl.isNotEmpty()) {
-            setData(cl, Cache.load(this, "movie") ?: emptyList(), Cache.load(this, "series") ?: emptyList())
-            buildShell(); nav(startSection())
-            if (Cache.ageHours(this, "live") >= 6) refreshInBackground(server, m3uUrl)
+        if (!force && Cache.ageHours(this, "live") != Long.MAX_VALUE) {
+            splash()
+            Thread {
+                val cl = Cache.load(this, "live")
+                if (cl != null && cl.isNotEmpty()) {
+                    val mv = Cache.load(this, "movie") ?: emptyList(); val sr = Cache.load(this, "series") ?: emptyList()
+                    ui.post { setData(cl, mv, sr); buildShell(); nav(startSection()) }
+                    if (Cache.ageHours(this, "live") >= 6) refreshInBackground(server, m3uUrl)
+                } else ui.post { startLoading(true) }
+            }.start()
             return
         }
         bigMessage("91 TV\n\nConnecting…")
@@ -1007,7 +1019,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.1 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.2 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
