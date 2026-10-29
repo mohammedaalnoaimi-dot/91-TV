@@ -371,6 +371,30 @@ class MainActivity : Activity() {
             else -> emptyList()
         }
     }
+    /** Sorting ~90k titles takes a moment, so the three home lists are built off the UI thread; the home page is redrawn once when they are ready. */
+    private fun warmSmart() {
+        val keys = listOf("movie" to "@recent", "movie" to "@top", "movie" to "@new", "series" to "@top", "series" to "@new")
+        if (keys.all { smart.containsKey("${it.first}|${it.second}") } || smartBusy) return
+        smartBusy = true
+        val bases = mapOf("movie" to visible("movie", movies), "series" to visible("series", series))
+        val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        Thread {
+            val out = HashMap<String, List<Item>>()
+            for ((k, w) in keys) {
+                val base = bases[k] ?: emptyList()
+                out["$k|$w"] = when (w) {
+                    "@recent" -> base.filter { it.added > 0 }.sortedByDescending { it.added }.take(300)
+                    "@top" -> base.filter { it.rating > 0f && it.rating <= 10f }.sortedByDescending { it.rating }.take(300)
+                    else -> base.filter { yearOf(it.name) >= year - 1 }.sortedByDescending { it.added }.take(300)
+                }
+            }
+            ui.post {
+                smartBusy = false; smart.putAll(out)
+                if (section == "home" && pageStack.isEmpty() && playerRoot == null) refreshPage()
+            }
+        }.start()
+    }
+    private var smartBusy = false
     private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         val h = hidden(); if (h.isEmpty()) return items
@@ -398,6 +422,8 @@ class MainActivity : Activity() {
     private fun recents() = readList("recent")
     private fun addRecent(it: Item) { val l = recents().toMutableList(); l.removeAll { r -> r.key == it.key }; l.add(0, it); writeList("recent", l.take(60)) }
     private fun savedPos(it: Item): Long = prefs.getLong("pos_" + it.key, 0L)
+    /** How much of a movie / episode has been watched (0..1), for the red bar on "Continue watching" posters. */
+    fun progressOf(it: Item): Float { if (it.kind != "movie" && it.kind != "episode") return 0f; val d = prefs.getLong("dur_" + it.key, 0L); val p = savedPos(it); return if (d > 0 && p > 0) (p.toFloat() / d).coerceIn(0f, 1f) else 0f }
 
     fun epgFor(it: Item, fetch: Boolean = true, cb: (List<Prog>) -> Unit) {
         if (it.kind != "live" || it.id.isEmpty() || xt == null) return
@@ -451,13 +477,16 @@ class MainActivity : Activity() {
     private fun homeView(): View {
         val scroll = ScrollView(this).apply { setBackgroundColor(BG); isFillViewport = true; clipChildren = false }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false }
+        warmSmart()
         col.addView(heroView(), LinearLayout.LayoutParams(-1, dp(340)))
         val cont = recents().filter { (it.kind == "movie" || it.kind == "episode") && savedPos(it) > 10_000 }
         if (cont.isNotEmpty()) col.addView(rowView("Continue watching", cont))
         val fv = favs(); if (fv.isNotEmpty()) col.addView(rowView("${profName()}'s list", fv))
-        smartList("movie", "@recent").let { if (it.isNotEmpty()) col.addView(rowView("Recently added movies", it.take(40))) }
-        smartList("movie", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated movies", it.take(40))) }
-        smartList("series", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated series", it.take(40))) }
+        fun cached(k: String, w: String) = smart["$k|$w"] ?: emptyList()
+        cached("movie", "@recent").let { if (it.isNotEmpty()) col.addView(rowView("Recently added movies", it.take(40))) }
+        cached("movie", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated movies", it.take(40))) }
+        cached("movie", "@new").let { if (it.isNotEmpty()) col.addView(rowView("New releases", it.take(40))) }
+        cached("series", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated series", it.take(40))) }
         val l = visible("live", live); if (l.isNotEmpty()) col.addView(rowView("Live TV", l.take(40)))
         val m = visible("movie", movies); if (m.isNotEmpty()) col.addView(rowView("Movies", m.take(40)))
         val s = visible("series", series); if (s.isNotEmpty()) col.addView(rowView("TV Series", s.take(40)))
@@ -483,7 +512,10 @@ class MainActivity : Activity() {
 
     private fun heroView(): View {
         val day = System.currentTimeMillis() / 86_400_000L
-        val pool = (visible("movie", movies).filter { it.logo.isNotBlank() }.take(60) + visible("series", series).filter { it.logo.isNotBlank() }.take(40))
+        // banner = best rated + newest titles that have a poster (falls back to a daily shuffle until the lists are ready)
+        val best = (smart["movie|@top"].orEmpty() + smart["series|@top"].orEmpty() + smart["movie|@new"].orEmpty() + smart["series|@new"].orEmpty()).filter { it.logo.isNotBlank() }
+            .distinctBy { it.key }.sortedByDescending { it.rating + if (yearOf(it.name) >= java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - 1) 2f else 0f }.take(10)
+        val pool = if (best.size >= 4) best else (visible("movie", movies).filter { it.logo.isNotBlank() }.take(60) + visible("series", series).filter { it.logo.isNotBlank() }.take(40))
             .shuffled(java.util.Random(day)).take(10)
         var idx = 0
         var feat: Item? = pool.firstOrNull()
@@ -953,7 +985,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.6.1 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.7.0 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -1274,6 +1306,7 @@ class MainActivity : Activity() {
         if (it.kind == "live") return
         val pos = p.currentPosition; val dur = p.duration
         val e = prefs.edit()
+        if (dur > 0) e.putLong("dur_" + it.key, dur)
         if (dur > 0 && pos > dur * 0.95) e.remove("pos_" + it.key) else if (pos > 10_000) e.putLong("pos_" + it.key, pos)
         e.apply()
     }

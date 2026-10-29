@@ -47,7 +47,7 @@ class PosterAdapter(
     private val a: MainActivity, var items: List<Item>,
     private val onPick: (List<Item>, Int) -> Unit, private val onLong: (Item) -> Unit
 ) : RecyclerView.Adapter<PosterAdapter.VH>() {
-    class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val rate: TextView, val bg: GradientDrawable) : RecyclerView.ViewHolder(cell)
+    class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val rate: TextView, val bg: GradientDrawable, val prog: Bar) : RecyclerView.ViewHolder(cell)
     override fun getItemCount() = items.size
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val bg = a.rbg(CARD, Color.TRANSPARENT, 3, 3)
@@ -59,6 +59,7 @@ class PosterAdapter(
         val ini = TextView(a).apply { setTextColor(Color.parseColor("#CCFFFFFF")); textSize = 15f; gravity = Gravity.CENTER; setPadding(a.dp(10), 0, a.dp(10), 0); maxLines = 4 }
         box.addView(ini, FrameLayout.LayoutParams(-1, -1))
         val img = ImageView(a); box.addView(img, FrameLayout.LayoutParams(-1, -1))
+        val prog = Bar(a).apply { visibility = android.view.View.GONE }; box.addView(prog, FrameLayout.LayoutParams(-1, a.dp(5), Gravity.BOTTOM))
         cell.addView(box, LinearLayout.LayoutParams(a.dp(150), a.dp(225)))
         val label = TextView(a).apply { typeface = a.fBody(); setTextColor(CREAM); textSize = 13f; maxLines = 2; ellipsize = TextUtils.TruncateAt.END; setPadding(a.dp(2), a.dp(6), a.dp(2), 0) }
         cell.addView(label, LinearLayout.LayoutParams(-1, -2))
@@ -69,13 +70,14 @@ class PosterAdapter(
             v.elevation = if (f) 24f else 0f
             bg.setStroke(a.dp(3), if (f) CREAM else Color.TRANSPARENT)
         }
-        return VH(cell, img, ini, label, rate, bg)
+        return VH(cell, img, ini, label, rate, bg, prog)
     }
     override fun onBindViewHolder(h: VH, position: Int) {
         val it = items[position]
         h.label.text = it.name
         h.rate.text = ""; h.cell.tag = it.key; a.cardRating(it) { t -> if (h.cell.tag == it.key) h.rate.text = t }
         h.bg.setColor(hueColor(it.name))
+        val fr = a.progressOf(it); h.prog.frac = fr; h.prog.visibility = if (fr > 0.01f) android.view.View.VISIBLE else android.view.View.GONE
         val live = it.kind == "live"
         h.img.scaleType = if (live) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER_CROP
         h.img.setPadding(if (live) a.dp(18) else 0, if (live) a.dp(18) else 0, if (live) a.dp(18) else 0, if (live) a.dp(18) else 0)
