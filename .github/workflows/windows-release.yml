@@ -1,0 +1,23 @@
+name: Publish 91 TV for Windows
+on:
+  push:
+    branches: [win-build]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: win-build }
+      - run: ls -la && test -s 91TV-Windows.zip && unzip -l 91TV-Windows.zip | tail -3
+      - name: Publish as the latest Windows release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          target_commitish: main
+          name: 91 TV for Windows (latest)
+          body: "91 TV for Windows. Includes a 7-day free trial. Plans at https://ninetyonetv.com"
+          files: 91TV-Windows.zip
+          make_latest: false
