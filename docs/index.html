@@ -193,6 +193,20 @@ section{padding-block:96px}
 .sun2{position:absolute;left:50%;top:38%;width:9cqw;height:9cqw;margin-left:-4.5cqw;border-radius:50%;background:#ffe2b8;box-shadow:0 0 4cqw #ffd39a}
 .s4::after{content:"";position:absolute;left:0;right:0;bottom:0;height:38%;background:radial-gradient(120% 100% at 30% 100%,#1c0a12 50%,transparent 51%),radial-gradient(100% 90% at 80% 110%,#2a0f1c 50%,transparent 51%)}
 
+/* download */
+.trialnote{color:var(--gold);font-size:14px;letter-spacing:.04em;margin:14px 0 0}
+.dl{background:radial-gradient(60% 70% at 50% 0%,rgba(201,71,92,.10),transparent 70%)}
+.dlgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:22px}
+.dlcard{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:30px 30px 32px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.dlhead{display:flex;gap:16px;align-items:center}
+.dlicon{color:var(--gold);width:56px;height:56px;border-radius:14px;background:var(--raise);border:1px solid var(--line);display:grid;place-items:center;flex:0 0 56px}
+.dlcard h3{margin:0;font:500 22px var(--display);letter-spacing:.03em}
+.dlcard p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.dlcard ol{margin:0;padding-left:22px;color:var(--muted);display:grid;gap:6px}
+.dlcard ol b{color:var(--text);font-weight:500}
+.dlcard .btn{align-self:flex-start;margin-top:6px}
+.bigcode{font:600 clamp(40px,7vw,58px)/1 var(--display);letter-spacing:.16em;color:var(--text);text-align:center;padding:18px;border:1px dashed #5e4a3d;border-radius:12px;background:var(--bg);font-variant-numeric:tabular-nums}
+
 /* specs */
 .specs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .spec{padding:28px 26px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
@@ -257,8 +271,8 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
 <header class="nav gut" id="top">
   <div class="wrap">
     <a href="#top"><img src="wordmark.png" alt="91 TV" width="190" height="26"></a>
-    <nav><a href="#features">Features</a><a href="#picture">Picture & sound</a><a href="#pricing">Pricing</a><a href="#install">Install</a><a href="#faq">FAQ</a></nav>
-    <a class="btn" href="#pricing">Get 91 TV</a>
+    <nav><a href="#features">Features</a><a href="#picture">Picture & sound</a><a href="#download">Download</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></nav>
+    <a class="btn" href="#download">Try free</a>
   </div>
 </header>
 
@@ -268,7 +282,8 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
       <span class="eyebrow">For Android TV &amp; Windows 11</span>
       <h1>Your IPTV, in its <em>best light.</em></h1>
       <p class="sub">91 TV turns your IPTV subscription into a cinema at home: a calm, beautiful interface for live TV, movies and series, with Dolby Vision, Dolby Atmos and a real TV guide.</p>
-      <div class="ctas"><a class="btn" href="#pricing">See plans</a><a class="btn ghost" href="#features">Take the tour</a></div>
+      <div class="ctas"><a class="btn" href="#download">Try free for 7 days</a><a class="btn ghost" href="#pricing">See plans</a></div>
+      <p class="trialnote">7 days free · no card needed · then from 1.500 BHD</p>
       <div class="chips"><span class="chip">Dolby Vision</span><span class="chip">Dolby Atmos</span><span class="chip">HDR10 · HLG</span><span class="chip">4K</span><span class="chip">M3U &amp; Xtream</span></div>
     </div>
     <div class="tv" aria-label="91 TV home screen">
@@ -294,6 +309,7 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
     <div><b>4K</b><span>HDR10, HLG &amp; Dolby Vision</span></div>
     <div><b>7.1</b><span>Dolby Atmos &amp; DTS passthrough</span></div>
     <div><b>4</b><span>channels at once in Multi-view</span></div>
+    <div><b>7</b><span>days free, no card</span></div>
     <div><b>0</b><span>ads, ever</span></div>
   </div>
 </div>
@@ -414,9 +430,35 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
   </div>
 </section>
 
+<section id="download" class="gut dl">
+  <div class="wrap">
+    <div class="head center"><span class="eyebrow">Free for 7 days</span><h2>Download and try it free.</h2><p class="sub">Install 91 TV, add your provider and use everything for 7 days. No code, no card. Love it? Pick a plan any time.</p></div>
+    <div class="dlgrid">
+      <div class="dlcard">
+        <div class="dlhead"><span class="dlicon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 20.5h8M12 17v3.5"/></svg></span><div><h3>Android TV &amp; Google TV</h3><p>Sony, TCL, Skyworth, Hisense, Philips, Chromecast with Google TV</p></div></div>
+        <ol>
+          <li>On your TV, install the free <b>Downloader</b> app from the Play Store.</li>
+          <li>Open Downloader and enter this code:</li>
+        </ol>
+        <div class="bigcode" aria-label="Downloader code 8033693">8033693</div>
+        <ol start="3"><li>Install, open 91 TV and choose <b>Start 7-day free trial</b>.</li></ol>
+      </div>
+      <div class="dlcard">
+        <div class="dlhead"><span class="dlicon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="11" rx="1.5"/><path d="M2 19.5h20l-1.5-4h-17z"/></svg></span><div><h3>Windows 10 &amp; 11</h3><p>64-bit · no admin rights needed · about 95 MB</p></div></div>
+        <ol>
+          <li>Download 91 TV and unzip it.</li>
+          <li>Open <b>91TV.exe</b>. If Windows SmartScreen appears, click <b>More info › Run anyway</b>.</li>
+          <li>Choose <b>Start 7-day free trial</b>.</li>
+        </ol>
+        <a class="btn" href="https://github.com/mohammedaalnoaimi-dot/91-TV/releases/download/windows-latest/91TV-Windows.zip">Download for Windows</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="pricing" class="gut">
   <div class="wrap">
-    <div class="head center"><span class="eyebrow">Pricing</span><h2>One app. Three simple plans.</h2><p class="sub">The same plans for Android TV and Windows. Every code works on 2 devices.</p></div>
+    <div class="head center"><span class="eyebrow">Pricing</span><h2>One app. Three simple plans.</h2><p class="sub">Every plan starts with a 7-day free trial in the app. The same plans for Android TV and Windows, and every code works on 2 devices.</p></div>
     <div class="plans">
       <div class="plan"><h3>1 Month</h3><div class="amt">1.500<small>BHD / month</small></div><div class="usd">about US$4 · cancel anytime</div><ul><li>All features</li><li>2 devices</li><li>Free updates</li></ul></div>
       <div class="plan best"><span class="tag">Best value</span><h3>1 Year</h3><div class="amt">7.500<small>BHD / year</small></div><div class="usd">about US$20 · 7 months free</div><ul><li>All features</li><li>2 devices</li><li>Free updates</li></ul></div>
@@ -432,11 +474,11 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
 
 <section id="install" class="gut">
   <div class="wrap">
-    <div class="head"><span class="eyebrow">Getting started</span><h2>Watching in three steps.</h2></div>
+    <div class="head"><span class="eyebrow">Getting started</span><h2>From download to watching.</h2></div>
     <div class="steps">
-      <div class="step"><div class="n">I</div><h3>Choose a plan</h3><p>Pay securely and your activation code arrives in your inbox straight away.</p></div>
-      <div class="step"><div class="n">II</div><h3>Install</h3><p><b style="color:var(--text);font-weight:500">Android TV:</b> install the free <i>Downloader</i> app from the Play Store and enter<br><span class="code">8033693</span></p><p style="margin-top:10px"><b style="color:var(--text);font-weight:500">Windows:</b> download from your order page.</p></div>
-      <div class="step"><div class="n">III</div><h3>Activate &amp; add your provider</h3><p>Enter your code, then your M3U link or Xtream login. Your home screen fills in by itself.</p></div>
+      <div class="step"><div class="n">I</div><h3>Try it free</h3><p>Download 91 TV and start the 7-day free trial. Everything works, no code or card needed.</p></div>
+      <div class="step"><div class="n">II</div><h3>Add your provider</h3><p>Enter your M3U link or Xtream login. Your home screen, guide and library fill in by themselves.</p></div>
+      <div class="step"><div class="n">III</div><h3>Choose a plan</h3><p>Pick 1 month, 1 year or lifetime. Your code arrives by email instantly; paste it in and keep watching.</p></div>
     </div>
   </div>
 </section>
@@ -446,6 +488,7 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
     <div class="note"><b>91 TV is a player only.</b> It does not provide, sell or include any channels, playlists, movies or other content. You need your own subscription from an IPTV provider you are legally entitled to use. Pictures on this page use original illustrations and sample names.</div>
     <div class="head center" style="margin-top:80px"><span class="eyebrow">Questions</span><h2>Good to know.</h2></div>
     <div class="faq">
+      <details open><summary>Is there a free trial?</summary><p>Yes. Every new install gets 7 days free with all features. No code and no card needed. When it ends, choose a plan to keep watching.</p></details>
       <details><summary>Do you include channels or a subscription?</summary><p>No. 91 TV is the player app only. You bring your own IPTV provider and add it with an M3U link or an Xtream Codes login.</p></details>
       <details><summary>Which devices does it work on?</summary><p>Android TV and Google TV devices (Sony, TCL, Skyworth, Hisense, Philips, Chromecast with Google TV and more) and Windows 10 / 11 PCs. There are separate plans for TV and Windows.</p></details>
       <details><summary>How many devices can I use one code on?</summary><p>Two. If you change TV or PC, open Settings › Licence on the old one and remove it, then activate the same code on the new one.</p></details>
@@ -461,7 +504,7 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
     <img src="wordmark.png" alt="91 TV" width="320" height="44">
     <h2>Ready when you are.</h2>
     <p class="sub" style="margin:0 auto 28px">Bring your IPTV subscription. We'll bring the cinema.</p>
-    <div class="ctas" style="justify-content:center"><a class="btn" href="#pricing">See plans</a></div>
+    <div class="ctas" style="justify-content:center"><a class="btn" href="#download">Try free for 7 days</a><a class="btn ghost" href="#pricing">See plans</a></div>
   </div>
 </section>
 </main>
