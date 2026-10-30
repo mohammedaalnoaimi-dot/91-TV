@@ -47,7 +47,6 @@ class MultiActivity : Activity() {
     private lateinit var hint: TextView
 
     override fun attachBaseContext(base: Context) {
-        if (base.getSharedPreferences("aurora", Context.MODE_PRIVATE).getBoolean("classic", false)) { super.attachBaseContext(base); return }
         val cfg = Configuration(base.resources.configuration)
         val w = maxOf(base.resources.displayMetrics.widthPixels, base.resources.displayMetrics.heightPixels)
         cfg.densityDpi = (160f * w / 1280f).toInt().coerceIn(120, 640)

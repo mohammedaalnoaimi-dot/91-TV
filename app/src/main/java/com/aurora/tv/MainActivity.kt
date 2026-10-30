@@ -96,7 +96,6 @@ class MainActivity : Activity() {
 
     /** Lay out as if the screen were 1280 dp wide whatever the TV reports, so every TV gets the same proportions. */
     override fun attachBaseContext(base: Context) {
-        if (base.getSharedPreferences("aurora", Context.MODE_PRIVATE).getBoolean("classic", false)) { super.attachBaseContext(base); return }
         val cfg = Configuration(base.resources.configuration)
         val w = maxOf(base.resources.displayMetrics.widthPixels, base.resources.displayMetrics.heightPixels)
         cfg.densityDpi = (160f * w / 1280f).toInt().coerceIn(120, 640)
@@ -1019,7 +1018,6 @@ class MainActivity : Activity() {
             val i = Prayer.REMIND.indexOf(prefs.getInt("ptRemind", 0)); prefs.edit().putInt("ptRemind", Prayer.REMIND[(i + 1) % Prayer.REMIND.size]).apply(); refreshPage()
         }
         head("LIBRARY")
-        row("CLASSIC PLAYER (test)", (if (prefs.getBoolean("classic", false)) "ON - plain first-version player, screen layout will look too big on this TV" else "OFF") + "  - press to switch, the app restarts") { prefs.edit().putBoolean("classic", !prefs.getBoolean("classic", false)).commit(); recreate() }
         row("Provider", "Change server, login or M3U playlist") { setupView() }
         row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); smart.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
@@ -1042,7 +1040,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.8 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.9 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -1060,14 +1058,6 @@ class MainActivity : Activity() {
         val http = DefaultHttpDataSource.Factory().setUserAgent(Http.UA).setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(15000).setReadTimeoutMs(20000)
         val extractors = DefaultExtractorsFactory().setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS)
         val factory = DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http), extractors)
-        if (prefs.getBoolean("classic", false)) {
-            val cp = ExoPlayer.Builder(this, DefaultRenderersFactory(this).setEnableDecoderFallback(true)).setMediaSourceFactory(factory).build()
-            cp.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
-                override fun onVideoDecoderInitialized(eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) { vdec = decoderName }
-            })
-            if (!main) cp.volume = 0f
-            return cp
-        }
         val passthrough = !prefs.getBoolean("pcm", false)
         val rf = object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink? =
@@ -1310,7 +1300,7 @@ class MainActivity : Activity() {
         titleView = TextView(this).apply { textSize = 24f; setTextColor(CREAM); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)); visibility = View.GONE }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
-        if (android.os.Build.VERSION.SDK_INT >= 26 && !prefs.getBoolean("classic", false)) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
+        if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         // Netflix-style buttons: +/-10 seconds (the stock buttons use 5 / 15 s)
