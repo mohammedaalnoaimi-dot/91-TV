@@ -136,7 +136,8 @@ class MainActivity : Activity() {
             Thread { val good = Lic.refresh(prefs); ui.post { if (good) begin() else m.text = prefs.getString("lic_msg", "") ?: "" } }.start()
         }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(14) })
         col.addView(btns, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(18) })
-        if (Lic.BUY_URL.isNotBlank()) col.addView(mkText("No code yet? Buy one at ${Lic.BUY_URL}", 15f, GRAY).apply { setPadding(0, dp(26), 0, 0) })
+        col.addView(mkText("Tip: paste it from your phone. Open the Google TV app › Remote › keyboard, then paste the code from your email. No dashes needed if you type it.", 14f, GRAY).apply { setPadding(0, dp(22), 0, 0); gravity = Gravity.CENTER; maxWidth = dp(640) })
+        if (Lic.BUY_URL.isNotBlank()) col.addView(mkText("No code yet? Buy one at ninetyonetv.com", 15f, GRAY).apply { setPadding(0, dp(12), 0, 0) })
         setContentView(col); et.requestFocus()
     }
 

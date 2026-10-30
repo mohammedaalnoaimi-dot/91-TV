@@ -126,9 +126,32 @@ object Lic {
      * Checks the code BEFORE activating, so a wrong or expired code never uses up an activation.
      * Typing the same code again on this TV reuses its activation instead of taking a new one.
      */
+    /** Customers may type the code without dashes, with spaces, or in any letter case: "38B1460A51044067A91D77B872934D51". */
+    internal fun normalize(raw: String): String {
+        val t = raw.trim()
+        val hex = t.filter { it.isLetterOrDigit() }
+        if (hex.length == 32 && hex.all { it in '0'..'9' || it.lowercaseChar() in 'a'..'f' } && t.all { it.isLetterOrDigit() || it == '-' || it == ' ' }) {
+            val h = hex.lowercase()
+            return h.substring(0, 8) + "-" + h.substring(8, 12) + "-" + h.substring(12, 16) + "-" + h.substring(16, 20) + "-" + h.substring(20)
+        }
+        return t
+    }
+
     fun activate(ctx: Context, prefs: SharedPreferences, key: String): String? {
+        val raw = key.trim()
+        if (raw.length < 8) return "Please type the full code"
+        if (isOwner(raw)) return activateChecked(ctx, prefs, raw)
+        val k = normalize(raw)
+        val r = activateChecked(ctx, prefs, k)
+        if (r == "Code not found. Please check it and try again." && k.uppercase() != k) {
+            val up = activateChecked(ctx, prefs, k.uppercase())     // in case keys are issued in capitals
+            if (up == null) return null
+        }
+        return r
+    }
+
+    private fun activateChecked(ctx: Context, prefs: SharedPreferences, key: String): String? {
         val k = key.trim()
-        if (k.length < 8) return "Please type the full code"
         if (isOwner(k)) {
             prefs.edit().putString("lic_key", k.uppercase()).putString("lic_inst", "owner").putLong("lic_ok", clock())
                 .putLong("lic_exp", 0L).putString("lic_plan", "Owner").remove("lic_msg").apply()
