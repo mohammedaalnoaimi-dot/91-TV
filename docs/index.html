@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>91 TV</title>
+<meta name="theme-color" content="#070506">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="91 TV">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#070506;--card:#14100f;--line:#2a2220;--cream:#ebddc4;--gold:#d7b88a;--gray:#a8977e;--muted:#8f806c;--rose:#c9475c;--top:env(safe-area-inset-top);--bot:env(safe-area-inset-bottom)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--cream);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+button,input{font:inherit;color:inherit}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:10px;padding:calc(var(--top) + 10px) 16px 8px}
+header img{height:22px;display:block}
+.sp{flex:1}
+.chip{font-size:11px;letter-spacing:.08em;color:var(--gold);border:1px solid var(--line);border-radius:14px;padding:4px 9px;white-space:nowrap}
+.clock{font-size:15px;color:var(--cream);font-variant-numeric:tabular-nums}
+.ib{background:none;border:0;padding:6px;color:var(--gray);font-size:20px}
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:84px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(7,5,6,.96);border-top:1px solid var(--line);padding:6px 4px calc(var(--bot) + 6px);backdrop-filter:blur(10px)}
+nav button{flex:1;background:none;border:0;color:var(--muted);font-size:11px;letter-spacing:.06em;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button b{font-size:19px;font-weight:400;line-height:1}
+nav button.on{color:var(--cream)}nav button.on b{color:var(--rose)}
+h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;color:var(--cream)}
+.row{display:flex;gap:10px;overflow-x:auto;padding:0 16px 4px;scrollbar-width:none}.row::-webkit-scrollbar{display:none}
+.card{flex:0 0 108px;cursor:pointer;position:relative}
+.card .p{width:108px;height:162px;border-radius:8px;background:var(--card) center/cover;border:1px solid var(--line);position:relative;overflow:hidden}
+.card .t{font-size:12px;color:var(--gray);margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .r{font-size:11px;color:var(--gold)}
+.bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.18)}.bar i{display:block;height:100%;background:var(--rose)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;padding:6px 16px}
+.grid .card{flex:none}.grid .card .p{width:100%;height:0;padding-top:150%}
+.search{display:block;width:calc(100% - 32px);margin:8px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.cat{flex:0 0 auto;border:1px solid var(--line);background:none;border-radius:16px;padding:6px 13px;color:var(--gray);font-size:13px;white-space:nowrap}
+.cat.on{background:var(--rose);border-color:var(--rose);color:#fff}
+.live{display:flex;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid #15110f;cursor:pointer}
+.live .lg{width:44px;height:44px;border-radius:8px;background:var(--card) center/contain no-repeat;border:1px solid var(--line);flex:none}
+.live .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{display:block;margin:14px auto;background:none;border:1px solid var(--line);border-radius:18px;padding:9px 22px;color:var(--gray)}
+.empty{padding:40px 24px;text-align:center;color:var(--muted)}
+.sheet{position:fixed;inset:0;background:var(--bg);z-index:20;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:40px}
+.sheet .hero{height:260px;background:#000 center/cover;position:relative}
+.sheet .hero:after{content:"";position:absolute;inset:0;background:linear-gradient(to top,var(--bg),rgba(7,5,6,.1))}
+.back{position:fixed;top:calc(var(--top) + 10px);left:12px;z-index:30;width:38px;height:38px;border-radius:19px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:20px}
+.sheet .in{padding:0 18px;margin-top:-34px;position:relative;z-index:2}
+.sheet h1{font:italic 700 26px Georgia,serif;margin:0 0 6px}
+.meta{color:var(--gold);font-size:13px;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--cream);color:#16110e;border:0;border-radius:8px;padding:11px 22px;font-weight:600;margin:0 8px 10px 0}
+.btn.s{background:none;border:1px solid var(--line);color:var(--cream)}
+.plot{color:var(--gray);font-size:14px;line-height:1.5}
+.ep{display:flex;justify-content:space-between;gap:10px;padding:12px 4px;border-bottom:1px solid #15110f;cursor:pointer}
+.ep span:last-child{color:var(--muted);font-size:12px;white-space:nowrap}
+#player{position:fixed;inset:0;background:#000;z-index:40;display:flex;align-items:center;justify-content:center}
+#player video{width:100%;height:100%;background:#000}
+#ptitle{position:absolute;top:calc(var(--top) + 12px);left:60px;right:16px;font-size:14px;text-shadow:0 1px 4px #000;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#perr{position:absolute;left:20px;right:20px;bottom:90px;background:rgba(0,0,0,.8);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;color:var(--gold);display:none}
+.form{padding:calc(var(--top) + 40px) 24px 40px;max-width:480px;margin:0 auto}
+.form img{display:block;height:34px;margin:0 auto 28px}
+.form label{display:block;color:var(--gray);font-size:12px;letter-spacing:.08em;margin:14px 0 5px}
+.form input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;outline:none}
+.form .btn{width:100%;justify-content:center;margin:24px 0 0}
+.note{color:var(--muted);font-size:12px;margin-top:14px;line-height:1.5}
+.err{color:#e58a8a;margin-top:12px;font-size:13px;white-space:pre-wrap}
+.set{padding:8px 16px}.set .b{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #15110f;gap:12px}.set .b small{display:block;color:var(--muted);font-size:12px}
+.set button{background:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;color:var(--cream)}
+.spin{padding:30px;text-align:center;color:var(--muted)}
+.pt{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:0 16px}.pt div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 2px;text-align:center;font-size:11px;color:var(--gray)}.pt b{display:block;color:var(--cream);font-size:14px;font-weight:500;margin-top:3px}.pt .nx{border-color:var(--rose)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+// ---------- tiny helpers
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem("91tv." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("91tv." + k, JSON.stringify(v)); } catch (e) {} }
+};
+const app = $("#app");
+let cfg = LS.get("cfg", null);                    // {server,user,pass,proxy}
+const mem = {};                                   // in-memory API cache
+let tab = "home", cat = {}, query = "", shown = 60;
+
+// ---------- Xtream API
+function base() { return cfg.server.replace(/\/+$/, ""); }
+function viaProxy(u) { return cfg.proxy ? cfg.proxy.replace(/\/+$/, "") + "/" + u : u; }
+async function api(action, params = {}, cacheKey) {
+  const k = cacheKey || action + JSON.stringify(params);
+  if (mem[k]) return mem[k];
+  const q = new URLSearchParams({ username: cfg.user, password: cfg.pass, ...(action ? { action } : {}), ...params });
+  const url = base() + "/player_api.php?" + q;
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(viaProxy(url));
+      if (r.status >= 500 && i < 2) { await new Promise(s => setTimeout(s, 1500 * (i + 1))); continue; }
+      if (!r.ok) throw new Error("Server answered " + r.status);
+      return mem[k] = await r.json();
+    } catch (e) { last = e; if (i < 2) await new Promise(s => setTimeout(s, 800)); }
+  }
+  throw last;
+}
+const KIND = {
+  live:   { cats: "get_live_categories",   list: "get_live_streams", title: "Live TV" },
+  movie:  { cats: "get_vod_categories",    list: "get_vod_streams",  title: "Movies" },
+  series: { cats: "get_series_categories", list: "get_series",       title: "Series" }
+};
+function norm(kind, s) {
+  if (kind === "series") return { kind, id: String(s.series_id), name: s.name || "", logo: s.cover || "", rate: +s.rating || 0, cat: String(s.category_id) };
+  if (kind === "movie") return { kind, id: String(s.stream_id), name: s.name || "", logo: s.stream_icon || "", rate: +s.rating || 0, ext: s.container_extension || "mp4", cat: String(s.category_id) };
+  return { kind, id: String(s.stream_id), name: s.name || "", logo: s.stream_icon || "", cat: String(s.category_id) };
+}
+async function listOf(kind, catId) {
+  const p = catId && catId !== "all" ? { category_id: catId } : {};
+  const arr = await api(KIND[kind].list, p);
+  return (arr || []).map(s => norm(kind, s));
+}
+function streamUrl(it) {
+  const b = base(), c = encodeURIComponent(cfg.user) + "/" + encodeURIComponent(cfg.pass);
+  if (it.kind === "live") return `${b}/live/${c}/${it.id}.m3u8`;
+  if (it.kind === "movie") return `${b}/movie/${c}/${it.id}.${it.ext || "mp4"}`;
+  return `${b}/series/${c}/${it.id}.${it.ext || "mp4"}`;
+}
+const keyOf = it => it.kind + ":" + it.id;
+const clean = n => (n || "").replace(/^[^a-z]{1,14}? - /, "").replace(/\s*[\[(][^\])]*[\])]\s*/g, " ").replace(/\s+/g, " ").trim() || n;
+
+// ---------- stored lists
+const recents = () => LS.get("recent", []);
+function pushRecent(it) { const r = recents().filter(x => keyOf(x) !== keyOf(it)); r.unshift({ kind: it.kind, id: it.id, name: it.name, logo: it.logo, ext: it.ext, parent: it.parent }); LS.set("recent", r.slice(0, 40)); }
+const favs = () => LS.get("favs", []);
+const isFav = it => favs().some(x => keyOf(x) === keyOf(it));
+function toggleFav(it) { let f = favs(); if (isFav(it)) f = f.filter(x => keyOf(x) !== keyOf(it)); else f.unshift({ kind: it.kind, id: it.id, name: it.name, logo: it.logo, ext: it.ext }); LS.set("favs", f); }
+const pos = () => LS.get("pos", {});
+function prog(it) { const p = pos()[keyOf(it)]; return p && p.d > 0 ? Math.min(1, p.t / p.d) : 0; }
+
+// ---------- views
+function setup(msg) {
+  const c = cfg || {};
+  app.innerHTML = `<div class="form"><img src="wordmark.png" alt="91 TV">
+  <label>SERVER</label><input id="s" placeholder="https://example.com" value="${esc(c.server)}" autocapitalize="off" autocorrect="off">
+  <label>USERNAME</label><input id="u" value="${esc(c.user)}" autocapitalize="off" autocorrect="off">
+  <label>PASSWORD</label><input id="p" type="password" value="${esc(c.pass)}" autocapitalize="off">
+  <label>PROXY (ONLY IF CONNECTING FAILS)</label><input id="x" placeholder="leave empty" value="${esc(c.proxy)}" autocapitalize="off" autocorrect="off">
+  <button class="btn" id="go">Connect</button><div class="err" id="e">${esc(msg || "")}</div>
+  <div class="note">Your login stays on this iPhone only. Tip: tap Share, then Add to Home Screen, to use 91 TV like an app.</div></div>`;
+  $("#go").onclick = async () => {
+    const n = { server: $("#s").value.trim(), user: $("#u").value.trim(), pass: $("#p").value.trim(), proxy: $("#x").value.trim() };
+    if (!/^https?:\/\//i.test(n.server)) n.server = "https://" + n.server;
+    cfg = n; $("#e").textContent = "Connecting…";
+    try {
+      const d = await api("", {}, "login");
+      if (!d || !d.user_info || String(d.user_info.auth) !== "1") throw new Error("Login failed: check username and password");
+      LS.set("cfg", cfg); shell();
+    } catch (e) {
+      $("#e").textContent = "Could not connect: " + (e.message || e) + (location.protocol === "https:" && /^http:/i.test(cfg.server) ? "\n\nThis server uses http, which Safari blocks on a secure page." : "\n\nIf the server is correct, it may not allow web apps. Then a proxy address is needed.");
+    }
+  };
+}
+
+function shell() {
+  app.innerHTML = `<header><img src="wordmark.png" alt="91 TV"><span class="sp"></span><span class="chip" id="pchip" style="display:none"></span><span class="clock" id="clk"></span><button class="ib" id="gear" aria-label="Settings">⚙</button></header>
+  <main id="main"></main>
+  <nav>${[["home", "⌂", "HOME"], ["live", "◉", "LIVE"], ["movie", "▶", "MOVIES"], ["series", "▤", "SERIES"], ["list", "♡", "MY LIST"]].map(t => `<button data-t="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join("")}</nav>`;
+  document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.t));
+  $("#gear").onclick = () => go("settings");
+  tick(); setInterval(tick, 15000); prayerChip();
+  go(tab);
+}
+function tick() { const d = new Date(), c = $("#clk"); if (c) c.textContent = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }); }
+function go(t) {
+  tab = t; query = ""; shown = 60;
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  const m = $("#main"); m.scrollTop = 0;
+  ({ home, live: () => browse("live"), movie: () => browse("movie"), series: () => browse("series"), list: myList, settings })[t]();
+}
+
+function cardHtml(it, i, big) {
+  const p = prog(it), r = it.rate > 0 && it.rate <= 10 ? `<div class="r">★ ${it.rate.toFixed(1)}</div>` : "";
+  return `<div class="card" data-i="${i}"><div class="p" style="background-image:url('${esc(it.logo)}')">${p > 0.02 ? `<div class="bar"><i style="width:${p * 100}%"></i></div>` : ""}</div><div class="t">${esc(clean(it.name))}</div>${r}</div>`;
+}
+function bind(root, items) { root.querySelectorAll(".card").forEach(c => c.onclick = () => open(items[+c.dataset.i])); }
+function rowHtml(title, items, id) { return items.length ? `<h2>${esc(title)}</h2><div class="row" id="${id}">${items.map((it, i) => cardHtml(it, i)).join("")}</div>` : ""; }
+
+function home() {
+  const m = $("#main"), rec = recents(), f = favs();
+  const cont = rec.filter(x => x.kind !== "live").slice(0, 20), lives = rec.filter(x => x.kind === "live").slice(0, 12);
+  m.innerHTML = `<div id="pt"></div>` + (cont.length || f.length || lives.length ? "" : `<div class="empty">Welcome to 91 TV.<br>Open Movies, Series or Live to start watching.</div>`)
+    + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3") + rowHtml("My list", f.slice(0, 30), "r2");
+  [["r1", cont], ["r3", lives], ["r2", f.slice(0, 30)]].forEach(([id, a]) => { const e = $("#" + id); if (e) bind(e, a); });
+  prayerTable();
+}
+
+async function browse(kind) {
+  const m = $("#main"); m.innerHTML = `<div class="spin">Loading…</div>`;
+  let cats;
+  try { cats = await api(KIND[kind].cats); } catch (e) { return m.innerHTML = `<div class="empty">Could not load.<br>${esc(e.message)}<br><br><button class="more" onclick="go('${kind === "movie" ? "movie" : kind}')">Try again</button></div>`; }
+  cats = (cats || []).map(c => ({ id: String(c.category_id), name: c.category_name }));
+  if (!cat[kind]) cat[kind] = cats.length ? cats[0].id : "all";
+  const chips = [{ id: "all", name: "All" }, ...cats];
+  m.innerHTML = `<input class="search" id="q" placeholder="Search ${KIND[kind].title}" autocapitalize="off" autocorrect="off"><div class="chips" id="chips">${chips.map(c => `<button class="cat ${c.id === cat[kind] ? "on" : ""}" data-c="${esc(c.id)}">${esc(c.name)}</button>`).join("")}</div><div id="res"></div>`;
+  $("#chips").querySelectorAll(".cat").forEach(b => b.onclick = () => { cat[kind] = b.dataset.c; shown = 60; $("#q").value = ""; query = ""; browse(kind); });
+  const on = $("#chips .on"); on && on.scrollIntoView({ inline: "center", block: "nearest" });
+  let t; $("#q").oninput = e => { clearTimeout(t); t = setTimeout(() => { query = e.target.value.trim().toLowerCase(); shown = 60; draw(kind); }, 250); };
+  draw(kind);
+}
+async function draw(kind) {
+  const res = $("#res"); if (!res) return;
+  res.innerHTML = `<div class="spin">Loading…</div>`;
+  let items;
+  try { items = await listOf(kind, query ? "all" : cat[kind]); } catch (e) { res.innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; return; }
+  if (!$("#res")) return;
+  if (query) items = items.filter(i => i.name.toLowerCase().includes(query));
+  if (!items.length) { res.innerHTML = `<div class="empty">Nothing found.</div>`; return; }
+  const part = items.slice(0, shown);
+  if (kind === "live") {
+    res.innerHTML = part.map((it, i) => `<div class="live" data-i="${i}"><div class="lg" style="background-image:url('${esc(it.logo)}')"></div><div class="n">${esc(it.name)}</div></div>`).join("");
+    res.querySelectorAll(".live").forEach(e => e.onclick = () => play(part[+e.dataset.i]));
+  } else {
+    res.innerHTML = `<div class="grid">${part.map((it, i) => cardHtml(it, i)).join("")}</div>`; bind(res, part);
+  }
+  if (items.length > shown) { const b = document.createElement("button"); b.className = "more"; b.textContent = `Show more (${items.length - shown})`; b.onclick = () => { shown += 90; draw(kind); }; res.appendChild(b); }
+}
+function myList() {
+  const m = $("#main"), f = favs();
+  m.innerHTML = f.length ? `<h2>My list</h2><div class="grid" id="g">${f.map((it, i) => cardHtml(it, i)).join("")}</div>` : `<div class="empty">Your list is empty.<br>Open a movie or series and tap Add to list.</div>`;
+  if (f.length) bind($("#g"), f);
+}
+function settings() {
+  const m = $("#main");
+  m.innerHTML = `<div class="set"><div class="b"><div>Server<small>${esc(cfg.server)}</small></div><button id="s1">Change</button></div>
+  <div class="b"><div>Clear watch history<small>Continue watching and positions</small></div><button id="s2">Clear</button></div>
+  <div class="b"><div>Reload lists<small>Download channels, movies and series again</small></div><button id="s3">Reload</button></div>
+  <div class="b"><div>91 TV web<small>iPhone version 1.0</small></div></div></div>`;
+  $("#s1").onclick = () => setup();
+  $("#s2").onclick = () => { LS.set("recent", []); LS.set("pos", {}); $("#s2").textContent = "Cleared"; };
+  $("#s3").onclick = () => { for (const k in mem) if (k !== "login") delete mem[k]; $("#s3").textContent = "Done"; };
+}
+
+// ---------- detail
+async function open(it) {
+  if (it.kind === "live") return play(it);
+  const s = document.createElement("div"); s.className = "sheet";
+  s.innerHTML = `<button class="back">‹</button><div class="hero" style="background-image:url('${esc(it.logo)}')"></div><div class="in"><h1>${esc(clean(it.name))}</h1><div class="meta" id="mt"></div><div id="ac"></div><div class="plot" id="pl"></div><div id="eps"></div></div>`;
+  document.body.appendChild(s);
+  const close = () => { s.remove(); if (tab === "home") home(); };
+  $(".back", s).onclick = close; s._close = close;
+  const bar = () => {
+    $("#ac", s).innerHTML = (it.kind === "movie" ? `<button class="btn" id="pl1">▶ ${prog(it) > 0.02 ? "Resume" : "Play"}</button>` : "") + `<button class="btn s" id="fv">${isFav(it) ? "✓ In my list" : "+ Add to list"}</button>`;
+    const p1 = $("#pl1", s); if (p1) p1.onclick = () => play(it);
+    $("#fv", s).onclick = () => { toggleFav(it); bar(); };
+  };
+  bar();
+  try {
+    if (it.kind === "movie") {
+      const d = await api("get_vod_info", { vod_id: it.id }), i = (d && d.info) || {};
+      $("#mt", s).textContent = [i.releasedate && String(i.releasedate).slice(0, 4), i.rating && +i.rating > 0 && +i.rating <= 10 ? "★ " + (+i.rating).toFixed(1) : "", i.duration, i.genre].filter(Boolean).join("  ·  ");
+      $("#pl", s).textContent = i.plot || i.description || "";
+      if (i.backdrop_path) { const b = Array.isArray(i.backdrop_path) ? i.backdrop_path[0] : i.backdrop_path; if (b) $(".hero", s).style.backgroundImage = `url('${b}')`; }
+      const ext = d && d.movie_data && d.movie_data.container_extension; if (ext) it.ext = ext;
+    } else {
+      const d = await api("get_series_info", { series_id: it.id }), i = (d && d.info) || {};
+      $("#mt", s).textContent = [i.releaseDate && String(i.releaseDate).slice(0, 4), i.rating && +i.rating > 0 && +i.rating <= 10 ? "★ " + (+i.rating).toFixed(1) : "", i.genre].filter(Boolean).join("  ·  ");
+      $("#pl", s).textContent = i.plot || "";
+      if (i.backdrop_path) { const b = Array.isArray(i.backdrop_path) ? i.backdrop_path[0] : i.backdrop_path; if (b) $(".hero", s).style.backgroundImage = `url('${b}')`; }
+      const eps = d && d.episodes || {}, box = $("#eps", s); let html = "";
+      Object.keys(eps).sort((a, b) => a - b).forEach(sn => {
+        html += `<h2 style="margin:18px 0 4px">Season ${esc(sn)}</h2>`;
+        eps[sn].forEach(e => { const dd = { kind: "episode", id: String(e.id), ext: e.container_extension || "mp4", name: `${clean(it.name)} S${sn}E${e.episode_num}`, logo: (e.info && e.info.movie_image) || it.logo, parent: it.id };
+          const p = prog(dd); html += `<div class="ep" data-e='${esc(JSON.stringify(dd))}'><span>${esc(e.episode_num)}. ${esc(e.title || "Episode " + e.episode_num)}</span><span>${p > 0.02 ? Math.round(p * 100) + "%" : esc((e.info && e.info.duration) || "")}</span></div>`; });
+      });
+      box.innerHTML = html || `<div class="empty">No episodes found.</div>`;
+      box.querySelectorAll(".ep").forEach(el => el.onclick = () => play(JSON.parse(el.dataset.e)));
+    }
+  } catch (e) { $("#pl", s).textContent = "Could not load details: " + (e.message || e); }
+}
+
+// ---------- player
+let hlsLib = null, hls = null;
+function loadHls() { return hlsLib || (hlsLib = new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); })); }
+async function play(it) {
+  pushRecent(it);
+  const url = streamUrl(it), pl = document.createElement("div"); pl.id = "player";
+  pl.innerHTML = `<video controls playsinline webkit-playsinline autoplay></video><button class="back">‹</button><div id="ptitle">${esc(clean(it.name))}</div><div id="perr"></div>`;
+  document.body.appendChild(pl);
+  const v = $("video", pl), err = $("#perr", pl); let timer;
+  const stop = () => { clearInterval(timer); try { save(); } catch (e) {} if (hls) { hls.destroy(); hls = null; } v.pause(); v.removeAttribute("src"); v.load(); pl.remove(); if (tab === "home") home(); };
+  function save() { if (it.kind === "live" || !v.duration || !isFinite(v.duration)) return; const p = pos(); p[keyOf(it)] = { t: v.currentTime, d: v.duration }; LS.set("pos", p); }
+  $(".back", pl).onclick = stop;
+  v.onerror = () => { err.style.display = "block"; err.textContent = it.kind === "live" ? "This channel did not start. Try another one." : "This file format may not play on iPhone (MKV files do not). Try another title or quality."; };
+  const start = () => { const sp = pos()[keyOf(it)]; if (sp && sp.t > 10 && sp.d - sp.t > 30) v.currentTime = sp.t - 3; v.play().catch(() => {}); };
+  v.addEventListener("loadedmetadata", start, { once: true });
+  timer = setInterval(save, 5000); v.onended = () => { const p = pos(); delete p[keyOf(it)]; LS.set("pos", p); };
+  const target = viaProxy(url);
+  if (it.kind === "live" && !v.canPlayType("application/vnd.apple.mpegurl")) {
+    try { await loadHls(); if (window.Hls && Hls.isSupported()) { hls = new Hls(); hls.loadSource(target); hls.attachMedia(v); hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) v.onerror(); }); v.play().catch(() => {}); return; } } catch (e) {}
+  }
+  v.src = target; v.play().catch(() => {});
+}
+
+// ---------- prayer times (Aladhan, Manama, Gulf method)
+let ptDay = null;
+async function prayerLoad() {
+  const d = new Date(), key = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+  const c = LS.get("pt", null); if (c && c.key === key) return ptDay = c;
+  try {
+    const r = await fetch(`https://api.aladhan.com/v1/timingsByCity/${key}?city=Manama&country=Bahrain&method=8`), j = await r.json(), t = j.data.timings;
+    ptDay = { key, t: { Fajr: t.Fajr, Sunrise: t.Sunrise, Dhuhr: t.Dhuhr, Asr: t.Asr, Maghrib: t.Maghrib, Isha: t.Isha } }; LS.set("pt", ptDay); return ptDay;
+  } catch (e) { return ptDay; }
+}
+function nextPrayer() {
+  if (!ptDay) return null; const now = new Date(); let best = null;
+  for (const [n, s] of Object.entries(ptDay.t)) { if (n === "Sunrise") continue; const [h, m] = s.slice(0, 5).split(":").map(Number), t = new Date(now); t.setHours(h, m, 0, 0); if (t > now && (!best || t < best.t)) best = { n, s: s.slice(0, 5), t }; }
+  return best;
+}
+async function prayerChip() {
+  await prayerLoad(); const e = $("#pchip"); if (!e) return;
+  const upd = () => { const n = nextPrayer(); if (!n) { e.style.display = "none"; return; } const mins = Math.round((n.t - new Date()) / 60000); e.style.display = ""; e.textContent = `${n.n.toUpperCase()} ${n.s} · ${mins >= 60 ? Math.floor(mins / 60) + "h " + mins % 60 + "m" : mins + "m"}`; };
+  upd(); setInterval(upd, 30000);
+}
+async function prayerTable() {
+  await prayerLoad(); const e = $("#pt"); if (!e || !ptDay) return; const n = nextPrayer();
+  e.innerHTML = `<h2>Prayer times</h2><div class="pt">${["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].map(k => `<div class="${n && n.n === k ? "nx" : ""}">${k}<b>${ptDay.t[k].slice(0, 5)}</b></div>`).join("")}</div>`;
+}
+
+// ---------- start
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if (cfg && cfg.server) shell(); else setup();
+</script>
+</body>
+</html>
