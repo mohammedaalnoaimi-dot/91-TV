@@ -22,7 +22,7 @@ object Lic {
     const val REQUIRED = true
     const val STORE_ID = 0              // Lemon Squeezy store number (Settings > Stores). 0 = not checked
     const val PRODUCT_ID = 1488147      // "91 TV" (Android TV) product. 0 = not checked
-    const val BUY_URL = "ninty0ne.lemonsqueezy.com"   // shown on the activation screen
+    const val BUY_URL = "91tv.lemonsqueezy.com"   // shown on the activation screen
 
     private const val DAY = 24L * 3600 * 1000
     private const val RECHECK_MS = 1 * DAY       // online re-check at most once a day
