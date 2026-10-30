@@ -14,8 +14,8 @@ import java.net.URLEncoder
 object Lic {
     const val REQUIRED = false
     const val PRODUCT_ID = 0            // the Lemon Squeezy product number; keys of other products are refused
-    private const val RECHECK_MS = 7L * 24 * 3600 * 1000
-    private const val GRACE_MS = 14L * 24 * 3600 * 1000
+    private const val RECHECK_MS = 3L * 24 * 3600 * 1000
+    private const val GRACE_MS = 7L * 24 * 3600 * 1000
     private const val API = "https://api.lemonsqueezy.com/v1/licenses/"
 
     private fun post(path: String, vararg kv: Pair<String, String>): JSONObject {
@@ -48,7 +48,7 @@ object Lic {
         } catch (e: Exception) { "No internet connection. Please try again." }
     }
 
-    /** True when the app may open. Re-checks online every 7 days and still works offline for 14 days. */
+    /** True when the app may open. Re-checks online every 3 days and still works offline for 7 days. */
     fun ok(prefs: SharedPreferences): Boolean {
         if (!REQUIRED) return true
         val key = prefs.getString("lic_key", "") ?: ""; if (key.isBlank()) return false
