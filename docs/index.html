@@ -205,6 +205,7 @@ section{padding-block:96px}
 .dlcard ol{margin:0;padding-left:22px;color:var(--muted);display:grid;gap:6px}
 .dlcard ol b{color:var(--text);font-weight:500}
 .dlcard .btn{align-self:flex-start;margin-top:6px}
+.btn.soon{opacity:.6;cursor:default;pointer-events:none}
 .bigcode{font:600 clamp(40px,7vw,58px)/1 var(--display);letter-spacing:.16em;color:var(--text);text-align:center;padding:18px;border:1px dashed #5e4a3d;border-radius:12px;background:var(--bg);font-variant-numeric:tabular-nums}
 
 /* specs */
@@ -450,7 +451,8 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
           <li>Open <b>91TV.exe</b>. If Windows SmartScreen appears, click <b>More info › Run anyway</b>.</li>
           <li>Choose <b>Start 7-day free trial</b>.</li>
         </ol>
-        <a class="btn" href="https://github.com/mohammedaalnoaimi-dot/91-TV/releases/download/windows-latest/91TV-Windows.zip">Download for Windows</a>
+        <span class="btn ghost soon" aria-disabled="true">Windows download – coming soon</span>
+        <!-- WINDOWS-DOWNLOAD: replace the line above with: <a class="btn" href="https://github.com/mohammedaalnoaimi-dot/91-TV/releases/download/windows-latest/91TV-Windows.zip">Download for Windows</a> -->
       </div>
     </div>
   </div>
