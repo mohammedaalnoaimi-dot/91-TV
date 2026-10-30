@@ -119,7 +119,23 @@ class MainActivity : Activity() {
         if (crash.isNotBlank()) { prefs.edit().remove("crash").apply(); showCrash(crash) } else begin()
     }
 
+    private fun activationView(msg: String = "") {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setBackgroundColor(BG); setPadding(dp(120), dp(60), dp(120), dp(20)) }
+        col.addView(android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(380), dp(58)))
+        col.addView(mkText("Enter your activation code", 24f, CREAM, true).apply { setPadding(0, dp(34), 0, dp(14)) })
+        val et = EditText(this).apply { hint = "XXXX-XXXX-XXXX-XXXX"; textSize = 22f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine(); gravity = Gravity.CENTER }
+        col.addView(et, LinearLayout.LayoutParams(dp(560), -2))
+        val m = mkText(msg, 16f, RED).apply { setPadding(0, dp(10), 0, 0) }; col.addView(m)
+        col.addView(mkButton("Activate", true) {
+            m.text = "Checking…"; val k = et.text.toString().trim()
+            Thread { val r = Lic.activate(this, prefs, k); ui.post { if (r == null) begin() else m.text = r } }.start()
+        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(18) })
+        setContentView(col); et.requestFocus()
+    }
+
     private fun begin() {
+        if (!Lic.ok(prefs)) { activationView(); return }
+        Lic.recheck(prefs)
         if (prefs.getString("server", "").isNullOrBlank() && prefs.getString("m3u", "").isNullOrBlank()) setupView() else startLoading()
     }
 
@@ -1026,7 +1042,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.7 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.8 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
