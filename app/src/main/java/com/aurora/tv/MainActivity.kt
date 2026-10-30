@@ -1026,7 +1026,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.6 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.7 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -1230,11 +1230,15 @@ class MainActivity : Activity() {
         val labels = listOf(if (lastDiag.isNotEmpty()) lastDiag.replace("\n", "  |  ") else info, "Subtitles: " + (if (subs) "ON  (press to turn off)" else "OFF  (press to turn on)")) + groups.mapIndexed { n, g ->
             val f = g.getTrackFormat(0)
             "Track ${n + 1}:  ${f.language ?: "?"}  ·  ${if (f.channelCount > 0) f.channelCount.toString() + " ch" else ""}  ·  ${(f.sampleMimeType ?: "").removePrefix("audio/")}" + if (g.isSelected) "   ✓" else ""
-        } + listOf("▶ Open in another player (Kodi, VLC, Just Player…)") + (if (playing?.kind == "live") listOf("▣ Continue in a small corner screen") else emptyList())
-        val cornerIdx = if (playing?.kind == "live") labels.size - 1 else -1
-        val extIdx = if (cornerIdx >= 0) labels.size - 2 else labels.size - 1
+        } + listOf("▶ Open in another player (Kodi, VLC, Just Player…)") + (if (playing?.kind == "live") listOf("▣ Continue in a small corner screen") else emptyList()) + listOf("⧉ Shrink to a floating window (stays when you leave the app)")
+        val live = playing?.kind == "live"
+        val pipIdx = labels.size - 1
+        val cornerIdx = if (live) labels.size - 2 else -1
+        val extIdx = labels.size - (if (live) 3 else 2)
         android.app.AlertDialog.Builder(this).setTitle("Audio / subtitles").setItems(labels.toTypedArray()) { _, i ->
-            if (i == cornerIdx) {
+            if (i == pipIdx) {
+                if (!enterPip()) Toast.makeText(this, "This TV does not support a floating window", Toast.LENGTH_LONG).show()
+            } else if (i == cornerIdx) {
                 val cur = playing; if (cur != null) { leavePlayer(); startPip(cur) }
             } else if (i == 1) {
                 val on = !prefs.getBoolean("subs", false); prefs.edit().putBoolean("subs", on).apply()
@@ -1406,6 +1410,18 @@ class MainActivity : Activity() {
         })
         loadInto(p, it, 0)
         Toast.makeText(this, "Corner screen on. Press Play/Pause for its options.", Toast.LENGTH_LONG).show()
+    }
+
+    /** Android's own picture-in-picture: a floating window that can stay on top of other apps (if the TV supports it). */
+    private fun enterPip(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 26 || playerRoot == null || !packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false
+        return try { enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().setAspectRatio(android.util.Rational(16, 9)).build()) } catch (e: Exception) { false }
+    }
+    override fun onUserLeaveHint() { super.onUserLeaveHint(); if (playerRoot != null) enterPip() }
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (isInPictureInPictureMode) { titleView?.visibility = View.GONE; playerView?.useController = false }
+        else playerView?.useController = playing?.kind != "live"
     }
 
     private fun closePip() {
