@@ -266,10 +266,10 @@ class MainActivity : Activity() {
         // ---- top menu
         val navRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) }
         navItems.clear()
-        val entries = listOf("home" to "HOME", "live" to "LIVE TV", "movie" to "MOVIES", "series" to "TV SERIES",
+        val entries = listOf("home" to "HOME", "live" to "LIVE TV", "multi" to "MULTI", "movie" to "MOVIES", "series" to "TV SERIES",
             "list" to "MY LIST", "prayer" to "PRAYER", "search" to "SEARCH", "settings" to "SETTINGS")
         for ((k, label) in entries) {
-            val ni = NavItem(this, label).apply { setOnClickListener { if (k == "search") searchDialog() else nav(k) } }
+            val ni = NavItem(this, label).apply { setOnClickListener { if (k == "search") searchDialog() else if (k == "multi") { releasePreview(); startActivity(android.content.Intent(this@MainActivity, MultiActivity::class.java)) } else nav(k) } }
             navItems[k] = ni; navRow.addView(ni, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(6), 0, dp(6), 0) })
         }
         root.addView(navRow, LinearLayout.LayoutParams(-1, -2))
@@ -1024,7 +1024,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.4 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.5 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
