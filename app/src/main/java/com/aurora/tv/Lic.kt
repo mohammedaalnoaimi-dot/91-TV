@@ -19,15 +19,17 @@ import java.util.TimeZone
  * the "license length" you set in Lemon Squeezy, so nothing about plans is hard-coded here.
  */
 object Lic {
-    const val REQUIRED = false
+    const val REQUIRED = true
     const val STORE_ID = 0              // Lemon Squeezy store number (Settings > Stores). 0 = not checked
-    const val PRODUCT_ID = 0            // 91 TV product number. 0 = not checked
-    const val BUY_URL = ""              // shown on the activation screen, e.g. "91tv.lemonsqueezy.com"
+    const val PRODUCT_ID = 1488147      // "91 TV" (Android TV) product. 0 = not checked
+    const val BUY_URL = "ninty0ne.lemonsqueezy.com"   // shown on the activation screen
 
     private const val DAY = 24L * 3600 * 1000
     private const val RECHECK_MS = 1 * DAY       // online re-check at most once a day
     private const val GRACE_MS = 7 * DAY         // keeps working offline this long after the last good check
     private const val API = "https://api.lemonsqueezy.com/v1/licenses/"
+    /** Owner code: only its SHA-256 fingerprint is in the app. Unlocks forever, offline, on any number of devices. */
+    private const val OWNER_HASH = "4c0370c68585860d7442a9f93dae1246b941b6965d665b4096a61bcad0dd014d"
 
     // Overridable for tests.
     internal var required = REQUIRED
@@ -54,6 +56,12 @@ object Lic {
 
     private fun deviceName(ctx: Context): String =
         android.os.Build.MODEL + " " + (android.provider.Settings.Secure.getString(ctx.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "").takeLast(6)
+
+    internal fun isOwner(code: String?): Boolean {
+        val c = (code ?: "").trim().uppercase(); if (c.isEmpty()) return false
+        val d = java.security.MessageDigest.getInstance("SHA-256").digest(("91tv-owner:" + c).toByteArray())
+        return d.joinToString("") { "%02x".format(it) } == OWNER_HASH
+    }
 
     private fun belongs(o: JSONObject): Boolean {
         val m = o.optJSONObject("meta") ?: return false
@@ -103,6 +111,11 @@ object Lic {
     fun activate(ctx: Context, prefs: SharedPreferences, key: String): String? {
         val k = key.trim()
         if (k.length < 8) return "Please type the full code"
+        if (isOwner(k)) {
+            prefs.edit().putString("lic_key", k.uppercase()).putString("lic_inst", "owner").putLong("lic_ok", clock())
+                .putLong("lic_exp", 0L).putString("lic_plan", "Owner").remove("lic_msg").apply()
+            return null
+        }
         return try {
             val inst = prefs.getString("lic_inst", "") ?: ""
             if (k == prefs.getString("lic_key", "") && inst.isNotBlank()) {
@@ -126,6 +139,7 @@ object Lic {
     fun ok(prefs: SharedPreferences): Boolean {
         if (!required) return true
         if ((prefs.getString("lic_key", "") ?: "").isBlank()) return false
+        if (isOwner(prefs.getString("lic_key", ""))) return true
         val now = clock()
         val exp = prefs.getLong("lic_exp", 0L)
         if (exp in 1 until now) { prefs.edit().putString("lic_msg", "Your plan ended on ${day(exp)}. Renew it, then press Check again.").apply(); return false }
@@ -143,6 +157,7 @@ object Lic {
     fun refresh(prefs: SharedPreferences): Boolean {
         val key = prefs.getString("lic_key", "") ?: ""; val inst = prefs.getString("lic_inst", "") ?: ""
         if (key.isBlank()) return false
+        if (isOwner(key)) return true
         return try {
             val v = transport("validate", listOf("license_key" to key, "instance_id" to inst))
             val status = v.optJSONObject("license_key")?.optString("status")
@@ -159,14 +174,14 @@ object Lic {
 
     /** Background re-check at start, at most once a day. */
     fun recheck(prefs: SharedPreferences) {
-        if (!required || !hasKey(prefs) || clock() - prefs.getLong("lic_ok", 0L) < RECHECK_MS) return
+        if (!required || !hasKey(prefs) || isOwner(prefs.getString("lic_key", "")) || clock() - prefs.getLong("lic_ok", 0L) < RECHECK_MS) return
         Thread { refresh(prefs) }.start()
     }
 
     /** Blocking. Frees this TV's activation so the code can be used on another device. Null = done. */
     fun deactivate(prefs: SharedPreferences): String? {
         val key = prefs.getString("lic_key", "") ?: ""; val inst = prefs.getString("lic_inst", "") ?: ""
-        if (key.isBlank()) { forget(prefs, null); return null }
+        if (key.isBlank() || isOwner(key)) { forget(prefs, null); return null }
         return try {
             val o = transport("deactivate", listOf("license_key" to key, "instance_id" to inst))
             if (o.optBoolean("deactivated") || "not found" in o.optString("error").lowercase()) { forget(prefs, null); null }
@@ -177,6 +192,7 @@ object Lic {
     /** One line for Settings, e.g. "1 Year · until 30 Oct 2027" or "Lifetime". */
     fun summary(prefs: SharedPreferences): String {
         if (!hasKey(prefs)) return "Not activated"
+        if (isOwner(prefs.getString("lic_key", ""))) return "Owner · unlimited"
         val plan = (prefs.getString("lic_plan", "") ?: "").ifBlank { "Activated" }
         val exp = prefs.getLong("lic_exp", 0L)
         return if (exp > 0) "$plan · until ${day(exp)}" else if ("lifetime" in plan.lowercase()) plan else "$plan · no end date"
