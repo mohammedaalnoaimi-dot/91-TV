@@ -485,6 +485,8 @@ class MainActivity : Activity() {
         opts += if (isFav(it)) "Remove from ${profName()}'s list" else "Add to ${profName()}'s list"; acts += { toggleFav(it); refreshPage() }
         if (isFavOf("mr", it) && isFavOf("mrs", it)) { opts += "Remove from both lists"; acts += { removeFavFrom("mr", it); removeFavFrom("mrs", it); refreshPage() } }
         else { opts += "Add to both lists (Together)"; acts += { addFavTo("mr", it); addFavTo("mrs", it); refreshPage() } }
+        if (it.kind == "live") { opts += "▣ Watch in a small corner screen"; acts += { startPip(it) } }
+        if (pip != null) { opts += "▣ Corner screen options…"; acts += { pipMenu() } }
         val kind = hideKind(it); val pre = groupPrefix(it.group)
         opts += "Hide category “${it.group}”"; acts += { addHidden("$kind|${it.group}"); refreshPage() }
         if (pre.isNotEmpty()) { opts += "Hide every category starting with $pre"; acts += { addHidden("$kind|prefix:$pre"); refreshPage() } }
@@ -1024,7 +1026,7 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.5 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.6 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
@@ -1228,13 +1230,17 @@ class MainActivity : Activity() {
         val labels = listOf(if (lastDiag.isNotEmpty()) lastDiag.replace("\n", "  |  ") else info, "Subtitles: " + (if (subs) "ON  (press to turn off)" else "OFF  (press to turn on)")) + groups.mapIndexed { n, g ->
             val f = g.getTrackFormat(0)
             "Track ${n + 1}:  ${f.language ?: "?"}  ·  ${if (f.channelCount > 0) f.channelCount.toString() + " ch" else ""}  ·  ${(f.sampleMimeType ?: "").removePrefix("audio/")}" + if (g.isSelected) "   ✓" else ""
-        } + listOf("▶ Open in another player (Kodi, VLC, Just Player…)")
+        } + listOf("▶ Open in another player (Kodi, VLC, Just Player…)") + (if (playing?.kind == "live") listOf("▣ Continue in a small corner screen") else emptyList())
+        val cornerIdx = if (playing?.kind == "live") labels.size - 1 else -1
+        val extIdx = if (cornerIdx >= 0) labels.size - 2 else labels.size - 1
         android.app.AlertDialog.Builder(this).setTitle("Audio / subtitles").setItems(labels.toTypedArray()) { _, i ->
-            if (i == 1) {
+            if (i == cornerIdx) {
+                val cur = playing; if (cur != null) { leavePlayer(); startPip(cur) }
+            } else if (i == 1) {
                 val on = !prefs.getBoolean("subs", false); prefs.edit().putBoolean("subs", on).apply()
                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !on).build()
                 playerView?.subtitleView?.visibility = if (on) View.VISIBLE else View.GONE
-            } else if (i == labels.size - 1) {
+            } else if (i == extIdx) {
                 val cur = playing
                 if (cur != null) {
                     p.playWhenReady = false
@@ -1275,7 +1281,7 @@ class MainActivity : Activity() {
     }
 
     private fun play(list: List<Item>, index: Int, chain: Boolean = false) {
-        releasePreview(); ui.removeCallbacks(previewRun); ui.removeCallbacks(nextRun)
+        releasePreview(); closePip(); ui.removeCallbacks(previewRun); ui.removeCallbacks(nextRun)
         chainNext = chain
         zapList = list; zapIndex = index
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
@@ -1375,6 +1381,50 @@ class MainActivity : Activity() {
 
     private fun zap(delta: Int) { if (zapList.size < 2) return; zapIndex = (zapIndex + delta + zapList.size) % zapList.size; lastLiveKey = zapList[zapIndex].key; startCurrent() }
 
+    // ---------------------------------------------------------------- small corner screen (keeps playing while you browse)
+    private var pip: ExoPlayer? = null
+    private var pipBox: FrameLayout? = null
+    private var pipItem: Item? = null
+    private var pipSound = false
+
+    private fun startPip(it: Item) {
+        closePip()
+        val p = newPlayer(false); pip = p; pipItem = it
+        selectors[p]?.let { sel -> sel.parameters = sel.buildUponParameters().setMaxVideoSize(1280, 720).build() }
+        p.volume = if (pipSound) 1f else 0f
+        val box = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); elevation = dp(10).toFloat(); isFocusable = false
+            foreground = GradientDrawable().apply { setColor(Color.TRANSPARENT); setStroke(dp(2), ROSE) } }
+        val pv = PlayerView(this).apply { useController = false; setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER); setShutterBackgroundColor(Color.BLACK); isFocusable = false; this.player = p }
+        box.addView(pv, FrameLayout.LayoutParams(-1, -1))
+        box.addView(TextView(this).apply { text = it.name; textSize = 12f; setTextColor(CREAM); setBackgroundColor(Color.argb(170, 0, 0, 0)); setPadding(dp(8), dp(3), dp(8), dp(3)); maxLines = 1 },
+            FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START))
+        (window.decorView as ViewGroup).addView(box, FrameLayout.LayoutParams(dp(300), dp(169), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(24), dp(24)) })
+        pipBox = box
+        var att = 0
+        p.addListener(object : Player.Listener {
+            override fun onPlayerError(e: PlaybackException) { if (pip === p && att < 3) { att++; ui.postDelayed({ if (pip === p) { loadInto(p, it, att) } }, 1500L * att) } }
+        })
+        loadInto(p, it, 0)
+        Toast.makeText(this, "Corner screen on. Press Play/Pause for its options.", Toast.LENGTH_LONG).show()
+    }
+
+    private fun closePip() {
+        pipBox?.let { (it.parent as? ViewGroup)?.removeView(it) }; pipBox = null
+        pip?.release(); pip = null; pipItem = null
+    }
+
+    private fun pipMenu() {
+        val cur = pipItem ?: return
+        val opts = arrayOf("Make it full screen", "Sound: " + (if (pipSound) "ON  (press to mute)" else "OFF  (press to turn on)"), "Close the corner screen")
+        android.app.AlertDialog.Builder(this).setTitle(cur.name).setItems(opts) { _, i ->
+            when (i) {
+                0 -> { closePip(); play(listOf(cur), 0) }
+                1 -> { pipSound = !pipSound; pip?.volume = if (pipSound) 1f else 0f }
+                else -> closePip()
+            }
+        }.show()
+    }
+
     private fun leavePlayer() {
         ui.removeCallbacks(nextRun); ui.removeCallbacks(numRun); numBuf = ""
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
@@ -1411,6 +1461,7 @@ class MainActivity : Activity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (pip != null && playerRoot == null && keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) { pipMenu(); return true }
         if (playerRoot != null && zapList.getOrNull(zapIndex)?.kind == "live") {
             when (keyCode) {
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_DPAD_UP -> { zap(1); return true }
@@ -1436,6 +1487,6 @@ class MainActivity : Activity() {
     }
 
     override fun onResume() { super.onResume(); bumpIdle(); if (shell != null) { ui.removeCallbacks(chromeTick); ui.post(chromeTick) } }
-    override fun onStop() { super.onStop(); ui.removeCallbacks(chromeTick); stopSaver(); ui.removeCallbacks(saverStart); savePosition(); player?.pause(); releasePreview() }
+    override fun onStop() { super.onStop(); ui.removeCallbacks(chromeTick); stopSaver(); ui.removeCallbacks(saverStart); savePosition(); player?.pause(); releasePreview(); closePip() }
     override fun onDestroy() { super.onDestroy(); player?.release(); preview?.release() }
 }
