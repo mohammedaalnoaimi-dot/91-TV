@@ -4,338 +4,479 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>91 TV</title>
-<meta name="theme-color" content="#070506">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="91 TV">
-<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="description" content="91 TV is a premium IPTV player for Android TV and Windows 11. Live TV, movies and series from your own provider, in Dolby Vision and Atmos. No channels included.">
+<meta property="og:title" content="91 TV – your IPTV, in its best light">
+<meta property="og:description" content="A premium IPTV player for Android TV and Windows 11. Bring your own subscription.">
+<meta property="og:image" content="site/cover_tv.jpg">
+<meta name="theme-color" content="#080506">
 <link rel="icon" href="icon-192.png">
-<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preload" href="site/fonts/cinzel.ttf" as="font" type="font/ttf" crossorigin>
 <style>
-:root{--bg:#070506;--card:#14100f;--line:#2a2220;--cream:#ebddc4;--gold:#d7b88a;--gray:#a8977e;--muted:#8f806c;--rose:#c9475c;--top:env(safe-area-inset-top);--bot:env(safe-area-inset-bottom)}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--cream);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
-button,input{font:inherit;color:inherit}
-#app{position:fixed;inset:0;display:flex;flex-direction:column}
-header{display:flex;align-items:center;gap:10px;padding:calc(var(--top) + 10px) 16px 8px}
-header img{height:22px;display:block}
-.sp{flex:1}
-.chip{font-size:11px;letter-spacing:.08em;color:var(--gold);border:1px solid var(--line);border-radius:14px;padding:4px 9px;white-space:nowrap}
-.clock{font-size:15px;color:var(--cream);font-variant-numeric:tabular-nums}
-.ib{background:none;border:0;padding:6px;color:var(--gray);font-size:20px}
-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:84px}
-nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(7,5,6,.96);border-top:1px solid var(--line);padding:6px 4px calc(var(--bot) + 6px);backdrop-filter:blur(10px)}
-nav button{flex:1;background:none;border:0;color:var(--muted);font-size:11px;letter-spacing:.06em;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:3px}
-nav button b{font-size:19px;font-weight:400;line-height:1}
-nav button.on{color:var(--cream)}nav button.on b{color:var(--rose)}
-h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;color:var(--cream)}
-.row{display:flex;gap:10px;overflow-x:auto;padding:0 16px 4px;scrollbar-width:none}.row::-webkit-scrollbar{display:none}
-.card{flex:0 0 108px;cursor:pointer;position:relative}
-.card .p{width:108px;height:162px;border-radius:8px;background:var(--card) center/cover;border:1px solid var(--line);position:relative;overflow:hidden}
-.card .t{font-size:12px;color:var(--gray);margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card .r{font-size:11px;color:var(--gold)}
-.bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.18)}.bar i{display:block;height:100%;background:var(--rose)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;padding:6px 16px}
-.grid .card{flex:none}.grid .card .p{width:100%;height:0;padding-top:150%}
-.search{display:block;width:calc(100% - 32px);margin:8px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
-.cat{flex:0 0 auto;border:1px solid var(--line);background:none;border-radius:16px;padding:6px 13px;color:var(--gray);font-size:13px;white-space:nowrap}
-.cat.on{background:var(--rose);border-color:var(--rose);color:#fff}
-.live{display:flex;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid #15110f;cursor:pointer}
-.live .lg{width:44px;height:44px;border-radius:8px;background:var(--card) center/contain no-repeat;border:1px solid var(--line);flex:none}
-.live .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.more{display:block;margin:14px auto;background:none;border:1px solid var(--line);border-radius:18px;padding:9px 22px;color:var(--gray)}
-.empty{padding:40px 24px;text-align:center;color:var(--muted)}
-.sheet{position:fixed;inset:0;background:var(--bg);z-index:20;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:40px}
-.sheet .hero{height:260px;background:#000 center/cover;position:relative}
-.sheet .hero:after{content:"";position:absolute;inset:0;background:linear-gradient(to top,var(--bg),rgba(7,5,6,.1))}
-.back{position:fixed;top:calc(var(--top) + 10px);left:12px;z-index:30;width:38px;height:38px;border-radius:19px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:20px}
-.sheet .in{padding:0 18px;margin-top:-34px;position:relative;z-index:2}
-.sheet h1{font:italic 700 26px Georgia,serif;margin:0 0 6px}
-.meta{color:var(--gold);font-size:13px;margin-bottom:12px}
-.btn{display:inline-flex;align-items:center;gap:8px;background:var(--cream);color:#16110e;border:0;border-radius:8px;padding:11px 22px;font-weight:600;margin:0 8px 10px 0}
-.btn.s{background:none;border:1px solid var(--line);color:var(--cream)}
-.plot{color:var(--gray);font-size:14px;line-height:1.5}
-.ep{display:flex;justify-content:space-between;gap:10px;padding:12px 4px;border-bottom:1px solid #15110f;cursor:pointer}
-.ep span:last-child{color:var(--muted);font-size:12px;white-space:nowrap}
-#player{position:fixed;inset:0;background:#000;z-index:40;display:flex;align-items:center;justify-content:center}
-#player video{width:100%;height:100%;background:#000}
-#ptitle{position:absolute;top:calc(var(--top) + 12px);left:60px;right:16px;font-size:14px;text-shadow:0 1px 4px #000;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#perr{position:absolute;left:20px;right:20px;bottom:90px;background:rgba(0,0,0,.8);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;color:var(--gold);display:none}
-.form{padding:calc(var(--top) + 40px) 24px 40px;max-width:480px;margin:0 auto}
-.form img{display:block;height:34px;margin:0 auto 28px}
-.form label{display:block;color:var(--gray);font-size:12px;letter-spacing:.08em;margin:14px 0 5px}
-.form input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;outline:none}
-.form .btn{width:100%;justify-content:center;margin:24px 0 0}
-.note{color:var(--muted);font-size:12px;margin-top:14px;line-height:1.5}
-.err{color:#e58a8a;margin-top:12px;font-size:13px;white-space:pre-wrap}
-.set{padding:8px 16px}.set .b{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #15110f;gap:12px}.set .b small{display:block;color:var(--muted);font-size:12px}
-.set button{background:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;color:var(--cream)}
-.spin{padding:30px;text-align:center;color:var(--muted)}
-.pt{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:0 16px}.pt div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 2px;text-align:center;font-size:11px;color:var(--gray)}.pt b{display:block;color:var(--cream);font-size:14px;font-weight:500;margin-top:3px}.pt .nx{border-color:var(--rose)}
+@font-face{font-family:"Cinzel";src:url(site/fonts/cinzel.ttf) format("truetype");font-weight:400 900;font-display:swap}
+@font-face{font-family:"Jost";src:url(site/fonts/jost.ttf) format("truetype");font-weight:100 900;font-display:swap}
+/* Layout: a darkened screening room. Rose light leaks from behind each screen; sections read like a programme, top to bottom. */
+:root{
+  --bg:#080506; --surface:#120b0c; --raise:#1a1012; --line:#2a1b1d; --text:#ecdfc6; --muted:#a8977e; --dim:#6f6153; --gold:#d8b98b; --rose:#c9475c; --ink:#160b0d;
+  --display:"Cinzel","Trajan Pro",Georgia,serif; --body:"Jost","Avenir Next","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--text);font:400 17px/1.6 var(--body);-webkit-font-smoothing:antialiased}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--gold)}
+:focus-visible{outline:2px solid var(--rose);outline-offset:3px}
+.gut{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--text);color:var(--ink);text-decoration:none;font-weight:500;padding:13px 24px;border-radius:3px;letter-spacing:.02em;font-size:16px;border:1px solid var(--text);transition:transform .15s,filter .15s}
+.btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.btn.ghost{background:transparent;color:var(--text);border-color:#5e4a3d}
+.eyebrow{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--rose);font-weight:500}
+h1,h2,h3{text-wrap:balance}
+h2{font:500 clamp(28px,4vw,44px)/1.15 var(--display);letter-spacing:.03em;margin:10px 0 14px}
+.sub{color:var(--muted);max-width:58ch;font-size:18px;font-weight:300;margin:0}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:20;background:rgba(8,5,6,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;padding-top:env(safe-area-inset-top,0px)}
+.nav.scrolled{border-bottom-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:28px;padding-block:16px}
+.nav img{height:26px;width:auto}
+.nav nav{display:flex;gap:26px;margin-left:auto}
+.nav nav a{color:var(--muted);text-decoration:none;font-size:15px;letter-spacing:.04em}
+.nav nav a:hover{color:var(--text)}
+.nav .btn{padding:9px 18px;font-size:14px}
+@media (max-width:820px){.nav nav{display:none}.nav .btn{margin-left:auto}}
+
+/* hero */
+.hero{position:relative;padding-block:72px 40px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-20% -10% auto;height:120%;background:radial-gradient(50% 45% at 68% 42%,rgba(201,71,92,.30),transparent 70%),radial-gradient(30% 30% at 20% 20%,rgba(216,185,139,.07),transparent 70%);pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:center}
+.hero h1{font:600 clamp(40px,5.6vw,72px)/1.04 var(--display);letter-spacing:.02em;margin:16px 0 20px}
+.hero h1 em{font-style:normal;color:var(--rose)}
+.hero .sub{margin-bottom:30px}
+.ctas{display:flex;gap:12px;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:30px}
+.chip{border:1px solid var(--line);color:var(--muted);font-size:13px;padding:5px 12px;border-radius:99px;letter-spacing:.04em}
+@media (max-width:920px){.hero .wrap{grid-template-columns:1fr;gap:40px}.hero{padding-block:44px 24px}}
+
+/* TV frame */
+.tv{position:relative}
+.tv .bezel{background:#050304;border:1px solid #2e2224;border-radius:14px;padding:10px;box-shadow:0 40px 120px -20px rgba(201,71,92,.35),0 0 0 1px rgba(255,255,255,.02) inset}
+.tv .stand{width:28%;height:12px;margin:0 auto;background:linear-gradient(#1b1214,#0c0809);border-radius:0 0 8px 8px}
+.screen{position:relative;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:#0a0607;container-type:inline-size}
+
+/* mock: home screen */
+.m-top{position:absolute;inset:0 0 auto;display:flex;align-items:center;gap:2.2cqw;padding:1.6cqw 2.6cqw;font-size:1.25cqw;color:#b9a891;z-index:3;background:linear-gradient(rgba(8,5,6,.85),transparent)}
+.m-top b{font:600 2.1cqw var(--display);color:var(--text);letter-spacing:.06em}
+.m-top b i{font-style:normal;color:var(--rose)}
+.m-top span.on{color:var(--text);border-bottom:.2cqw solid var(--rose);padding-bottom:.3cqw}
+.m-top .clk{margin-left:auto;font:500 1.9cqw var(--body);color:var(--text)}
+.m-top .pr{border:1px solid rgba(216,185,139,.35);color:var(--gold);padding:.3cqw 1cqw;border-radius:.3cqw}
+.m-hero{position:absolute;inset:0 0 44% 0;background:
+  radial-gradient(60% 90% at 78% 30%,rgba(232,150,90,.55),transparent 60%),
+  radial-gradient(40% 60% at 92% 70%,rgba(201,71,92,.5),transparent 70%),
+  linear-gradient(115deg,#140a0b 30%,#3a1a14 70%,#6b3a22 100%)}
+.m-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,6,7,.92) 18%,transparent 65%),linear-gradient(transparent 55%,#0a0607)}
+.m-dune{position:absolute;right:0;bottom:0;width:70%;height:55%;background:radial-gradient(120% 100% at 70% 100%,#2a120e 40%,transparent 41%),radial-gradient(90% 80% at 20% 110%,#1d0d0b 45%,transparent 46%)}
+.m-sun{position:absolute;right:16%;top:22%;width:9cqw;height:9cqw;border-radius:50%;background:radial-gradient(#ffd9a3,#e8965a 60%,transparent 70%);filter:blur(.2cqw)}
+.m-feat{position:absolute;left:3cqw;top:8.4cqw;z-index:2;width:42%}
+.m-feat .k{font-size:1cqw;letter-spacing:.3em;color:var(--rose);text-transform:uppercase}
+.m-feat h4{font:600 3.8cqw/1.05 var(--display);margin:.6cqw 0 .8cqw;color:#f3e6cc}
+.m-feat .meta{font-size:1.15cqw;color:#c9b79c;display:flex;gap:.8cqw;flex-wrap:wrap;align-items:center}
+.m-feat .meta em{font-style:normal;border:1px solid rgba(236,223,198,.4);padding:0 .5cqw;border-radius:.25cqw;font-size:.95cqw}
+.m-feat .bt{display:flex;gap:.8cqw;margin-top:1.4cqw}
+.m-feat .bt span{font-size:1.2cqw;padding:.7cqw 1.6cqw;border-radius:.25cqw;background:#ecdfc6;color:#160b0d;font-weight:600}
+.m-feat .bt span+span{background:rgba(20,10,12,.6);color:#ecdfc6;border:1px solid #7a6250;font-weight:400}
+.m-rows{position:absolute;left:3cqw;right:0;bottom:1.6cqw;z-index:2}
+.m-rows h5{margin:0 0 .6cqw;font:500 1.25cqw var(--body);color:var(--text)}
+.m-row{display:flex;gap:1cqw}
+.m-row + h5{margin-top:1.2cqw}
+.m-wide{flex:0 0 14cqw;aspect-ratio:16/9;border-radius:.5cqw;position:relative;overflow:hidden}
+.m-wide i{position:absolute;left:0;bottom:0;height:.35cqw;background:var(--rose)}
+.m-wide.f{outline:.25cqw solid var(--text);outline-offset:.2cqw;transform:scale(1.04)}
+.m-post{flex:0 0 7.2cqw;aspect-ratio:2/3;border-radius:.5cqw;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:.7cqw;font:600 1cqw/1.1 var(--display);color:#f3e6cc;letter-spacing:.03em}
+/* original artwork, CSS only */
+.a1{background:radial-gradient(70% 50% at 70% 25%,#f2b36b,transparent 60%),linear-gradient(#3a1a14,#120808)}
+.a2{background:radial-gradient(50% 40% at 30% 30%,#7fd0e0,transparent 60%),linear-gradient(160deg,#0c2a36,#06121a 70%)}
+.a3{background:repeating-linear-gradient(115deg,#2a0f1a 0 6%,#3b1424 6% 12%),radial-gradient(40% 40% at 60% 40%,#c9475c,transparent)}
+.a3{background-blend-mode:screen}
+.a4{background:radial-gradient(60% 40% at 50% 100%,#d8b98b,transparent 70%),linear-gradient(#0d0d18,#1c1830)}
+.a5{background:conic-gradient(from 210deg at 60% 40%,#1b3b2a,#0b1610,#2f5a3c,#0b1610)}
+.a6{background:radial-gradient(35% 25% at 50% 35%,#fff1d6,transparent 60%),linear-gradient(#5a2a1c,#1a0c09)}
+.a7{background:linear-gradient(135deg,#251433 0%,#5b2a5a 50%,#c9475c 100%)}
+.a8{background:radial-gradient(80% 60% at 20% 80%,#2b4f7a,transparent 60%),linear-gradient(#0a0f1a,#16233a)}
+
+/* sections */
+section{padding-block:96px}
+.head{display:flex;flex-direction:column;gap:2px;margin-bottom:44px}
+.head.center{align-items:center;text-align:center}
+
+/* strip */
+.strip{border-block:1px solid var(--line);padding-block:26px}
+.strip .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.strip .wrap > div{display:flex;flex-direction:column;min-width:130px}
+.strip b{font:600 26px var(--display);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.strip span{color:var(--muted);font-size:14px}
+
+/* showcase rows */
+.show{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:64px;align-items:center}
+.show.flip{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
+.show.flip .txt{order:2}
+.show + .show{margin-top:120px}
+.show .txt p{color:var(--muted);margin:0 0 18px;font-weight:300;font-size:18px}
+.show ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.show li{display:flex;gap:12px;align-items:baseline;color:var(--text);font-size:16px}
+.show li::before{content:"";flex:0 0 6px;height:6px;border-radius:50%;background:var(--rose);transform:translateY(-2px)}
+.frame{border-radius:10px;overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 90px -30px rgba(201,71,92,.35);background:#0a0607}
+.frame figcaption{font-size:13px;color:var(--dim);padding:10px 14px;border-top:1px solid var(--line);letter-spacing:.03em}
+@media (max-width:900px){.show,.show.flip{grid-template-columns:1fr;gap:28px}.show.flip .txt{order:0}.show + .show{margin-top:80px}}
+
+/* mock: guide */
+.guide{aspect-ratio:16/9;container-type:inline-size;display:grid;grid-template-columns:22cqw 1fr;grid-template-rows:auto 1fr;font-size:1.35cqw;background:#0b0708}
+.g-head{grid-column:1/-1;display:flex;align-items:center;gap:2cqw;padding:1.8cqw 2.4cqw;border-bottom:1px solid var(--line)}
+.g-head b{font:600 2.4cqw var(--display);letter-spacing:.04em}
+.g-head span{color:var(--muted);font-size:1.4cqw}
+.g-chs{border-right:1px solid var(--line)}
+.g-ch{font-size:1.35cqw;height:7.4cqw;display:flex;align-items:center;gap:1.2cqw;padding:0 1.8cqw;border-bottom:1px solid #1d1315;color:var(--text)}
+.g-ch i{width:3.4cqw;height:3.4cqw;border-radius:.6cqw;display:grid;place-items:center;font:600 1.2cqw var(--display);font-style:normal;color:#160b0d}
+.g-ch.on{background:rgba(201,71,92,.12)}
+.g-grid{position:relative;overflow:hidden}
+.g-times{display:grid;grid-template-columns:repeat(4,1fr);color:var(--dim);font-size:1.2cqw;padding:.8cqw 0;border-bottom:1px solid #1d1315;font-variant-numeric:tabular-nums}
+.g-times span{padding-left:1cqw}
+.g-row{height:7.4cqw;display:flex;gap:.4cqw;padding:.6cqw .4cqw;border-bottom:1px solid #1d1315}
+.g-row div{background:var(--raise);border-radius:.5cqw;padding:.8cqw 1cqw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:1.3cqw;color:var(--text)}
+.g-row div small{display:block;color:var(--muted);font-size:1.05cqw}
+.g-row div.now{background:linear-gradient(90deg,rgba(201,71,92,.45),rgba(201,71,92,.18));outline:.15cqw solid var(--rose)}
+.g-now{position:absolute;top:0;bottom:0;left:31%;width:.25cqw;background:var(--rose);box-shadow:0 0 1cqw var(--rose)}
+.g-times + .g-now{top:3cqw}
+
+/* mock: player OSD */
+.player{position:relative;aspect-ratio:16/9;container-type:inline-size;overflow:hidden;background:
+  radial-gradient(40% 50% at 70% 35%,rgba(255,214,160,.85),transparent 60%),
+  radial-gradient(70% 60% at 30% 80%,rgba(30,60,90,.9),transparent 70%),
+  linear-gradient(180deg,#2b4c6e,#a0623a 55%,#2a140e)}
+.player::before{content:"";position:absolute;inset:auto 0 0;height:42%;background:linear-gradient(transparent,rgba(5,3,4,.92))}
+.p-badges{position:absolute;top:2.4cqw;right:2.6cqw;display:flex;gap:.8cqw}
+.p-badges span{font-size:1.25cqw;letter-spacing:.08em;padding:.45cqw 1cqw;border-radius:.3cqw;background:rgba(8,5,6,.65);border:1px solid rgba(236,223,198,.35);color:#f3e6cc;backdrop-filter:blur(4px)}
+.p-osd{position:absolute;left:3cqw;right:3cqw;bottom:2.8cqw}
+.p-osd h4{margin:0 0 .4cqw;font:600 3cqw var(--display);color:#f3e6cc}
+.p-osd p{margin:0 0 1.6cqw;color:#cdb99d;font-size:1.4cqw}
+.p-bar{height:.5cqw;background:rgba(236,223,198,.22);border-radius:1cqw;position:relative}
+.p-bar i{position:absolute;inset:0 62% 0 0;background:var(--rose);border-radius:1cqw}
+.p-bar b{position:absolute;left:38%;top:50%;width:1.6cqw;height:1.6cqw;margin:-.8cqw 0 0 -.8cqw;border-radius:50%;background:#f3e6cc}
+.p-bar em{position:absolute;left:38%;bottom:2.2cqw;transform:translateX(-50%);width:15cqw;aspect-ratio:16/9;border-radius:.4cqw;border:.2cqw solid #f3e6cc;background:linear-gradient(180deg,#355a7f,#b0703f);font-style:normal}
+.p-ctrl .pc{display:flex;gap:2.4cqw;align-items:center}.p-ctrl .pc b{font-size:1.8cqw;color:#f3e6cc;letter-spacing:-.2cqw}
+.p-ctrl{display:flex;justify-content:space-between;margin-top:1.2cqw;color:#cdb99d;font-size:1.3cqw;font-variant-numeric:tabular-nums}
+
+
+/* mock: multi-view */
+.multi{aspect-ratio:16/9;container-type:inline-size;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1cqw;padding:1cqw;background:#0b0708}
+.mv{position:relative;border-radius:.8cqw;overflow:hidden;border:.2cqw solid transparent}
+.mv.on{border-color:var(--rose);box-shadow:0 0 2cqw rgba(201,71,92,.45)}
+.mv .lb{position:absolute;left:1.2cqw;bottom:1cqw;z-index:2;font-size:1.5cqw;color:#f3e6cc;text-shadow:0 1px 4px #000}
+.mv .live,.mv .snd{position:absolute;right:1.2cqw;top:1cqw;z-index:2;font-size:1.1cqw;letter-spacing:.12em;padding:.3cqw .8cqw;border-radius:.3cqw;background:var(--rose);color:#fff3ea}
+.mv .snd{background:#ecdfc6;color:#160b0d;letter-spacing:.04em}
+.mv .score{position:absolute;left:1.2cqw;top:1cqw;z-index:2;font:600 1.4cqw var(--body);background:rgba(8,5,6,.7);color:#f3e6cc;padding:.3cqw .8cqw;border-radius:.3cqw;font-variant-numeric:tabular-nums}
+.s1,.s2{background:linear-gradient(180deg,#0e1a10 0 18%,#2f6b35 18% 100%)}
+.s2{background:linear-gradient(180deg,#0d1220 0 22%,#2c5f37 22% 100%)}
+.pitch{position:absolute;inset:30% 8% 10%;border:.18cqw solid rgba(255,255,255,.55);border-radius:.3cqw;background:repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 10%,transparent 10% 20%)}
+.pitch::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:.18cqw solid rgba(255,255,255,.55)}
+.pitch::after{content:"";position:absolute;left:50%;top:50%;width:7cqw;height:7cqw;margin:-3.5cqw 0 0 -3.5cqw;border:.18cqw solid rgba(255,255,255,.55);border-radius:50%}
+.s3{background:radial-gradient(60% 70% at 70% 40%,#3b4f7a,transparent 70%),linear-gradient(#141b2e,#0a0e18)}
+.desk{position:absolute;left:12%;right:12%;bottom:22%;height:18%;background:linear-gradient(#c9475c,#7a2333);border-radius:.5cqw .5cqw 0 0}
+.ticker{position:absolute;left:0;right:0;bottom:0;z-index:1;background:#c9475c;color:#fff3ea;font-size:1.1cqw;padding:.5cqw 1.2cqw}
+.s3 .lb{bottom:auto;top:1cqw}
+.s3 .desk{bottom:12%}
+.s4{background:linear-gradient(180deg,#f0b46e,#c9475c 55%,#2a1020)}
+.sun2{position:absolute;left:50%;top:38%;width:9cqw;height:9cqw;margin-left:-4.5cqw;border-radius:50%;background:#ffe2b8;box-shadow:0 0 4cqw #ffd39a}
+.s4::after{content:"";position:absolute;left:0;right:0;bottom:0;height:38%;background:radial-gradient(120% 100% at 30% 100%,#1c0a12 50%,transparent 51%),radial-gradient(100% 90% at 80% 110%,#2a0f1c 50%,transparent 51%)}
+
+/* specs */
+.specs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.spec{padding:28px 26px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.spec .v{font:600 30px var(--display);color:var(--text);letter-spacing:.02em}
+.spec .l{color:var(--gold);font-size:13px;letter-spacing:.2em;text-transform:uppercase;margin:4px 0 10px}
+.spec p{margin:0;color:var(--muted);font-size:15px}
+
+/* devices */
+.devices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:22px}
+.device{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
+.device .body{padding:24px 26px 28px;display:flex;flex-direction:column;gap:12px;flex:1}
+.device h3{margin:0;font:500 24px var(--display);letter-spacing:.03em}
+.device p{margin:0;color:var(--muted);font-size:15px}
+.device .req{font-size:13px;color:var(--dim);letter-spacing:.03em}
+
+/* pricing */
+.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media (max-width:800px){.plans{grid-template-columns:1fr}}
+.plan{border:1px solid var(--line);border-radius:12px;padding:30px 26px;background:var(--surface);display:flex;flex-direction:column;gap:6px;position:relative}
+.plan.best{border-color:var(--rose);background:linear-gradient(180deg,rgba(201,71,92,.12),var(--surface) 55%)}
+.plan .tag{position:absolute;top:-11px;left:24px;background:var(--rose);color:#fff3ea;font-size:11px;letter-spacing:.22em;text-transform:uppercase;padding:3px 10px;border-radius:99px}
+.plan h3{margin:0;font-weight:500;color:var(--gold);font-size:18px;letter-spacing:.04em}
+.plan .amt{font:600 44px/1.1 var(--display);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.plan .amt small{font:400 16px var(--body);color:var(--muted);margin-left:6px}
+.plan .usd{color:var(--dim);font-size:14px}
+.plan ul{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px;color:var(--muted);font-size:15px}
+.plan li::before{content:"✓";color:var(--rose);margin-right:10px}
+.buyrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;margin-top:22px}
+.buyrow a{justify-content:center;padding:16px}
+.small{color:var(--dim);font-size:14px;text-align:center;margin-top:14px}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+@media (max-width:820px){.steps{grid-template-columns:1fr}}
+.step{border-top:2px solid var(--rose);padding-top:20px}
+.step .n{font:600 15px var(--display);color:var(--rose);letter-spacing:.14em}
+.step h3{margin:6px 0 8px;font-weight:500;font-size:20px}
+.step p{margin:0;color:var(--muted);font-size:15px}
+.code{display:inline-block;font:600 22px var(--display);letter-spacing:.12em;color:var(--text);background:var(--raise);border:1px solid var(--line);padding:4px 12px;border-radius:6px;margin-top:6px;font-variant-numeric:tabular-nums}
+
+/* note + faq */
+.note{border:1px solid var(--line);border-left:3px solid var(--rose);background:var(--surface);border-radius:8px;padding:22px 26px;color:var(--muted);max-width:820px;margin:0 auto}
+.note b{color:var(--text);font-weight:500}
+.faq{max-width:820px;margin:0 auto;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{cursor:pointer;list-style:none;padding:20px 4px;font-size:18px;display:flex;justify-content:space-between;gap:16px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:var(--rose);font-size:22px;line-height:1}
+.faq details[open] summary::after{content:"−"}
+.faq details p{margin:0 4px 22px;color:var(--muted);max-width:68ch}
+
+/* final */
+.final{text-align:center;background:radial-gradient(50% 80% at 50% 100%,rgba(201,71,92,.22),transparent 70%)}
+.final img{height:44px;width:auto;margin:0 auto 22px}
+footer{border-top:1px solid var(--line);color:var(--dim);font-size:14px;padding-block:32px calc(32px + env(safe-area-inset-bottom,0px))}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:var(--muted);text-decoration:none;margin-left:18px}
 </style>
 </head>
 <body>
-<div id="app"></div>
+
+<header class="nav gut" id="top">
+  <div class="wrap">
+    <a href="#top"><img src="wordmark.png" alt="91 TV" width="190" height="26"></a>
+    <nav><a href="#features">Features</a><a href="#picture">Picture & sound</a><a href="#pricing">Pricing</a><a href="#install">Install</a><a href="#faq">FAQ</a></nav>
+    <a class="btn" href="#pricing">Get 91 TV</a>
+  </div>
+</header>
+
+<section class="hero gut">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">For Android TV &amp; Windows 11</span>
+      <h1>Your IPTV, in its <em>best light.</em></h1>
+      <p class="sub">91 TV turns your IPTV subscription into a cinema at home: a calm, beautiful interface for live TV, movies and series, with Dolby Vision, Dolby Atmos and a real TV guide.</p>
+      <div class="ctas"><a class="btn" href="#pricing">See plans</a><a class="btn ghost" href="#features">Take the tour</a></div>
+      <div class="chips"><span class="chip">Dolby Vision</span><span class="chip">Dolby Atmos</span><span class="chip">HDR10 · HLG</span><span class="chip">4K</span><span class="chip">M3U &amp; Xtream</span></div>
+    </div>
+    <div class="tv" aria-label="91 TV home screen">
+      <div class="bezel"><div class="screen">
+        <div class="m-top"><b>91 <i>TV</i></b><span class="on">Home</span><span>Live TV</span><span>TV Guide</span><span>Movies</span><span>Series</span><span>My List</span><span>Prayer</span><span class="pr">Maghrib 17:20</span><span class="clk" id="clk">20:45</span></div>
+        <div class="m-hero"><div class="m-sun"></div><div class="m-dune"></div></div>
+        <div class="m-feat"><div class="k">Featured film</div><h4>The Long Dunes</h4><div class="meta"><span>2025</span><span>·</span><span>Drama</span><span>·</span><span>2h 08m</span><em>4K</em><em>DOLBY VISION</em><em>ATMOS</em></div><div class="bt"><span>▶ Play</span><span>+ My List</span></div></div>
+        <div class="m-rows">
+          <h5>Continue watching</h5>
+          <div class="m-row"><div class="m-wide a6 f"><i style="width:64%"></i></div><div class="m-wide a2"><i style="width:30%"></i></div><div class="m-wide a7"><i style="width:82%"></i></div><div class="m-wide a5"><i style="width:12%"></i></div><div class="m-wide a8"></div></div>
+          <h5>New movies</h5>
+          <div class="m-row"><div class="m-post a1">Saltwind</div><div class="m-post a4">North Star</div><div class="m-post a3">Velvet Hour</div><div class="m-post a2">Tidewater</div><div class="m-post a7">Midnight Souq</div><div class="m-post a5">Green Line</div><div class="m-post a8">Harbour 9</div><div class="m-post a6">Lanterns</div><div class="m-post a1">Ember</div></div>
+        </div>
+      </div></div>
+      <div class="stand"></div>
+    </div>
+  </div>
+</section>
+
+<div class="strip gut">
+  <div class="wrap">
+    <div><b>2</b><span>platforms: Android TV &amp; Windows 11</span></div>
+    <div><b>4K</b><span>HDR10, HLG &amp; Dolby Vision</span></div>
+    <div><b>7.1</b><span>Dolby Atmos &amp; DTS passthrough</span></div>
+    <div><b>4</b><span>channels at once in Multi-view</span></div>
+    <div><b>0</b><span>ads, ever</span></div>
+  </div>
+</div>
+
+<main>
+<section id="features" class="gut">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">The tour</span><h2>Everything you watch, in one calm place.</h2><p class="sub">Add your provider once, by M3U link or Xtream Codes login, and 91 TV builds your home screen, guide and library automatically.</p></div>
+
+    <div class="show">
+      <div class="txt">
+        <span class="eyebrow">Live TV &amp; guide</span>
+        <h2>Know what's on, at a glance.</h2>
+        <p>A full programme guide shows what's playing now, next and later tonight on every channel. Pick a show and it starts instantly.</p>
+        <ul><li>XMLTV guide, now &amp; next on every channel</li><li>Channel up / down from the remote</li><li>Live rewind buffer for the last few minutes</li><li>Hide the categories and languages you never watch</li></ul>
+      </div>
+      <figure class="frame" style="margin:0">
+        <div class="guide" aria-label="TV guide">
+          <div class="g-head"><b>TV Guide</b><span>Saturday · 31 October</span></div>
+          <div class="g-chs">
+            <div class="g-times" style="grid-template-columns:1fr"><span>Channels</span></div>
+            <div class="g-ch on"><i style="background:#c9475c">GN</i>Gulf News 24</div>
+            <div class="g-ch"><i style="background:#d8b98b">AS</i>Arena Sport 1</div>
+            <div class="g-ch"><i style="background:#7fb3c9">C1</i>Cinema One</div>
+            <div class="g-ch"><i style="background:#9fc98a">DP</i>Docs Planet</div>
+            <div class="g-ch"><i style="background:#c99adf">KZ</i>Kids Zone</div>
+          </div>
+          <div class="g-grid">
+            <div class="g-times"><span>20:00</span><span>20:30</span><span>21:00</span><span>21:30</span></div>
+            <div class="g-now"></div>
+            <div class="g-row"><div class="now" style="flex:1.3">Evening Bulletin<small>20:00 – 20:45</small></div><div style="flex:1">Market Report<small>20:45</small></div><div style="flex:1.7">World Tonight<small>21:15</small></div></div>
+            <div class="g-row"><div class="now" style="flex:2.2">Gulf League: Matchday 9<small>Live · 19:45 – 21:45</small></div><div style="flex:1.8">Highlights<small>21:45</small></div></div>
+            <div class="g-row"><div class="now" style="flex:2.6">Feature film<small>19:30 – 21:40</small></div><div style="flex:1.4">Behind the Scenes<small>21:40</small></div></div>
+            <div class="g-row"><div style="flex:.9">Ocean Deep<small>19:30</small></div><div class="now" style="flex:1.6">The Silk Road<small>20:15 – 21:10</small></div><div style="flex:1.5">Desert Skies<small>21:10</small></div></div>
+            <div class="g-row"><div style="flex:1.2">Cartoon Hour<small>19:30</small></div><div class="now" style="flex:1.4">Story Time<small>20:30</small></div><div style="flex:1.4">Goodnight Club<small>21:30</small></div></div>
+          </div>
+        </div>
+        <figcaption>TV Guide · illustration with sample channels</figcaption>
+      </figure>
+    </div>
+
+    <div class="show flip">
+      <div class="txt">
+        <span class="eyebrow">Multi-view</span>
+        <h2>Four screens. One remote.</h2>
+        <p>Follow several matches or news channels side by side. Only the screen you pick plays sound, and any screen goes full-screen with one press.</p>
+        <ul><li>Up to 4 live channels at once</li><li>Choose which screen has the audio</li><li>Perfect for match days</li></ul>
+      </div>
+      <figure class="frame" style="margin:0">
+        <div class="multi" aria-label="Multi-view with four live channels">
+          <div class="mv s1"><span class="lb">Arena Sport 1</span><span class="live">LIVE</span><div class="pitch"></div><span class="score">2 – 1 · 67'</span></div>
+          <div class="mv s2 on"><span class="lb">Arena Sport 2</span><span class="snd">♪ Sound</span><div class="pitch"></div><span class="score">0 – 0 · 23'</span></div>
+          <div class="mv s3"><span class="lb">Gulf News 24</span><span class="live">LIVE</span><div class="desk"></div><span class="ticker">Markets · Weather · Headlines</span></div>
+          <div class="mv s4"><span class="lb">Docs Planet</span><div class="sun2"></div></div>
+        </div>
+        <figcaption>Multi-view · illustration with sample channels</figcaption>
+      </figure>
+    </div>
+
+    <div class="show">
+      <div class="txt">
+        <span class="eyebrow">Prayer times</span>
+        <h2>Built around your day.</h2>
+        <p>Today's prayer times sit quietly in the top bar, with a gentle reminder before each prayer, in Arabic and English.</p>
+        <ul><li>Fajr to Isha, calculated for your city</li><li>Gulf Region and other calculation methods</li><li>Optional reminder before every prayer</li></ul>
+      </div>
+      <figure class="frame" style="margin:0"><img src="site/shot-prayer.jpg" alt="91 TV prayer times screen" width="1440" height="860" loading="lazy"><figcaption>Prayer times · real screen from 91 TV</figcaption></figure>
+    </div>
+
+    <div class="show flip">
+      <div class="txt">
+        <span class="eyebrow">Ambient screensaver</span>
+        <h2>Beautiful, even when it's resting.</h2>
+        <p>After a few quiet minutes, 91 TV fades to a soft clock with the date and your next prayer, gentle on OLED screens and lovely in a dark room.</p>
+        <ul><li>Clock, date and next prayer</li><li>Or a slideshow of your library's artwork</li></ul>
+      </div>
+      <figure class="frame" style="margin:0"><img src="site/shot-saver.jpg" alt="91 TV screensaver clock" width="1440" height="860" loading="lazy"><figcaption>Screensaver · real screen from 91 TV</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="picture" class="gut" style="background:linear-gradient(180deg,transparent,rgba(201,71,92,.05) 40%,transparent)">
+  <div class="wrap">
+    <div class="show">
+      <div class="txt">
+        <span class="eyebrow">Picture &amp; sound</span>
+        <h2>The way the film was mastered.</h2>
+        <p>91 TV plays HDR and Dolby Vision itself, and sends Atmos straight to your TV or soundbar, so the picture and sound arrive exactly as they were made.</p>
+        <ul><li>Your TV switches to Dolby Vision automatically</li><li>Scrub with picture previews</li><li>Auto-reconnect when a stream drops</li></ul>
+      </div>
+      <figure class="frame" style="margin:0">
+        <div class="player" aria-label="91 TV player">
+          <div class="p-badges"><span>4K</span><span>DOLBY VISION</span><span>ATMOS</span></div>
+          <div class="p-osd"><h4>The Long Dunes</h4><p>Drama · 2025 · Arabic, English subtitles</p>
+            <div class="p-bar"><i></i><b></b><em></em></div>
+            <div class="p-ctrl"><span>48:12</span><span class="pc">−10s<b>❚❚</b>+10s</span><span>2:08:00</span></div>
+          </div>
+        </div>
+        <figcaption>Player with scrub preview · illustration</figcaption>
+      </figure>
+    </div>
+    <div class="specs" style="margin-top:72px">
+      <div class="spec"><div class="v">Dolby Vision</div><div class="l">HDR10 · HLG</div><p>Real HDR on supported TVs, with tone-mapping for SDR screens on Windows.</p></div>
+      <div class="spec"><div class="v">Dolby Atmos</div><div class="l">E-AC-3 JOC · DTS</div><p>Bitstream passthrough over HDMI and ARC to your soundbar or receiver.</p></div>
+      <div class="spec"><div class="v">4K · 60 fps</div><div class="l">Hardware decoding</div><p>Smooth playback on Android TV, and NVIDIA-accelerated on Windows.</p></div>
+      <div class="spec"><div class="v">M3U · Xtream</div><div class="l">Your provider</div><p>Works with M3U / M3U8 playlists, Xtream Codes logins and XMLTV guides.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="gut">
+  <div class="wrap">
+    <div class="head center"><span class="eyebrow">Two apps</span><h2>On your TV and your PC.</h2></div>
+    <div class="devices">
+      <div class="device"><img src="site/cover_tv.jpg" alt="91 TV for Android TV" width="1600" height="1200" loading="lazy"><div class="body"><h3>91 TV for Android TV</h3><p>Built for the remote: every screen works with the arrow keys and OK. Installs in a minute with the free Downloader app.</p><span class="req">Android TV / Google TV · Android 5.0 or later · e.g. Sony, TCL, Skyworth, Hisense, Chromecast</span></div></div>
+      <div class="device"><img src="site/cover_win.jpg" alt="91 TV for Windows 11" width="1600" height="1200" loading="lazy"><div class="body"><h3>91 TV for Windows 11</h3><p>The same cinema feel on your PC, with keyboard, mouse and Xbox controller support, HDR output and NVIDIA acceleration.</p><span class="req">Windows 10 / 11 · 64-bit · No admin rights needed</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing" class="gut">
+  <div class="wrap">
+    <div class="head center"><span class="eyebrow">Pricing</span><h2>One app. Three simple plans.</h2><p class="sub">The same plans for Android TV and Windows. Every code works on 2 devices.</p></div>
+    <div class="plans">
+      <div class="plan"><h3>1 Month</h3><div class="amt">1.500<small>BHD / month</small></div><div class="usd">about US$4 · cancel anytime</div><ul><li>All features</li><li>2 devices</li><li>Free updates</li></ul></div>
+      <div class="plan best"><span class="tag">Best value</span><h3>1 Year</h3><div class="amt">7.500<small>BHD / year</small></div><div class="usd">about US$20 · 7 months free</div><ul><li>All features</li><li>2 devices</li><li>Free updates</li></ul></div>
+      <div class="plan"><h3>Lifetime</h3><div class="amt">15.000<small>BHD once</small></div><div class="usd">about US$40 · pay once</div><ul><li>All features</li><li>2 devices</li><li>All future updates</li></ul></div>
+    </div>
+    <div class="buyrow">
+      <a class="btn" href="https://91tv.lemonsqueezy.com/checkout/buy/33cefb0d-46f8-4e71-acb8-2719dbfce870">Buy 91 TV for Android TV</a>
+      <a class="btn ghost" href="https://91tv.lemonsqueezy.com/checkout/buy/7bc8e729-f22e-4ca8-a340-241733ad029a">Buy 91 TV for Windows</a>
+    </div>
+    <p class="small">Secure checkout by Lemon Squeezy · Card, Apple Pay, Google Pay or PayPal · Your code arrives by email instantly</p>
+  </div>
+</section>
+
+<section id="install" class="gut">
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Getting started</span><h2>Watching in three steps.</h2></div>
+    <div class="steps">
+      <div class="step"><div class="n">I</div><h3>Choose a plan</h3><p>Pay securely and your activation code arrives in your inbox straight away.</p></div>
+      <div class="step"><div class="n">II</div><h3>Install</h3><p><b style="color:var(--text);font-weight:500">Android TV:</b> install the free <i>Downloader</i> app from the Play Store and enter<br><span class="code">8033693</span></p><p style="margin-top:10px"><b style="color:var(--text);font-weight:500">Windows:</b> download from your order page.</p></div>
+      <div class="step"><div class="n">III</div><h3>Activate &amp; add your provider</h3><p>Enter your code, then your M3U link or Xtream login. Your home screen fills in by itself.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="gut">
+  <div class="wrap">
+    <div class="note"><b>91 TV is a player only.</b> It does not provide, sell or include any channels, playlists, movies or other content. You need your own subscription from an IPTV provider you are legally entitled to use. Pictures on this page use original illustrations and sample names.</div>
+    <div class="head center" style="margin-top:80px"><span class="eyebrow">Questions</span><h2>Good to know.</h2></div>
+    <div class="faq">
+      <details><summary>Do you include channels or a subscription?</summary><p>No. 91 TV is the player app only. You bring your own IPTV provider and add it with an M3U link or an Xtream Codes login.</p></details>
+      <details><summary>Which devices does it work on?</summary><p>Android TV and Google TV devices (Sony, TCL, Skyworth, Hisense, Philips, Chromecast with Google TV and more) and Windows 10 / 11 PCs. There are separate plans for TV and Windows.</p></details>
+      <details><summary>How many devices can I use one code on?</summary><p>Two. If you change TV or PC, open Settings › Licence on the old one and remove it, then activate the same code on the new one.</p></details>
+      <details><summary>Does it work without internet?</summary><p>Streaming needs internet, of course. The licence itself keeps working for 7 days without a connection.</p></details>
+      <details><summary>Can I cancel?</summary><p>Yes. Monthly and yearly plans can be cancelled anytime from the link in your receipt email; you keep access until the end of the period you paid for.</p></details>
+      <details><summary>How do I get help?</summary><p>Reply to your 91 TV receipt email and we'll help you with installing, activating or moving your licence.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final gut">
+  <div class="wrap">
+    <img src="wordmark.png" alt="91 TV" width="320" height="44">
+    <h2>Ready when you are.</h2>
+    <p class="sub" style="margin:0 auto 28px">Bring your IPTV subscription. We'll bring the cinema.</p>
+    <div class="ctas" style="justify-content:center"><a class="btn" href="#pricing">See plans</a></div>
+  </div>
+</section>
+</main>
+
+<footer class="gut"><div class="wrap"><span>© <span id="yr">2026</span> 91 TV · Payments by Lemon Squeezy, our merchant of record.</span><span><a href="#faq">FAQ</a><a href="#pricing">Pricing</a></span></div></footer>
+
 <script>
-"use strict";
-// ---------- tiny helpers
-const $ = (s, r = document) => r.querySelector(s);
-const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const LS = {
-  get(k, d) { try { const v = localStorage.getItem("91tv." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem("91tv." + k, JSON.stringify(v)); } catch (e) {} }
-};
-const app = $("#app");
-let cfg = LS.get("cfg", null);                    // {server,user,pass,proxy}
-const mem = {};                                   // in-memory API cache
-let tab = "home", cat = {}, query = "", shown = 60;
-
-// ---------- Xtream API
-function base() { return cfg.server.replace(/\/+$/, ""); }
-function viaProxy(u) { return cfg.proxy ? cfg.proxy.replace(/\/+$/, "") + "/" + u : u; }
-async function api(action, params = {}, cacheKey) {
-  const k = cacheKey || action + JSON.stringify(params);
-  if (mem[k]) return mem[k];
-  const q = new URLSearchParams({ username: cfg.user, password: cfg.pass, ...(action ? { action } : {}), ...params });
-  const url = base() + "/player_api.php?" + q;
-  let last;
-  for (let i = 0; i < 3; i++) {
-    try {
-      const r = await fetch(viaProxy(url));
-      if (r.status >= 500 && i < 2) { await new Promise(s => setTimeout(s, 1500 * (i + 1))); continue; }
-      if (!r.ok) throw new Error("Server answered " + r.status);
-      return mem[k] = await r.json();
-    } catch (e) { last = e; if (i < 2) await new Promise(s => setTimeout(s, 800)); }
-  }
-  throw last;
-}
-const KIND = {
-  live:   { cats: "get_live_categories",   list: "get_live_streams", title: "Live TV" },
-  movie:  { cats: "get_vod_categories",    list: "get_vod_streams",  title: "Movies" },
-  series: { cats: "get_series_categories", list: "get_series",       title: "Series" }
-};
-function norm(kind, s) {
-  if (kind === "series") return { kind, id: String(s.series_id), name: s.name || "", logo: s.cover || "", rate: +s.rating || 0, cat: String(s.category_id) };
-  if (kind === "movie") return { kind, id: String(s.stream_id), name: s.name || "", logo: s.stream_icon || "", rate: +s.rating || 0, ext: s.container_extension || "mp4", cat: String(s.category_id) };
-  return { kind, id: String(s.stream_id), name: s.name || "", logo: s.stream_icon || "", cat: String(s.category_id) };
-}
-async function listOf(kind, catId) {
-  const p = catId && catId !== "all" ? { category_id: catId } : {};
-  const arr = await api(KIND[kind].list, p);
-  return (arr || []).map(s => norm(kind, s));
-}
-function streamUrl(it) {
-  const b = base(), c = encodeURIComponent(cfg.user) + "/" + encodeURIComponent(cfg.pass);
-  if (it.kind === "live") return `${b}/live/${c}/${it.id}.m3u8`;
-  if (it.kind === "movie") return `${b}/movie/${c}/${it.id}.${it.ext || "mp4"}`;
-  return `${b}/series/${c}/${it.id}.${it.ext || "mp4"}`;
-}
-const keyOf = it => it.kind + ":" + it.id;
-const clean = n => (n || "").replace(/^[^a-z]{1,14}? - /, "").replace(/\s*[\[(][^\])]*[\])]\s*/g, " ").replace(/\s+/g, " ").trim() || n;
-
-// ---------- stored lists
-const recents = () => LS.get("recent", []);
-function pushRecent(it) { const r = recents().filter(x => keyOf(x) !== keyOf(it)); r.unshift({ kind: it.kind, id: it.id, name: it.name, logo: it.logo, ext: it.ext, parent: it.parent }); LS.set("recent", r.slice(0, 40)); }
-const favs = () => LS.get("favs", []);
-const isFav = it => favs().some(x => keyOf(x) === keyOf(it));
-function toggleFav(it) { let f = favs(); if (isFav(it)) f = f.filter(x => keyOf(x) !== keyOf(it)); else f.unshift({ kind: it.kind, id: it.id, name: it.name, logo: it.logo, ext: it.ext }); LS.set("favs", f); }
-const pos = () => LS.get("pos", {});
-function prog(it) { const p = pos()[keyOf(it)]; return p && p.d > 0 ? Math.min(1, p.t / p.d) : 0; }
-
-// ---------- views
-function setup(msg) {
-  const c = cfg || {};
-  app.innerHTML = `<div class="form"><img src="wordmark.png" alt="91 TV">
-  <label>SERVER</label><input id="s" placeholder="https://example.com" value="${esc(c.server)}" autocapitalize="off" autocorrect="off">
-  <label>USERNAME</label><input id="u" value="${esc(c.user)}" autocapitalize="off" autocorrect="off">
-  <label>PASSWORD</label><input id="p" type="password" value="${esc(c.pass)}" autocapitalize="off">
-  <label>PROXY (ONLY IF CONNECTING FAILS)</label><input id="x" placeholder="leave empty" value="${esc(c.proxy)}" autocapitalize="off" autocorrect="off">
-  <button class="btn" id="go">Connect</button><div class="err" id="e">${esc(msg || "")}</div>
-  <div class="note">Your login stays on this iPhone only. Tip: tap Share, then Add to Home Screen, to use 91 TV like an app.</div></div>`;
-  $("#go").onclick = async () => {
-    const n = { server: $("#s").value.trim(), user: $("#u").value.trim(), pass: $("#p").value.trim(), proxy: $("#x").value.trim() };
-    if (!/^https?:\/\//i.test(n.server)) n.server = "https://" + n.server;
-    cfg = n; $("#e").textContent = "Connecting…";
-    try {
-      const d = await api("", {}, "login");
-      if (!d || !d.user_info || String(d.user_info.auth) !== "1") throw new Error("Login failed: check username and password");
-      LS.set("cfg", cfg); shell();
-    } catch (e) {
-      $("#e").textContent = "Could not connect: " + (e.message || e) + (location.protocol === "https:" && /^http:/i.test(cfg.server) ? "\n\nThis server uses http, which Safari blocks on a secure page." : "\n\nIf the server is correct, it may not allow web apps. Then a proxy address is needed.");
-    }
-  };
-}
-
-function shell() {
-  app.innerHTML = `<header><img src="wordmark.png" alt="91 TV"><span class="sp"></span><span class="chip" id="pchip" style="display:none"></span><span class="clock" id="clk"></span><button class="ib" id="gear" aria-label="Settings">⚙</button></header>
-  <main id="main"></main>
-  <nav>${[["home", "⌂", "HOME"], ["live", "◉", "LIVE"], ["movie", "▶", "MOVIES"], ["series", "▤", "SERIES"], ["list", "♡", "MY LIST"]].map(t => `<button data-t="${t[0]}"><b>${t[1]}</b>${t[2]}</button>`).join("")}</nav>`;
-  document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.t));
-  $("#gear").onclick = () => go("settings");
-  tick(); setInterval(tick, 15000); prayerChip();
-  go(tab);
-}
-function tick() { const d = new Date(), c = $("#clk"); if (c) c.textContent = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }); }
-function go(t) {
-  tab = t; query = ""; shown = 60;
-  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
-  const m = $("#main"); m.scrollTop = 0;
-  ({ home, live: () => browse("live"), movie: () => browse("movie"), series: () => browse("series"), list: myList, settings })[t]();
-}
-
-function cardHtml(it, i, big) {
-  const p = prog(it), r = it.rate > 0 && it.rate <= 10 ? `<div class="r">★ ${it.rate.toFixed(1)}</div>` : "";
-  return `<div class="card" data-i="${i}"><div class="p" style="background-image:url('${esc(it.logo)}')">${p > 0.02 ? `<div class="bar"><i style="width:${p * 100}%"></i></div>` : ""}</div><div class="t">${esc(clean(it.name))}</div>${r}</div>`;
-}
-function bind(root, items) { root.querySelectorAll(".card").forEach(c => c.onclick = () => open(items[+c.dataset.i])); }
-function rowHtml(title, items, id) { return items.length ? `<h2>${esc(title)}</h2><div class="row" id="${id}">${items.map((it, i) => cardHtml(it, i)).join("")}</div>` : ""; }
-
-function home() {
-  const m = $("#main"), rec = recents(), f = favs();
-  const cont = rec.filter(x => x.kind !== "live").slice(0, 20), lives = rec.filter(x => x.kind === "live").slice(0, 12);
-  m.innerHTML = `<div id="pt"></div>` + (cont.length || f.length || lives.length ? "" : `<div class="empty">Welcome to 91 TV.<br>Open Movies, Series or Live to start watching.</div>`)
-    + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3") + rowHtml("My list", f.slice(0, 30), "r2");
-  [["r1", cont], ["r3", lives], ["r2", f.slice(0, 30)]].forEach(([id, a]) => { const e = $("#" + id); if (e) bind(e, a); });
-  prayerTable();
-}
-
-async function browse(kind) {
-  const m = $("#main"); m.innerHTML = `<div class="spin">Loading…</div>`;
-  let cats;
-  try { cats = await api(KIND[kind].cats); } catch (e) { return m.innerHTML = `<div class="empty">Could not load.<br>${esc(e.message)}<br><br><button class="more" onclick="go('${kind === "movie" ? "movie" : kind}')">Try again</button></div>`; }
-  cats = (cats || []).map(c => ({ id: String(c.category_id), name: c.category_name }));
-  if (!cat[kind]) cat[kind] = cats.length ? cats[0].id : "all";
-  const chips = [{ id: "all", name: "All" }, ...cats];
-  m.innerHTML = `<input class="search" id="q" placeholder="Search ${KIND[kind].title}" autocapitalize="off" autocorrect="off"><div class="chips" id="chips">${chips.map(c => `<button class="cat ${c.id === cat[kind] ? "on" : ""}" data-c="${esc(c.id)}">${esc(c.name)}</button>`).join("")}</div><div id="res"></div>`;
-  $("#chips").querySelectorAll(".cat").forEach(b => b.onclick = () => { cat[kind] = b.dataset.c; shown = 60; $("#q").value = ""; query = ""; browse(kind); });
-  const on = $("#chips .on"); on && on.scrollIntoView({ inline: "center", block: "nearest" });
-  let t; $("#q").oninput = e => { clearTimeout(t); t = setTimeout(() => { query = e.target.value.trim().toLowerCase(); shown = 60; draw(kind); }, 250); };
-  draw(kind);
-}
-async function draw(kind) {
-  const res = $("#res"); if (!res) return;
-  res.innerHTML = `<div class="spin">Loading…</div>`;
-  let items;
-  try { items = await listOf(kind, query ? "all" : cat[kind]); } catch (e) { res.innerHTML = `<div class="empty">Could not load: ${esc(e.message)}</div>`; return; }
-  if (!$("#res")) return;
-  if (query) items = items.filter(i => i.name.toLowerCase().includes(query));
-  if (!items.length) { res.innerHTML = `<div class="empty">Nothing found.</div>`; return; }
-  const part = items.slice(0, shown);
-  if (kind === "live") {
-    res.innerHTML = part.map((it, i) => `<div class="live" data-i="${i}"><div class="lg" style="background-image:url('${esc(it.logo)}')"></div><div class="n">${esc(it.name)}</div></div>`).join("");
-    res.querySelectorAll(".live").forEach(e => e.onclick = () => play(part[+e.dataset.i]));
-  } else {
-    res.innerHTML = `<div class="grid">${part.map((it, i) => cardHtml(it, i)).join("")}</div>`; bind(res, part);
-  }
-  if (items.length > shown) { const b = document.createElement("button"); b.className = "more"; b.textContent = `Show more (${items.length - shown})`; b.onclick = () => { shown += 90; draw(kind); }; res.appendChild(b); }
-}
-function myList() {
-  const m = $("#main"), f = favs();
-  m.innerHTML = f.length ? `<h2>My list</h2><div class="grid" id="g">${f.map((it, i) => cardHtml(it, i)).join("")}</div>` : `<div class="empty">Your list is empty.<br>Open a movie or series and tap Add to list.</div>`;
-  if (f.length) bind($("#g"), f);
-}
-function settings() {
-  const m = $("#main");
-  m.innerHTML = `<div class="set"><div class="b"><div>Server<small>${esc(cfg.server)}</small></div><button id="s1">Change</button></div>
-  <div class="b"><div>Clear watch history<small>Continue watching and positions</small></div><button id="s2">Clear</button></div>
-  <div class="b"><div>Reload lists<small>Download channels, movies and series again</small></div><button id="s3">Reload</button></div>
-  <div class="b"><div>91 TV web<small>iPhone version 1.0</small></div></div></div>`;
-  $("#s1").onclick = () => setup();
-  $("#s2").onclick = () => { LS.set("recent", []); LS.set("pos", {}); $("#s2").textContent = "Cleared"; };
-  $("#s3").onclick = () => { for (const k in mem) if (k !== "login") delete mem[k]; $("#s3").textContent = "Done"; };
-}
-
-// ---------- detail
-async function open(it) {
-  if (it.kind === "live") return play(it);
-  const s = document.createElement("div"); s.className = "sheet";
-  s.innerHTML = `<button class="back">‹</button><div class="hero" style="background-image:url('${esc(it.logo)}')"></div><div class="in"><h1>${esc(clean(it.name))}</h1><div class="meta" id="mt"></div><div id="ac"></div><div class="plot" id="pl"></div><div id="eps"></div></div>`;
-  document.body.appendChild(s);
-  const close = () => { s.remove(); if (tab === "home") home(); };
-  $(".back", s).onclick = close; s._close = close;
-  const bar = () => {
-    $("#ac", s).innerHTML = (it.kind === "movie" ? `<button class="btn" id="pl1">▶ ${prog(it) > 0.02 ? "Resume" : "Play"}</button>` : "") + `<button class="btn s" id="fv">${isFav(it) ? "✓ In my list" : "+ Add to list"}</button>`;
-    const p1 = $("#pl1", s); if (p1) p1.onclick = () => play(it);
-    $("#fv", s).onclick = () => { toggleFav(it); bar(); };
-  };
-  bar();
-  try {
-    if (it.kind === "movie") {
-      const d = await api("get_vod_info", { vod_id: it.id }), i = (d && d.info) || {};
-      $("#mt", s).textContent = [i.releasedate && String(i.releasedate).slice(0, 4), i.rating && +i.rating > 0 && +i.rating <= 10 ? "★ " + (+i.rating).toFixed(1) : "", i.duration, i.genre].filter(Boolean).join("  ·  ");
-      $("#pl", s).textContent = i.plot || i.description || "";
-      if (i.backdrop_path) { const b = Array.isArray(i.backdrop_path) ? i.backdrop_path[0] : i.backdrop_path; if (b) $(".hero", s).style.backgroundImage = `url('${b}')`; }
-      const ext = d && d.movie_data && d.movie_data.container_extension; if (ext) it.ext = ext;
-    } else {
-      const d = await api("get_series_info", { series_id: it.id }), i = (d && d.info) || {};
-      $("#mt", s).textContent = [i.releaseDate && String(i.releaseDate).slice(0, 4), i.rating && +i.rating > 0 && +i.rating <= 10 ? "★ " + (+i.rating).toFixed(1) : "", i.genre].filter(Boolean).join("  ·  ");
-      $("#pl", s).textContent = i.plot || "";
-      if (i.backdrop_path) { const b = Array.isArray(i.backdrop_path) ? i.backdrop_path[0] : i.backdrop_path; if (b) $(".hero", s).style.backgroundImage = `url('${b}')`; }
-      const eps = d && d.episodes || {}, box = $("#eps", s); let html = "";
-      Object.keys(eps).sort((a, b) => a - b).forEach(sn => {
-        html += `<h2 style="margin:18px 0 4px">Season ${esc(sn)}</h2>`;
-        eps[sn].forEach(e => { const dd = { kind: "episode", id: String(e.id), ext: e.container_extension || "mp4", name: `${clean(it.name)} S${sn}E${e.episode_num}`, logo: (e.info && e.info.movie_image) || it.logo, parent: it.id };
-          const p = prog(dd); html += `<div class="ep" data-e='${esc(JSON.stringify(dd))}'><span>${esc(e.episode_num)}. ${esc(e.title || "Episode " + e.episode_num)}</span><span>${p > 0.02 ? Math.round(p * 100) + "%" : esc((e.info && e.info.duration) || "")}</span></div>`; });
-      });
-      box.innerHTML = html || `<div class="empty">No episodes found.</div>`;
-      box.querySelectorAll(".ep").forEach(el => el.onclick = () => play(JSON.parse(el.dataset.e)));
-    }
-  } catch (e) { $("#pl", s).textContent = "Could not load details: " + (e.message || e); }
-}
-
-// ---------- player
-let hlsLib = null, hls = null;
-function loadHls() { return hlsLib || (hlsLib = new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); })); }
-async function play(it) {
-  pushRecent(it);
-  const url = streamUrl(it), pl = document.createElement("div"); pl.id = "player";
-  pl.innerHTML = `<video controls playsinline webkit-playsinline autoplay></video><button class="back">‹</button><div id="ptitle">${esc(clean(it.name))}</div><div id="perr"></div>`;
-  document.body.appendChild(pl);
-  const v = $("video", pl), err = $("#perr", pl); let timer;
-  const stop = () => { clearInterval(timer); try { save(); } catch (e) {} if (hls) { hls.destroy(); hls = null; } v.pause(); v.removeAttribute("src"); v.load(); pl.remove(); if (tab === "home") home(); };
-  function save() { if (it.kind === "live" || !v.duration || !isFinite(v.duration)) return; const p = pos(); p[keyOf(it)] = { t: v.currentTime, d: v.duration }; LS.set("pos", p); }
-  $(".back", pl).onclick = stop;
-  v.onerror = () => { err.style.display = "block"; err.textContent = it.kind === "live" ? "This channel did not start. Try another one." : "This file format may not play on iPhone (MKV files do not). Try another title or quality."; };
-  const start = () => { const sp = pos()[keyOf(it)]; if (sp && sp.t > 10 && sp.d - sp.t > 30) v.currentTime = sp.t - 3; v.play().catch(() => {}); };
-  v.addEventListener("loadedmetadata", start, { once: true });
-  timer = setInterval(save, 5000); v.onended = () => { const p = pos(); delete p[keyOf(it)]; LS.set("pos", p); };
-  const target = viaProxy(url);
-  if (it.kind === "live" && !v.canPlayType("application/vnd.apple.mpegurl")) {
-    try { await loadHls(); if (window.Hls && Hls.isSupported()) { hls = new Hls(); hls.loadSource(target); hls.attachMedia(v); hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) v.onerror(); }); v.play().catch(() => {}); return; } } catch (e) {}
-  }
-  v.src = target; v.play().catch(() => {});
-}
-
-// ---------- prayer times (Aladhan, Manama, Gulf method)
-let ptDay = null;
-async function prayerLoad() {
-  const d = new Date(), key = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-  const c = LS.get("pt", null); if (c && c.key === key) return ptDay = c;
-  try {
-    const r = await fetch(`https://api.aladhan.com/v1/timingsByCity/${key}?city=Manama&country=Bahrain&method=8`), j = await r.json(), t = j.data.timings;
-    ptDay = { key, t: { Fajr: t.Fajr, Sunrise: t.Sunrise, Dhuhr: t.Dhuhr, Asr: t.Asr, Maghrib: t.Maghrib, Isha: t.Isha } }; LS.set("pt", ptDay); return ptDay;
-  } catch (e) { return ptDay; }
-}
-function nextPrayer() {
-  if (!ptDay) return null; const now = new Date(); let best = null;
-  for (const [n, s] of Object.entries(ptDay.t)) { if (n === "Sunrise") continue; const [h, m] = s.slice(0, 5).split(":").map(Number), t = new Date(now); t.setHours(h, m, 0, 0); if (t > now && (!best || t < best.t)) best = { n, s: s.slice(0, 5), t }; }
-  return best;
-}
-async function prayerChip() {
-  await prayerLoad(); const e = $("#pchip"); if (!e) return;
-  const upd = () => { const n = nextPrayer(); if (!n) { e.style.display = "none"; return; } const mins = Math.round((n.t - new Date()) / 60000); e.style.display = ""; e.textContent = `${n.n.toUpperCase()} ${n.s} · ${mins >= 60 ? Math.floor(mins / 60) + "h " + mins % 60 + "m" : mins + "m"}`; };
-  upd(); setInterval(upd, 30000);
-}
-async function prayerTable() {
-  await prayerLoad(); const e = $("#pt"); if (!e || !ptDay) return; const n = nextPrayer();
-  e.innerHTML = `<h2>Prayer times</h2><div class="pt">${["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].map(k => `<div class="${n && n.n === k ? "nx" : ""}">${k}<b>${ptDay.t[k].slice(0, 5)}</b></div>`).join("")}</div>`;
-}
-
-// ---------- start
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-if (cfg && cfg.server) shell(); else setup();
+(function(){
+  var c=document.getElementById('clk');
+  function t(){var d=new Date();c.textContent=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+  t();setInterval(t,15000);
+  document.getElementById('yr').textContent=new Date().getFullYear();
+  var n=document.querySelector('.nav');
+  addEventListener('scroll',function(){n.classList.toggle('scrolled',scrollY>8)},{passive:true});
+})();
 </script>
 </body>
 </html>
