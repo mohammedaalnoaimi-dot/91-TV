@@ -30,6 +30,9 @@ object Lic {
     private const val API = "https://api.lemonsqueezy.com/v1/licenses/"
     /** Owner code: only its SHA-256 fingerprint is in the app. Unlocks forever, offline, on any number of devices. */
     private const val OWNER_HASH = "4c0370c68585860d7442a9f93dae1246b941b6965d665b4096a61bcad0dd014d"
+    /** Short numeric owner code for the remote: PBKDF2-SHA256, 100k rounds, so it can't be guessed by trying numbers. */
+    private const val OWNER_PIN_HASH = "c8eedf804802cc4b28c6fee6f8a2782c64b55d1059f22459568991b97bfe2bd3"
+    @Volatile private var ownerCache: Pair<String, Boolean>? = null
 
     // Overridable for tests.
     internal var required = REQUIRED
@@ -57,10 +60,25 @@ object Lic {
     private fun deviceName(ctx: Context): String =
         android.os.Build.MODEL + " " + (android.provider.Settings.Secure.getString(ctx.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "").takeLast(6)
 
+    private fun hex(b: ByteArray) = b.joinToString("") { "%02x".format(it) }
+
+    /** PBKDF2-HMAC-SHA256, one 32-byte block (works on every Android version). */
+    internal fun pbkdf2(pass: String, salt: String, rounds: Int): String {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(pass.toByteArray(), "HmacSHA256"))
+        var u = mac.doFinal(salt.toByteArray() + byteArrayOf(0, 0, 0, 1)); val t = u.copyOf()
+        for (i in 1 until rounds) { u = mac.doFinal(u); for (j in t.indices) t[j] = (t[j].toInt() xor u[j].toInt()).toByte() }
+        return hex(t)
+    }
+
     internal fun isOwner(code: String?): Boolean {
         val c = (code ?: "").trim().uppercase(); if (c.isEmpty()) return false
-        val d = java.security.MessageDigest.getInstance("SHA-256").digest(("91tv-owner:" + c).toByteArray())
-        return d.joinToString("") { "%02x".format(it) } == OWNER_HASH
+        ownerCache?.let { if (it.first == c) return it.second }
+        val digits = c.filter { it.isDigit() }
+        val r = hex(java.security.MessageDigest.getInstance("SHA-256").digest(("91tv-owner:" + c).toByteArray())) == OWNER_HASH ||
+            (digits.length == 10 && digits.length == c.count { it.isLetterOrDigit() } && pbkdf2(digits, "91tv-owner-pin", 100000) == OWNER_PIN_HASH)
+        ownerCache = c to r
+        return r
     }
 
     private fun belongs(o: JSONObject): Boolean {
