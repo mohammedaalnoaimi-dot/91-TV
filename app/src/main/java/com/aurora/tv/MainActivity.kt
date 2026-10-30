@@ -118,17 +118,25 @@ class MainActivity : Activity() {
         if (crash.isNotBlank()) { prefs.edit().remove("crash").apply(); showCrash(crash) } else begin()
     }
 
-    private fun activationView(msg: String = "") {
+    private fun activationView(msg: String = prefs.getString("lic_msg", "") ?: "") {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setBackgroundColor(BG); setPadding(dp(120), dp(60), dp(120), dp(20)) }
         col.addView(android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(380), dp(58)))
         col.addView(mkText("Enter your activation code", 24f, CREAM, true).apply { setPadding(0, dp(34), 0, dp(14)) })
         val et = EditText(this).apply { hint = "XXXX-XXXX-XXXX-XXXX"; textSize = 22f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine(); gravity = Gravity.CENTER }
+        if (Lic.hasKey(prefs)) et.setText(prefs.getString("lic_key", ""))
         col.addView(et, LinearLayout.LayoutParams(dp(560), -2))
-        val m = mkText(msg, 16f, RED).apply { setPadding(0, dp(10), 0, 0) }; col.addView(m)
-        col.addView(mkButton("Activate", true) {
+        val m = mkText(msg, 16f, RED).apply { setPadding(0, dp(10), 0, 0); gravity = Gravity.CENTER }; col.addView(m)
+        val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        btns.addView(mkButton("Activate", true) {
             m.text = "Checking…"; val k = et.text.toString().trim()
             Thread { val r = Lic.activate(this, prefs, k); ui.post { if (r == null) begin() else m.text = r } }.start()
-        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(18) })
+        })
+        if (Lic.hasKey(prefs)) btns.addView(mkButton("Check again", false) {
+            m.text = "Checking…"
+            Thread { val good = Lic.refresh(prefs); ui.post { if (good) begin() else m.text = prefs.getString("lic_msg", "") ?: "" } }.start()
+        }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(14) })
+        col.addView(btns, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(18) })
+        if (Lic.BUY_URL.isNotBlank()) col.addView(mkText("No code yet? Buy one at ${Lic.BUY_URL}", 15f, GRAY).apply { setPadding(0, dp(26), 0, 0) })
         setContentView(col); et.requestFocus()
     }
 
@@ -1038,6 +1046,17 @@ class MainActivity : Activity() {
         row("Remote click sound", (if (prefs.getBoolean("noclick", false)) "OFF" else "ON - soft click when moving between tiles") + "  - press to switch") { prefs.edit().putBoolean("noclick", !prefs.getBoolean("noclick", false)).apply(); refreshPage() }
         row("Screensaver", (if (prefs.getBoolean("nosaver", false)) "OFF" else "ON - after 2 minutes of no button presses") + "  - press to switch") { prefs.edit().putBoolean("nosaver", !prefs.getBoolean("nosaver", false)).apply(); bumpIdle(); refreshPage() }
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
+        if (Lic.REQUIRED) {
+            head("LICENCE")
+            row("91 TV licence", "${Lic.summary(prefs)}  - press to remove it from this TV, so the code can be used on another device") {
+                android.app.AlertDialog.Builder(this).setTitle("Remove licence from this TV?")
+                    .setMessage("91 TV will stop working here until a code is entered again.")
+                    .setPositiveButton("Remove") { _, _ ->
+                        Thread { val r = Lic.deactivate(prefs); ui.post { if (r == null) activationView("Licence removed from this TV.") else Toast.makeText(this, r, Toast.LENGTH_LONG).show() } }.start()
+                    }
+                    .setNegativeButton("Cancel", null).show()
+            }
+        }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
         row("About", "91 TV 0.9.9 · long-press OK on anything to add to My List or hide its category") { }
