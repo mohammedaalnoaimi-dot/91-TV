@@ -27,6 +27,7 @@ object Lic {
     private const val DAY = 24L * 3600 * 1000
     private const val RECHECK_MS = 1 * DAY       // online re-check at most once a day
     private const val GRACE_MS = 7 * DAY         // keeps working offline this long after the last good check
+    const val TRIAL_DAYS = 7                       // free trial from the first launch, no code needed
     private const val API = "https://api.lemonsqueezy.com/v1/licenses/"
     /** Owner code: only its SHA-256 fingerprint is in the app. Unlocks forever, offline, on any number of devices. */
     private const val OWNER_HASH = "4c0370c68585860d7442a9f93dae1246b941b6965d665b4096a61bcad0dd014d"
@@ -109,6 +110,7 @@ object Lic {
     }
 
     private fun save(prefs: SharedPreferences, key: String, inst: String, o: JSONObject) {
+        endTrial(prefs)
         val now = clock()
         prefs.edit().putString("lic_key", key).putString("lic_inst", inst)
             .putLong("lic_ok", now).putLong("lic_exp", parseDate(o.optJSONObject("license_key")?.optString("expires_at")))
@@ -153,6 +155,7 @@ object Lic {
     private fun activateChecked(ctx: Context, prefs: SharedPreferences, key: String): String? {
         val k = key.trim()
         if (isOwner(k)) {
+            endTrial(prefs)
             prefs.edit().putString("lic_key", k.uppercase()).putString("lic_inst", "owner").putLong("lic_ok", clock())
                 .putLong("lic_exp", 0L).putString("lic_plan", "Owner").remove("lic_msg").apply()
             return null
@@ -176,10 +179,34 @@ object Lic {
         } catch (e: NoNet) { "No internet connection. Please try again." }
     }
 
-    /** True when the app may open. When false, lic_msg says why (shown on the activation screen). */
-    fun ok(prefs: SharedPreferences): Boolean {
+    // ---- free trial ----
+    fun trialStart(prefs: SharedPreferences) = prefs.getLong("trial_start", 0L)
+    fun trialBegin(prefs: SharedPreferences) { if (trialStart(prefs) == 0L) prefs.edit().putLong("trial_start", clock()).remove("lic_msg").apply() }
+    private fun endTrial(prefs: SharedPreferences) { if (trialStart(prefs) == 0L) prefs.edit().putLong("trial_start", 1L).apply() }
+    /** Days left in the free trial (TRIAL_DAYS before it starts, 0 when over). */
+    fun trialDaysLeft(prefs: SharedPreferences): Int {
+        val t = trialStart(prefs); if (t == 0L) return TRIAL_DAYS
+        return maxOf(0, TRIAL_DAYS - ((clock() - t) / DAY).toInt())
+    }
+    fun inTrial(prefs: SharedPreferences) = trialStart(prefs) != 0L && trialDaysLeft(prefs) > 0
+
+    /** True when the app may open: a valid licence, or the free trial is running. */
+    fun ok(prefs: SharedPreferences): Boolean = licensed(prefs) || (required && !hasKey(prefs) && inTrial(prefs))
+
+    /** Show the activation screen at start? First launch, the last 2 trial days, trial over, or a licence problem. */
+    fun needsScreen(prefs: SharedPreferences): Boolean {
+        if (licensed(prefs)) return false
+        if (hasKey(prefs)) return true
+        return trialStart(prefs) == 0L || trialDaysLeft(prefs) <= 2
+    }
+
+    /** True when a valid code allows the app. When false, lic_msg says why (shown on the activation screen). */
+    fun licensed(prefs: SharedPreferences): Boolean {
         if (!required) return true
-        if ((prefs.getString("lic_key", "") ?: "").isBlank()) return false
+        if ((prefs.getString("lic_key", "") ?: "").isBlank()) {
+            if (trialStart(prefs) != 0L && !inTrial(prefs)) prefs.edit().putString("lic_msg", "Your 7-day free trial has ended. Enter a code to keep watching.").apply()
+            return false
+        }
         if (isOwner(prefs.getString("lic_key", ""))) return true
         val now = clock()
         val exp = prefs.getLong("lic_exp", 0L)
@@ -232,7 +259,10 @@ object Lic {
 
     /** One line for Settings, e.g. "1 Year · until 30 Oct 2027" or "Lifetime". */
     fun summary(prefs: SharedPreferences): String {
-        if (!hasKey(prefs)) return "Not activated"
+        if (!hasKey(prefs)) {
+            if (inTrial(prefs)) { val n = trialDaysLeft(prefs); return "Free trial · $n day${if (n != 1) "s" else ""} left" }
+            return if (trialStart(prefs) != 0L) "Free trial ended" else "Not activated"
+        }
         if (isOwner(prefs.getString("lic_key", ""))) return "Owner · unlimited"
         val plan = (prefs.getString("lic_plan", "") ?: "").ifBlank { "Activated" }
         val exp = prefs.getLong("lic_exp", 0L)

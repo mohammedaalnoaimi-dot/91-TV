@@ -121,7 +121,8 @@ class MainActivity : Activity() {
     private fun activationView(msg: String = prefs.getString("lic_msg", "") ?: "") {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setBackgroundColor(BG); setPadding(dp(120), dp(60), dp(120), dp(20)) }
         col.addView(android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(380), dp(58)))
-        col.addView(mkText("Enter your activation code", 24f, CREAM, true).apply { setPadding(0, dp(34), 0, dp(14)) })
+        col.addView(mkText("Enter your activation code", 24f, CREAM, true).apply { setPadding(0, dp(34), 0, dp(6)) })
+        col.addView(mkText("No code yet? Try 91 TV free for ${Lic.TRIAL_DAYS} days, no card needed.", 15f, GRAY).apply { setPadding(0, 0, 0, dp(14)) })
         val et = EditText(this).apply { hint = "XXXX-XXXX-XXXX-XXXX"; textSize = 22f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine(); gravity = Gravity.CENTER }
         if (Lic.hasKey(prefs)) et.setText(prefs.getString("lic_key", ""))
         col.addView(et, LinearLayout.LayoutParams(dp(560), -2))
@@ -131,6 +132,10 @@ class MainActivity : Activity() {
             m.text = "Checking…"; val k = et.text.toString().trim()
             Thread { val r = Lic.activate(this, prefs, k); ui.post { if (r == null) begin() else m.text = r } }.start()
         })
+        val left = Lic.trialDaysLeft(prefs)
+        if (!Lic.hasKey(prefs) && left > 0) btns.addView(mkButton(if (Lic.trialStart(prefs) == 0L) "Start ${Lic.TRIAL_DAYS}-day free trial" else "Continue free trial ($left day${if (left != 1) "s" else ""} left)", false) {
+            Lic.trialBegin(prefs); proceed()
+        }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(14) })
         if (Lic.hasKey(prefs)) btns.addView(mkButton("Check again", false) {
             m.text = "Checking…"
             Thread { val good = Lic.refresh(prefs); ui.post { if (good) begin() else m.text = prefs.getString("lic_msg", "") ?: "" } }.start()
@@ -142,6 +147,11 @@ class MainActivity : Activity() {
     }
 
     private fun begin() {
+        if (Lic.needsScreen(prefs)) { activationView(); return }
+        proceed()
+    }
+
+    private fun proceed() {
         if (!Lic.ok(prefs)) { activationView(); return }
         Lic.recheck(prefs)
         if (prefs.getString("server", "").isNullOrBlank() && prefs.getString("m3u", "").isNullOrBlank()) setupView() else startLoading()
@@ -1049,7 +1059,8 @@ class MainActivity : Activity() {
         row("Screensaver style", (if (prefs.getString("saverStyle", "clock") == "clock") "Quiet clock with date, next prayer and what you were watching (gentle on the screen)" else "Slideshow of movie posters") + "  - press to switch") { prefs.edit().putString("saverStyle", if (prefs.getString("saverStyle", "clock") == "clock") "posters" else "clock").apply(); refreshPage() }
         if (Lic.REQUIRED) {
             head("LICENCE")
-            row("91 TV licence", "${Lic.summary(prefs)}  - press to remove it from this TV, so the code can be used on another device") {
+            if (!Lic.hasKey(prefs)) row("91 TV licence", "${Lic.summary(prefs)}  - press to enter a code or buy one at ninetyonetv.com") { activationView() }
+            else row("91 TV licence", "${Lic.summary(prefs)}  - press to remove it from this TV, so the code can be used on another device") {
                 android.app.AlertDialog.Builder(this).setTitle("Remove licence from this TV?")
                     .setMessage("91 TV will stop working here until a code is entered again.")
                     .setPositiveButton("Remove") { _, _ ->
