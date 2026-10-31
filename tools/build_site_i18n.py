@@ -98,6 +98,8 @@ MAIN = {
 "Pick 1 month, 1 year or lifetime. Your code arrives by email instantly; paste it in and keep watching.":"اختر شهرًا أو سنة أو مدى الحياة. يصلك رمزك بالبريد فورًا؛ الصقه وواصل المشاهدة.",
 "91 TV is a player only. It does not provide, sell or include any channels, playlists, movies or other content. You need your own subscription from an IPTV provider you are legally entitled to use. Pictures on this page use original illustrations and sample names.":"<b>91 TV مشغّل فقط.</b> لا يقدّم أو يبيع أو يتضمن أي قنوات أو قوائم تشغيل أو أفلام أو محتوى آخر. تحتاج إلى اشتراكك الخاص من مزوّد IPTV يحق لك استخدامه قانونيًا. الصور في هذه الصفحة رسوم أصلية بأسماء تجريبية.",
 "Questions":"الأسئلة","Good to know.":"من المفيد أن تعرف.",
+"Where do I get an M3U link or Xtream login?":"من أين أحصل على رابط M3U أو بيانات Xtream؟",
+"Ask your IPTV provider for either an M3U link or an Xtream Codes login (a server address, a username and a password). In 91 TV, type it in when the app first opens and your channels, movies and series load by themselves. You can change it later in Settings › Provider.":"اطلب من مزوّد IPTV الخاص بك رابط M3U أو بيانات Xtream Codes (عنوان الخادم واسم المستخدم وكلمة المرور). في 91 TV، اكتبها عند فتح التطبيق لأول مرة وستظهر قنواتك وأفلامك ومسلسلاتك تلقائيًا. يمكنك تغييرها لاحقًا من Settings › Provider.",
 "Is there a free trial?":"هل توجد تجربة مجانية؟",
 "Yes. Every new install gets 7 days free with all features. No code and no card needed. When it ends, choose a plan to keep watching.":"نعم. كل تثبيت جديد يحصل على 7 أيام مجانًا بكل المزايا. بدون رمز وبدون بطاقة. عند انتهائها، اختر خطة لتواصل المشاهدة.",
 "Do you include channels or a subscription?":"هل تقدمون قنوات أو اشتراكًا؟",
@@ -174,7 +176,7 @@ def process(path, table, legal=False):
             if getattr(ch, "name", None) in (None, "script", "style", "head", "svg"): continue
             t = norm(ch)
             if t in table and ch.name not in ("html", "body", "main", "section", "header", "footer", "nav", "ul", "div") or (t in table and ch.name == "div" and not ch.find(["p", "h1", "h2", "h3", "li", "div"])):
-                ch["data-ar"] = iso(table[t]); done += 1
+                ch["data-ar"] = table[t] if ch.name == "summary" else iso(table[t]); done += 1
             else:
                 walk(ch)
     walk(soup.body)
