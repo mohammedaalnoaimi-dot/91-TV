@@ -288,8 +288,16 @@ class MainActivity : Activity() {
         leftBox.addView(hdrNext); leftBox.addView(hdrNextSub)
         head.addView(leftBox, LinearLayout.LayoutParams(0, -2, 1f))
         val brandBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        val brand = android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
-        brandBox.addView(brand, LinearLayout.LayoutParams(dp(190), dp(29)))
+        val brand = TextView(this).apply {
+            // same look as the website: "91" in cream, "TV" in the rose accent, Cinzel capitals
+            typeface = try { android.graphics.Typeface.createFromAsset(assets, "cinzel.ttf") } catch (e: Exception) { android.graphics.Typeface.SERIF }
+            textSize = 30f; letterSpacing = 0.04f; includeFontPadding = false
+            val sp = android.text.SpannableString("91 TV")
+            sp.setSpan(android.text.style.ForegroundColorSpan(CREAM), 0, 2, 0)
+            sp.setSpan(android.text.style.ForegroundColorSpan(RED), 3, 5, 0)
+            text = sp
+        }
+        brandBox.addView(brand, LinearLayout.LayoutParams(-2, -2))
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
         val rightBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
         hdrClock = mkText("", 26f, CREAM).apply { gravity = Gravity.END }
@@ -1071,7 +1079,7 @@ class MainActivity : Activity() {
         }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.9 · long-press OK on anything to add to My List or hide its category") { }
+        row("About", "91 TV 0.9.10 · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
