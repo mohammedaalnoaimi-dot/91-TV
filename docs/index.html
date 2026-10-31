@@ -466,8 +466,8 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
       <div class="plan"><h3>Lifetime</h3><div class="amt">15.000<small>BHD once</small></div><div class="usd">about US$40 · pay once</div><ul><li>All features</li><li>2 devices</li><li>All future updates</li></ul></div>
     </div>
     <div class="buyrow">
-      <a class="btn" href="https://91tv.lemonsqueezy.com/checkout/buy/33cefb0d-46f8-4e71-acb8-2719dbfce870">Buy 91 TV for Android TV</a>
-      <a class="btn ghost" href="https://91tv.lemonsqueezy.com/checkout/buy/7bc8e729-f22e-4ca8-a340-241733ad029a">Buy 91 TV for Windows</a>
+      <a class="btn lemonsqueezy-button" href="https://91tv.lemonsqueezy.com/checkout/buy/33cefb0d-46f8-4e71-acb8-2719dbfce870?embed=1">Buy 91 TV for Android TV</a>
+      <a class="btn ghost lemonsqueezy-button" href="https://91tv.lemonsqueezy.com/checkout/buy/7bc8e729-f22e-4ca8-a340-241733ad029a?embed=1">Buy 91 TV for Windows</a>
     </div>
     <p class="small">Secure checkout by Lemon Squeezy · Card, Apple Pay, Google Pay or PayPal · Your code arrives by email instantly</p>
   </div>
@@ -522,5 +522,7 @@ footer a{color:var(--muted);text-decoration:none;margin-left:18px}
   addEventListener('scroll',function(){n.classList.toggle('scrolled',scrollY>8)},{passive:true});
 })();
 </script>
+<!-- Lemon Squeezy: opens the checkout on top of this page. If it cannot load, the buttons still open the normal checkout page. -->
+<script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
 </body>
 </html>
