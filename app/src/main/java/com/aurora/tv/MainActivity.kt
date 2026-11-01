@@ -125,7 +125,7 @@ class MainActivity : Activity() {
         val pairTv = mkText("", 18f, GOLD).apply { gravity = Gravity.CENTER; setPadding(0, 0, 0, dp(12)); maxWidth = dp(760) }
         if (Lic.PAIR_API.isNotBlank()) col.addView(pairTv)
         col.addView(mkText("Or type your code with the keys below:", 15f, GRAY).apply { setPadding(0, 0, 0, dp(6)); gravity = Gravity.CENTER })
-        col.addView(mkText("No code yet? Get a free ${Lic.TRIAL_DAYS}-day trial code at ninetyonetv.com/trial (just your email, no card). It is sent to your inbox.", 15f, GRAY).apply { setPadding(0, 0, 0, dp(14)); gravity = Gravity.CENTER; maxWidth = dp(700) })
+        col.addView(mkText("No code yet? Get a free ${Lic.TRIAL_DAYS}-day trial at ninetyonetv.com/trial (just your email, no card). The code appears on the page.", 15f, GRAY).apply { setPadding(0, 0, 0, dp(14)); gravity = Gravity.CENTER; maxWidth = dp(700) })
         val et = EditText(this).apply { hint = "XXXX-XXXX-XXXX-XXXX"; textSize = 22f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine(); gravity = Gravity.CENTER }
         if (Lic.hasKey(prefs)) et.setText(prefs.getString("lic_key", ""))
         col.addView(et, LinearLayout.LayoutParams(dp(560), -2))

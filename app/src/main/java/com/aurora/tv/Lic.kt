@@ -23,7 +23,7 @@ object Lic {
     const val STORE_ID = 0              // Lemon Squeezy store number (Settings > Stores). 0 = not checked
     const val PRODUCT_ID = 1488147      // "91 TV" (Android TV) product. 0 = not checked
     const val PAIR_API = "https://ninetyone-pair.mohammed-a-alnoaimi.workers.dev"   // phone-activation server (Cloudflare Worker), filled in after it is deployed
-    const val TRIAL_PRODUCT_ID = 1492379  // "91 TV Free Trial (7 days)": a free product, one trial code per email
+    const val TRIAL_PRODUCT_ID = 1492379  // "91 TV Free Trial (7 days)": free trial: codes are issued by our own server, one per email
     const val TRIAL_URL = "https://91tv.lemonsqueezy.com/checkout/buy/382c1236-aa96-4933-af5c-d97a070ee6f7"
     const val BUY_URL = "91tv.lemonsqueezy.com"   // shown on the activation screen
 
@@ -51,7 +51,9 @@ object Lic {
     private fun post(path: String, kv: List<Pair<String, String>>): JSONObject {
         try {
             val body = kv.joinToString("&") { URLEncoder.encode(it.first, "UTF-8") + "=" + URLEncoder.encode(it.second, "UTF-8") }
-            val c = URL(API + path).openConnection() as HttpURLConnection
+            // Free-trial codes (16 characters) are issued and checked by our own server, which answers in the same format as Lemon Squeezy.
+            val lk = kv.firstOrNull { it.first == "license_key" }?.second ?: ""
+            val c = URL((if (isTrialKey(lk)) "$PAIR_API/lic/" else API) + path).openConnection() as HttpURLConnection
             c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 10000; c.readTimeout = 15000
             c.setRequestProperty("Accept", "application/json"); c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
             c.outputStream.use { it.write(body.toByteArray()) }
@@ -60,6 +62,11 @@ object Lic {
             c.disconnect()
             return try { JSONObject(txt) } catch (e: Exception) { throw NoNet() }   // not JSON = proxy / captive portal
         } catch (e: java.io.IOException) { throw NoNet() }
+    }
+
+    internal fun isTrialKey(k: String): Boolean {
+        val h = k.filter { it.isLetterOrDigit() }
+        return h.length == 16 && h.all { it in '0'..'9' || it.uppercaseChar() in 'A'..'F' } && k.all { it.isLetterOrDigit() || it == '-' || it == ' ' }
     }
 
     private fun deviceName(ctx: Context): String =
@@ -135,6 +142,7 @@ object Lic {
     /** Customers may type the code without dashes, with spaces, or in any letter case: "38B1460A51044067A91D77B872934D51". */
     internal fun normalize(raw: String): String {
         val t = raw.trim()
+        if (isTrialKey(t)) return t.filter { it.isLetterOrDigit() }.uppercase()
         val hex = t.filter { it.isLetterOrDigit() }
         if (hex.length == 32 && hex.all { it in '0'..'9' || it.lowercaseChar() in 'a'..'f' } && t.all { it.isLetterOrDigit() || it == '-' || it == ' ' }) {
             val h = hex.lowercase()
