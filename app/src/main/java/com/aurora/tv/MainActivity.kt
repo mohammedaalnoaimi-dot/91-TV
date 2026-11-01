@@ -126,6 +126,23 @@ class MainActivity : Activity() {
         val et = EditText(this).apply { hint = "XXXX-XXXX-XXXX-XXXX"; textSize = 22f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine(); gravity = Gravity.CENTER }
         if (Lic.hasKey(prefs)) et.setText(prefs.getString("lic_key", ""))
         col.addView(et, LinearLayout.LayoutParams(dp(560), -2))
+        // Remote-friendly keypad: codes only use 0-9 and A-F, so nobody has to hunt through a full keyboard.
+        fun fmt(raw: String): String {
+            val isHex = raw.all { it in '0'..'9' || it.uppercaseChar() in 'A'..'F' }
+            if (!isHex || raw.length > 32) return raw
+            val u = raw.uppercase()
+            return listOf(0 to 8, 8 to 12, 12 to 16, 16 to 20, 20 to 32).map { (x, y) -> if (x >= u.length) "" else u.substring(x, minOf(y, u.length)) }.filter { it.isNotEmpty() }.joinToString("-")
+        }
+        fun setRaw(raw: String) { et.setText(fmt(raw)); et.setSelection(et.text.length) }
+        fun raw() = et.text.toString().filter { it.isLetterOrDigit() }
+        fun keyRow(chars: String, extra: List<Pair<String, () -> Unit>> = emptyList()) {
+            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+            for (c in chars) r.addView(mkButton(c.toString(), false) { setRaw(raw() + c) }.apply { textSize = 13f; setPadding(dp(14), dp(8), dp(14), dp(8)) }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4); rightMargin = dp(4); topMargin = dp(4) })
+            for ((label, act) in extra) r.addView(mkButton(label, false) { act() }.apply { textSize = 13f; setPadding(dp(14), dp(8), dp(14), dp(8)) }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8); rightMargin = dp(4); topMargin = dp(4) })
+            col.addView(r)
+        }
+        keyRow("01234567")
+        keyRow("89ABCDEF", listOf("Delete" to { setRaw(raw().dropLast(1)) }, "Clear" to { et.setText("") }))
         val m = mkText(msg, 16f, RED).apply { setPadding(0, dp(10), 0, 0); gravity = Gravity.CENTER }; col.addView(m)
         val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         btns.addView(mkButton("Activate", true) {
@@ -137,9 +154,9 @@ class MainActivity : Activity() {
             Thread { val good = Lic.refresh(prefs); ui.post { if (good) begin() else m.text = prefs.getString("lic_msg", "") ?: "" } }.start()
         }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(14) })
         col.addView(btns, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(18) })
-        col.addView(mkText("Tip: paste it from your phone. Open the Google TV app › Remote › keyboard, then paste the code from your email. No dashes needed if you type it.", 14f, GRAY).apply { setPadding(0, dp(22), 0, 0); gravity = Gravity.CENTER; maxWidth = dp(640) })
+        col.addView(mkText("Tip: use the keys above with your remote, no dashes needed. Or paste it from your phone: Google TV app › Remote › keyboard.", 14f, GRAY).apply { setPadding(0, dp(22), 0, 0); gravity = Gravity.CENTER; maxWidth = dp(640) })
         if (Lic.BUY_URL.isNotBlank()) col.addView(mkText("Buy a plan at ninetyonetv.com. No code or a problem? Email ninetyonetv.support@gmail.com", 15f, GRAY).apply { setPadding(0, dp(12), 0, 0) })
-        setContentView(col); et.requestFocus()
+        setContentView(android.widget.ScrollView(this).apply { setBackgroundColor(BG); isFillViewport = true; addView(col) }); et.requestFocus()
     }
 
     private fun begin() {
