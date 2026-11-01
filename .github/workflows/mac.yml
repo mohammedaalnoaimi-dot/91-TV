@@ -57,6 +57,7 @@ jobs:
           cp -R "dist/91 TV.app" dmg/
           ln -s /Applications dmg/Applications
           hdiutil create -volname "91 TV" -srcfolder dmg -ov -format UDZO "release/91TV-${VER}-mac-${{ matrix.arch }}.dmg"
+          ditto -c -k --keepParent "dist/91 TV.app" "release/91TV-${VER}-mac-${{ matrix.arch }}.app.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: 91TV-mac-${{ matrix.arch }}
