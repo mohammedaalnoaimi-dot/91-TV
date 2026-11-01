@@ -121,7 +121,10 @@ class MainActivity : Activity() {
     private fun activationView(msg: String = prefs.getString("lic_msg", "") ?: "") {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setBackgroundColor(BG); setPadding(dp(120), dp(60), dp(120), dp(20)) }
         col.addView(android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(380), dp(58)))
-        col.addView(mkText("Enter your activation code", 24f, CREAM, true).apply { setPadding(0, dp(34), 0, dp(6)) })
+        col.addView(mkText("Activate your TV", 24f, CREAM, true).apply { setPadding(0, dp(34), 0, dp(6)) })
+        val pairTv = mkText("", 18f, GOLD).apply { gravity = Gravity.CENTER; setPadding(0, 0, 0, dp(12)); maxWidth = dp(760) }
+        if (Lic.PAIR_API.isNotBlank()) col.addView(pairTv)
+        col.addView(mkText("Or type your code with the keys below:", 15f, GRAY).apply { setPadding(0, 0, 0, dp(6)); gravity = Gravity.CENTER })
         col.addView(mkText("No code yet? Get a free ${Lic.TRIAL_DAYS}-day trial code at ninetyonetv.com/trial (just your email, no card). It is sent to your inbox.", 15f, GRAY).apply { setPadding(0, 0, 0, dp(14)); gravity = Gravity.CENTER; maxWidth = dp(700) })
         val et = EditText(this).apply { hint = "XXXX-XXXX-XXXX-XXXX"; textSize = 22f; setTextColor(CREAM); setHintTextColor(Color.GRAY); setSingleLine(); gravity = Gravity.CENTER }
         if (Lic.hasKey(prefs)) et.setText(prefs.getString("lic_key", ""))
@@ -144,6 +147,7 @@ class MainActivity : Activity() {
         keyRow("01234567")
         keyRow("89ABCDEF", listOf("Delete" to { setRaw(raw().dropLast(1)) }, "Clear" to { et.setText("") }))
         val m = mkText(msg, 16f, RED).apply { setPadding(0, dp(10), 0, 0); gravity = Gravity.CENTER }; col.addView(m)
+        pairGen++; if (Lic.PAIR_API.isNotBlank()) startPairing(pairTv, m, pairGen)
         val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         btns.addView(mkButton("Activate", true) {
             m.text = "Checking…"; val k = et.text.toString().trim()
@@ -159,7 +163,41 @@ class MainActivity : Activity() {
         setContentView(android.widget.ScrollView(this).apply { setBackgroundColor(BG); isFillViewport = true; addView(col) }); et.requestFocus()
     }
 
+    private var pairGen = 0
+
+    /** Shows a short code on the TV; the phone page (ninetyonetv.com/activate) sends the licence key to it, and the TV activates itself. */
+    private fun startPairing(label: TextView, msg: TextView, gen: Int) {
+        fun call(method: String, path: String): org.json.JSONObject {
+            val c = java.net.URL(Lic.PAIR_API + path).openConnection() as java.net.HttpURLConnection
+            c.requestMethod = method; c.connectTimeout = 10000; c.readTimeout = 15000
+            if (method == "POST") { c.doOutput = true; c.outputStream.use { it.write(ByteArray(0)) } }
+            return try { org.json.JSONObject(c.inputStream.bufferedReader().use { it.readText() }) } finally { c.disconnect() }
+        }
+        Thread {
+            var code = ""; var secret = ""; var born = 0L; var fails = 0
+            while (gen == pairGen && !isFinishing) {
+                try {
+                    if (code.isEmpty() || System.currentTimeMillis() - born > 13 * 60_000L) {
+                        val n = call("POST", "/new"); code = n.getString("code"); secret = n.getString("secret"); born = System.currentTimeMillis()
+                        val shown = code.substring(0, 3) + " " + code.substring(3)
+                        ui.post { if (gen == pairGen) label.text = "On your phone, open  ninetyonetv.com/activate  and type this code:\n\n$shown" ; label.textSize = 18f }
+                    }
+                    val st = call("GET", "/status?code=$code&secret=$secret")
+                    if (st.has("key")) {
+                        val key = st.getString("key"); ui.post { if (gen == pairGen) msg.text = "Activating…" }
+                        val r = Lic.activate(this, prefs, key)
+                        ui.post { if (gen == pairGen) { if (r == null) { pairGen++; begin() } else msg.text = r } }
+                        code = ""; if (r == null) return@Thread
+                    } else if (st.optBoolean("expired")) code = ""
+                    fails = 0
+                } catch (e: Throwable) { fails++ ; if (fails == 3) ui.post { if (gen == pairGen) label.text = "Phone activation needs the internet. You can still type your code with the keys below." } }
+                try { Thread.sleep(3000) } catch (e: InterruptedException) { return@Thread }
+            }
+        }.start()
+    }
+
     private fun begin() {
+        pairGen++
         if (Lic.needsScreen(prefs)) { activationView(); return }
         proceed()
     }

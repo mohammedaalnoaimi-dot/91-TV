@@ -22,6 +22,7 @@ object Lic {
     const val REQUIRED = true
     const val STORE_ID = 0              // Lemon Squeezy store number (Settings > Stores). 0 = not checked
     const val PRODUCT_ID = 1488147      // "91 TV" (Android TV) product. 0 = not checked
+    const val PAIR_API = ""   // phone-activation server (Cloudflare Worker), filled in after it is deployed
     const val TRIAL_PRODUCT_ID = 1492379  // "91 TV Free Trial (7 days)": a free product, one trial code per email
     const val TRIAL_URL = "https://91tv.lemonsqueezy.com/checkout/buy/382c1236-aa96-4933-af5c-d97a070ee6f7"
     const val BUY_URL = "91tv.lemonsqueezy.com"   // shown on the activation screen
