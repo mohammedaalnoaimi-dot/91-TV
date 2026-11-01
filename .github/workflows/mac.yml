@@ -42,7 +42,7 @@ jobs:
         run: python tests/test_core.py
       - name: Build the app
         run: |
-          VER=$(python -c "import re;print(re.search(r'\"([^\"]+)\"',open('aurora/__init__.py').read()).group(1))")
+          VER=$(grep -m1 '__version__' aurora/__init__.py | sed -E 's/.*"([^"]+)".*/\1/')
           echo "VER=$VER" >> "$GITHUB_ENV"
           APP_VERSION=$VER python -m PyInstaller aurora-mac.spec --noconfirm --clean
           codesign --force --deep --sign - "dist/91 TV.app"
