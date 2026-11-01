@@ -100,6 +100,8 @@ MAIN = {
 "Questions":"الأسئلة","Good to know.":"من المفيد أن تعرف.",
 "Where do I get an M3U link or Xtream login?":"من أين أحصل على رابط M3U أو بيانات Xtream؟",
 "Ask your IPTV provider for either an M3U link or an Xtream Codes login (a server address, a username and a password). In 91 TV, type it in when the app first opens and your channels, movies and series load by themselves. You can change it later in Settings › Provider.":"اطلب من مزوّد IPTV الخاص بك رابط M3U أو بيانات Xtream Codes (عنوان الخادم واسم المستخدم وكلمة المرور). في 91 TV، اكتبها عند فتح التطبيق لأول مرة وستظهر قنواتك وأفلامك ومسلسلاتك تلقائيًا. يمكنك تغييرها لاحقًا من Settings › Provider.",
+"I didn't get my code. What now?":"لم يصلني الرمز. ماذا أفعل؟",
+"First check Junk or Spam, and make sure you typed your own email correctly. Still nothing? Email ninetyonetv.support@gmail.com with the email you used and we will send your code.":"تحقق أولًا من مجلد الرسائل غير المرغوبة (Junk / Spam)، وتأكد أنك كتبت بريدك الإلكتروني بشكل صحيح. لا شيء بعد؟ راسلنا على ninetyonetv.support@gmail.com مع البريد الذي استخدمته وسنرسل لك الرمز.",
 "Is there a free trial?":"هل توجد تجربة مجانية؟",
 "Yes. Enter your email to get a free trial code, with 7 days of all features and no card. Each email gets one trial. When it ends, choose a plan to keep watching.":"نعم. أدخل بريدك الإلكتروني لتحصل على رمز تجربة مجانية، بكل المزايا لمدة 7 أيام وبدون بطاقة. لكل بريد إلكتروني تجربة واحدة. عند انتهائها، اختر خطة لتواصل المشاهدة.",
 "Do you include channels or a subscription?":"هل تقدمون قنوات أو اشتراكًا؟",

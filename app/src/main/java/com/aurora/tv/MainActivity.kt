@@ -138,7 +138,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(14) })
         col.addView(btns, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(18) })
         col.addView(mkText("Tip: paste it from your phone. Open the Google TV app › Remote › keyboard, then paste the code from your email. No dashes needed if you type it.", 14f, GRAY).apply { setPadding(0, dp(22), 0, 0); gravity = Gravity.CENTER; maxWidth = dp(640) })
-        if (Lic.BUY_URL.isNotBlank()) col.addView(mkText("Buy a plan at ninetyonetv.com", 15f, GRAY).apply { setPadding(0, dp(12), 0, 0) })
+        if (Lic.BUY_URL.isNotBlank()) col.addView(mkText("Buy a plan at ninetyonetv.com. No code or a problem? Email ninetyonetv.support@gmail.com", 15f, GRAY).apply { setPadding(0, dp(12), 0, 0) })
         setContentView(col); et.requestFocus()
     }
 
