@@ -222,6 +222,7 @@ class MainActivity : Activity() {
     /** Opens instantly from the disk cache; downloads (or refreshes in the background when older than 6 h) otherwise. */
     private fun startLoading(force: Boolean = false) {
         val server = prefs.getString("server", "") ?: ""; val m3uUrl = prefs.getString("m3u", "") ?: ""
+        if (server.isBlank() && m3uUrl.isBlank()) { setupView(); return }
         if (force) Cache.clear(this)
         if (server.isNotBlank()) xt = Xtream(server, prefs.getString("user", "") ?: "", prefs.getString("pass", "") ?: "") else xt = null
         if (!force && Cache.ageHours(this, "live") != Long.MAX_VALUE) {
@@ -1022,6 +1023,66 @@ class MainActivity : Activity() {
     // =====================================================================================
     // SETTINGS
     // =====================================================================================
+    private fun hostLabel(): String {
+        val server = prefs.getString("server", "") ?: ""
+        if (server.isNotBlank()) return try { android.net.Uri.parse(server).host ?: server } catch (e: Throwable) { server }
+        return if ((prefs.getString("m3u", "") ?: "").isNotBlank()) "an M3U playlist" else "nothing yet"
+    }
+
+    private fun curVersionCode(): Int = try { packageManager.getPackageInfo(packageName, 0).let { if (android.os.Build.VERSION.SDK_INT >= 28) it.longVersionCode.toInt() else it.versionCode } } catch (e: Throwable) { 0 }
+    private fun curVersionName(): String = try { packageManager.getPackageInfo(packageName, 0).versionName ?: "" } catch (e: Throwable) { "" }
+
+    private val APK_URL = "https://github.com/mohammedaalnoaimi-dot/91-TV/releases/download/latest-build/91TV.apk"
+    private val VERSION_URL = "https://raw.githubusercontent.com/mohammedaalnoaimi-dot/91-TV/main/app/build.gradle.kts"
+
+    /** Reads the newest version number published with the app, and offers to install it when it is newer than this one. */
+    private fun checkUpdate() {
+        Toast.makeText(this, "Checking for updates…", Toast.LENGTH_SHORT).show()
+        Thread {
+            try {
+                val t = Http.get(VERSION_URL)
+                val code = Regex("versionCode\\s*=\\s*(\\d+)").find(t)!!.groupValues[1].toInt()
+                val name = Regex("versionName\\s*=\\s*\"([^\"]+)\"").find(t)!!.groupValues[1]
+                ui.post {
+                    if (code > curVersionCode()) {
+                        android.app.AlertDialog.Builder(this).setTitle("Update available")
+                            .setMessage("Version $name is ready. You have ${curVersionName()}. Download and install it now?")
+                            .setPositiveButton("Update") { _, _ -> installUpdate(code) }
+                            .setNegativeButton("Later", null).show()
+                    } else Toast.makeText(this, "You have the latest version (${curVersionName()})", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Throwable) { ui.post { Toast.makeText(this, "Could not check for updates: ${e.message ?: e.javaClass.simpleName}", Toast.LENGTH_LONG).show() } }
+        }.start()
+    }
+
+    private fun installUpdate(minCode: Int) {
+        if (android.os.Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+            android.app.AlertDialog.Builder(this).setTitle("Allow installs")
+                .setMessage("Android needs your OK before 91 TV can install an update. Press Open settings, switch it on for 91 TV, then come back and press Check for updates again.")
+                .setPositiveButton("Open settings") { _, _ ->
+                    try { startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:$packageName"))) }
+                    catch (e: Throwable) { Toast.makeText(this, "Open Settings > Apps > 91 TV > Install unknown apps", Toast.LENGTH_LONG).show() }
+                }.setNegativeButton("Cancel", null).show()
+            return
+        }
+        Toast.makeText(this, "Downloading the update…", Toast.LENGTH_LONG).show()
+        Thread {
+            try {
+                val f = java.io.File(cacheDir, "update.apk")
+                val c = Http.open(APK_URL)
+                try { c.inputStream.use { i -> f.outputStream().use { o -> i.copyTo(o) } } } finally { c.disconnect() }
+                val info = packageManager.getPackageArchiveInfo(f.absolutePath, 0)
+                val got = info?.let { if (android.os.Build.VERSION.SDK_INT >= 28) it.longVersionCode.toInt() else it.versionCode } ?: 0
+                if (got < minCode) { ui.post { Toast.makeText(this, "The new version is still being prepared. Try again in a few minutes.", Toast.LENGTH_LONG).show() }; return@Thread }
+                ui.post {
+                    val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+                    startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            } catch (e: Throwable) { ui.post { Toast.makeText(this, "Update failed: ${e.message ?: e.javaClass.simpleName}", Toast.LENGTH_LONG).show() } }
+        }.start()
+    }
+
     private fun settingsView(): View {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(40), dp(26), dp(40), dp(20)) }
         root.addView(eyebrow("SETTINGS"))
@@ -1051,6 +1112,16 @@ class MainActivity : Activity() {
         }
         head("LIBRARY")
         row("Provider", "Change server, login or M3U playlist") { setupView() }
+        row("Log out from this host", "Signed in to: ${hostLabel()}  - removes the server, login and downloaded lists from this TV") {
+            android.app.AlertDialog.Builder(this).setTitle("Log out from this host?")
+                .setMessage("The server, username, password and downloaded lists will be removed from this TV. Your 91 TV licence stays. You can add a provider again afterwards.")
+                .setPositiveButton("Log out") { _, _ ->
+                    prefs.edit().remove("server").remove("user").remove("pass").remove("m3u").remove("recent").apply()
+                    Cache.clear(this); xt = null; setData(emptyList(), emptyList(), emptyList())
+                    Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show(); setupView()
+                }
+                .setNegativeButton("Cancel", null).show()
+        }
         row("Show all hidden categories", "${hidden().size} hidden right now") { prefs.edit().remove("hidden").apply(); visCache.clear(); smart.clear(); Toast.makeText(this, "All categories shown again", Toast.LENGTH_SHORT).show(); refreshPage() }
         row("Reload lists", "Download channels, movies and series again (normally automatic every 6 hours)") { startLoading(true) }
         head("RATINGS")
@@ -1084,7 +1155,8 @@ class MainActivity : Activity() {
         }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
-        row("About", "91 TV 0.9.9 · long-press OK on anything to add to My List or hide its category") { }
+        row("Check for updates", "You have version ${curVersionName()}  - press to look for a newer one") { checkUpdate() }
+        row("About", "91 TV ${curVersionName()} · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
         return ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BG); isVerticalScrollBarEnabled = false; addView(root, FrameLayout.LayoutParams(-1, -2)) }
     }
