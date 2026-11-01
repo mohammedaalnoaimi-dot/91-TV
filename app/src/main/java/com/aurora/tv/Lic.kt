@@ -22,12 +22,14 @@ object Lic {
     const val REQUIRED = true
     const val STORE_ID = 0              // Lemon Squeezy store number (Settings > Stores). 0 = not checked
     const val PRODUCT_ID = 1488147      // "91 TV" (Android TV) product. 0 = not checked
+    const val TRIAL_PRODUCT_ID = 1492379  // "91 TV Free Trial (7 days)": a free product, one trial code per email
+    const val TRIAL_URL = "https://91tv.lemonsqueezy.com/checkout/buy/382c1236-aa96-4933-af5c-d97a070ee6f7"
     const val BUY_URL = "91tv.lemonsqueezy.com"   // shown on the activation screen
 
     private const val DAY = 24L * 3600 * 1000
     private const val RECHECK_MS = 1 * DAY       // online re-check at most once a day
     private const val GRACE_MS = 7 * DAY         // keeps working offline this long after the last good check
-    const val TRIAL_DAYS = 7                       // free trial from the first launch, no code needed
+    const val TRIAL_DAYS = 7                       // length of the free trial code (set in Lemon Squeezy)
     private const val API = "https://api.lemonsqueezy.com/v1/licenses/"
     /** Owner code: only its SHA-256 fingerprint is in the app. Unlocks forever, offline, on any number of devices. */
     private const val OWNER_HASH = "4c0370c68585860d7442a9f93dae1246b941b6965d665b4096a61bcad0dd014d"
@@ -39,6 +41,7 @@ object Lic {
     internal var required = REQUIRED
     internal var storeId = STORE_ID
     internal var productId = PRODUCT_ID
+    internal var trialProductId = TRIAL_PRODUCT_ID
     internal var clock: () -> Long = { System.currentTimeMillis() }
     internal var transport: (String, List<Pair<String, String>>) -> JSONObject = { p, kv -> post(p, kv) }
 
@@ -84,7 +87,7 @@ object Lic {
 
     private fun belongs(o: JSONObject): Boolean {
         val m = o.optJSONObject("meta") ?: return false
-        return (storeId == 0 || m.optInt("store_id", -1) == storeId) && (productId == 0 || m.optInt("product_id", -1) == productId)
+        return (storeId == 0 || m.optInt("store_id", -1) == storeId) && (productId == 0 || m.optInt("product_id", -1) == productId || m.optInt("product_id", -1) == trialProductId)
     }
 
     /** "2027-10-30T18:00:00.000000Z" -> millis, 0 when there is no end date (lifetime). */
@@ -110,15 +113,15 @@ object Lic {
     }
 
     private fun save(prefs: SharedPreferences, key: String, inst: String, o: JSONObject) {
-        endTrial(prefs)
         val now = clock()
         prefs.edit().putString("lic_key", key).putString("lic_inst", inst)
-            .putLong("lic_ok", now).putLong("lic_exp", parseDate(o.optJSONObject("license_key")?.optString("expires_at")))
+            .putLong("lic_ok", now).putLong("lic_seen", now)
+            .putInt("lic_pid", o.optJSONObject("meta")?.optInt("product_id", 0) ?: 0).putLong("lic_exp", parseDate(o.optJSONObject("license_key")?.optString("expires_at")))
             .putString("lic_plan", o.optJSONObject("meta")?.optString("variant_name") ?: "").remove("lic_msg").apply()
     }
 
     private fun forget(prefs: SharedPreferences, msg: String?) {
-        val e = prefs.edit().remove("lic_key").remove("lic_inst").remove("lic_ok").remove("lic_exp").remove("lic_plan")
+        val e = prefs.edit().remove("lic_key").remove("lic_inst").remove("lic_ok").remove("lic_exp").remove("lic_plan").remove("lic_pid")
         if (msg == null) e.remove("lic_msg") else e.putString("lic_msg", msg)
         e.apply()
     }
@@ -155,7 +158,6 @@ object Lic {
     private fun activateChecked(ctx: Context, prefs: SharedPreferences, key: String): String? {
         val k = key.trim()
         if (isOwner(k)) {
-            endTrial(prefs)
             prefs.edit().putString("lic_key", k.uppercase()).putString("lic_inst", "owner").putLong("lic_ok", clock())
                 .putLong("lic_exp", 0L).putString("lic_plan", "Owner").remove("lic_msg").apply()
             return null
@@ -179,38 +181,28 @@ object Lic {
         } catch (e: NoNet) { "No internet connection. Please try again." }
     }
 
-    // ---- free trial ----
-    fun trialStart(prefs: SharedPreferences) = prefs.getLong("trial_start", 0L)
-    fun trialBegin(prefs: SharedPreferences) { if (trialStart(prefs) == 0L) prefs.edit().putLong("trial_start", clock()).remove("lic_msg").apply() }
-    private fun endTrial(prefs: SharedPreferences) { if (trialStart(prefs) == 0L) prefs.edit().putLong("trial_start", 1L).apply() }
-    /** Days left in the free trial (TRIAL_DAYS before it starts, 0 when over). */
-    fun trialDaysLeft(prefs: SharedPreferences): Int {
-        val t = trialStart(prefs); if (t == 0L) return TRIAL_DAYS
-        return maxOf(0, TRIAL_DAYS - ((clock() - t) / DAY).toInt())
-    }
-    fun inTrial(prefs: SharedPreferences) = trialStart(prefs) != 0L && trialDaysLeft(prefs) > 0
+    private fun isTrial(prefs: SharedPreferences) = prefs.getInt("lic_pid", 0) == trialProductId
 
-    /** True when the app may open: a valid licence, or the free trial is running. */
-    fun ok(prefs: SharedPreferences): Boolean = licensed(prefs) || (required && !hasKey(prefs) && inTrial(prefs))
+    /** True when the app may open: only a valid code (a free trial code counts). */
+    fun ok(prefs: SharedPreferences): Boolean = licensed(prefs)
 
-    /** Show the activation screen at start? First launch, the last 2 trial days, trial over, or a licence problem. */
-    fun needsScreen(prefs: SharedPreferences): Boolean {
-        if (licensed(prefs)) return false
-        if (hasKey(prefs)) return true
-        return trialStart(prefs) == 0L || trialDaysLeft(prefs) <= 2
-    }
+    /** Show the activation screen at start? Whenever there is no valid code. */
+    fun needsScreen(prefs: SharedPreferences): Boolean = !licensed(prefs)
 
     /** True when a valid code allows the app. When false, lic_msg says why (shown on the activation screen). */
     fun licensed(prefs: SharedPreferences): Boolean {
         if (!required) return true
-        if ((prefs.getString("lic_key", "") ?: "").isBlank()) {
-            if (trialStart(prefs) != 0L && !inTrial(prefs)) prefs.edit().putString("lic_msg", "Your 7-day free trial has ended. Enter a code to keep watching.").apply()
-            return false
-        }
+        if ((prefs.getString("lic_key", "") ?: "").isBlank()) return false
         if (isOwner(prefs.getString("lic_key", ""))) return true
         val now = clock()
+        // Clock set backwards to stretch a plan or the offline grace period: refuse until the date is right.
+        val seen = prefs.getLong("lic_seen", 0L)
+        if (seen > 0 && now < seen - DAY) { prefs.edit().putString("lic_msg", "The date on this TV looks wrong. Set the correct date and time, then press Check again.").apply(); return false }
+        if (now > seen) prefs.edit().putLong("lic_seen", now).apply()
         val exp = prefs.getLong("lic_exp", 0L)
-        if (exp in 1 until now) { prefs.edit().putString("lic_msg", "Your plan ended on ${day(exp)}. Renew it, then press Check again.").apply(); return false }
+        if (exp in 1 until now) {
+            prefs.edit().putString("lic_msg", if (isTrial(prefs)) "Your free trial ended on ${day(exp)}. Buy a plan at ninetyonetv.com to keep watching." else "Your plan ended on ${day(exp)}. Renew it, then press Check again.").apply(); return false
+        }
         if (now - prefs.getLong("lic_ok", 0L) >= GRACE_MS) { prefs.edit().putString("lic_msg", "Connect to the internet so 91 TV can check your code.").apply(); return false }
         return true
     }
@@ -232,7 +224,7 @@ object Lic {
             when {
                 v.optBoolean("valid") && belongs(v) -> { save(prefs, key, inst, v); true }
                 !v.has("valid") -> false                                               // odd reply: change nothing
-                status == "expired" -> { prefs.edit().putLong("lic_ok", 0L).putString("lic_msg", "Your plan has ended. Renew it, then press Check again.").apply(); false }
+                status == "expired" -> { prefs.edit().putLong("lic_ok", 0L).putString("lic_msg", if (isTrial(prefs)) "Your free trial has ended. Buy a plan at ninetyonetv.com to keep watching." else "Your plan has ended. Renew it, then press Check again.").apply(); false }
                 else -> { forget(prefs, "This code was cancelled or removed from this TV. Please enter a valid code."); false }
             }
         } catch (e: NoNet) {
@@ -259,13 +251,11 @@ object Lic {
 
     /** One line for Settings, e.g. "1 Year · until 30 Oct 2027" or "Lifetime". */
     fun summary(prefs: SharedPreferences): String {
-        if (!hasKey(prefs)) {
-            if (inTrial(prefs)) { val n = trialDaysLeft(prefs); return "Free trial · $n day${if (n != 1) "s" else ""} left" }
-            return if (trialStart(prefs) != 0L) "Free trial ended" else "Not activated"
-        }
+        if (!hasKey(prefs)) return "Not activated"
         if (isOwner(prefs.getString("lic_key", ""))) return "Owner · unlimited"
-        val plan = (prefs.getString("lic_plan", "") ?: "").ifBlank { "Activated" }
         val exp = prefs.getLong("lic_exp", 0L)
+        if (isTrial(prefs)) return "Free trial" + if (exp > 0) " · until ${day(exp)}" else ""
+        val plan = (prefs.getString("lic_plan", "") ?: "").ifBlank { "Activated" }
         return if (exp > 0) "$plan · until ${day(exp)}" else if ("lifetime" in plan.lowercase()) plan else "$plan · no end date"
     }
 }
