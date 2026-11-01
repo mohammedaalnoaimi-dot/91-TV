@@ -1,0 +1,257 @@
+2026-10-27 17:42:08,519 INFO    aurora.startup: AURORA IPTV 1.0.3 starting
+2026-10-27 17:42:08,524 INFO    aurora.startup: Python 3.13.17 | Linux-6.18.44-fc-v165-x86_64-with-glibc2.39 | frozen=False
+2026-10-27 17:42:08,737 WARNING aurora.secrets: keyring write failed (using local fallback): NoKeyringError
+PASS  library loaded (3 movies incl. adult category)  [2/3]
+2026-10-27 17:42:08,954 INFO    aurora.epg: EPG loaded: 2 channels, 16 programmes
+PASS  TMDB fills a missing poster  [http://127.0.0.1:33315/t/p/w500/thumb.jpg]
+PASS  TMDB fills plot + rating  [TMDB overview for the poster-l / 7.8]
+PASS  TMDB did not touch an item that has no match
+PASS  TMDB lookups used the clean title  [['movie|test movie|', 'movie|poster-less film|2019', 'movie|adult night|']]
+PASS  movie click opens a Netflix-style page  [Poster-less Film]
+PASS  page shows TMDB plot, cast, genre, year  [2019   ·   ★ 7.8   ·   Comedy, Drama]
+PASS  episode list hidden for movies; Play button present
+2026-10-27 17:42:09,452 INFO    aurora.player: libmpv loaded
+2026-10-27 17:42:09,460 INFO    aurora.player: Player ready (hwdec=auto-safe, passthrough=off, device=auto)
+2026-10-27 17:42:09,460 INFO    aurora.player: Play http://127.0.0.1:33315/live/demo/secret/1.m3u8 (live=True, source 1/2)
+2026-10-27 17:42:09,473 WARNING aurora.player: mpv[vo/x11] Warning: this legacy VO has bad performance. Consider fixing your graphics drivers, or not forcing the x11 VO.
+2026-10-27 17:42:09,476 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:09,476 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+2026-10-27 17:42:09,476 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:09,476 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+2026-10-27 17:42:09,506 WARNING aurora.player: mpv[mkv] Stream is not seekable or unknown size, not reading mkv metadata at end of file.
+2026-10-27 17:42:09,512 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Cannot load libcuda.so.1
+2026-10-27 17:42:09,512 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Could not dynamically load CUDA
+2026-10-27 17:42:09,512 WARNING aurora.player: mpv[vaapi] libva: vaGetDriverNames() failed with unknown libva error
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+2026-10-27 17:42:09,522 WARNING aurora.player: mpv[cplayer] Cannot seek in this stream.
+2026-10-27 17:42:09,522 WARNING aurora.player: mpv[cplayer] You can force it with '--force-seekable=yes'.
+[W][01670.273453] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client-rt.conf: No such file or directory
+[E][01670.273464] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client-rt.conf: No such file or directory
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:09,535 WARNING aurora.player: mpv[ao/alsa] Playback open error: No such file or directory
+Cannot connect to server socket err = No such file or directory
+Cannot connect to server request channel
+jack server is not running or cannot be started
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+2026-10-27 17:42:09,539 WARNING aurora.player: mpv[ao/jack] cannot open server
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:09,551 WARNING aurora.player: mpv[ao/sdl] could not open audio: ALSA: Couldn't open audio device: No such file or directory
+2026-10-27 17:42:09,684 WARNING aurora.player: mpv[ao] Failed to initialize audio driver 'sdl'
+2026-10-27 17:42:09,685 WARNING aurora.player: mpv[cplayer] Could not open/initialize audio device -> no sound.
+saved f_movie_detail
+PASS  provider info is kept (plot + cast from get_vod_info)
+PASS  guide lists channels with EPG data  [2]
+PASS  guide has programmes for the selected row  [News Show 2]
+PASS  Right arrow moves to the next programme
+PASS  Down arrow moves to the next channel
+PASS  details panel shows the programme  [Sport Show 3]
+PASS  clicking a programme selects it
+PASS  guide preview started
+saved f_guide
+2026-10-27 17:42:10,543 INFO    aurora.player: Player ready (hwdec=auto-safe, passthrough=off, device=auto)
+2026-10-27 17:42:10,543 INFO    aurora.player: Play http://127.0.0.1:33315/live/demo/secret/1.m3u8 (live=True, source 1/2)
+2026-10-27 17:42:10,553 WARNING aurora.player: mpv[vo/x11] Warning: this legacy VO has bad performance. Consider fixing your graphics drivers, or not forcing the x11 VO.
+2026-10-27 17:42:10,556 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:10,556 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+2026-10-27 17:42:10,556 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:10,556 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+PASS  Enter on the guide plays the channel full screen
+2026-10-27 17:42:10,583 WARNING aurora.player: mpv[mkv] Stream is not seekable or unknown size, not reading mkv metadata at end of file.
+2026-10-27 17:42:10,587 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Cannot load libcuda.so.1
+2026-10-27 17:42:10,587 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Could not dynamically load CUDA
+2026-10-27 17:42:10,587 WARNING aurora.player: mpv[vaapi] libva: vaGetDriverNames() failed with unknown libva error
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+2026-10-27 17:42:10,593 WARNING aurora.player: mpv[cplayer] Cannot seek in this stream.
+2026-10-27 17:42:10,594 WARNING aurora.player: mpv[cplayer] You can force it with '--force-seekable=yes'.
+[W][01671.345586] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client-rt.conf: No such file or directory
+[E][01671.345596] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client-rt.conf: No such file or directory
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:10,605 WARNING aurora.player: mpv[ao/alsa] Playback open error: No such file or directory
+Cannot connect to server socket err = No such file or directory
+Cannot connect to server request channel
+jack server is not running or cannot be started
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+2026-10-27 17:42:10,609 WARNING aurora.player: mpv[ao/jack] cannot open server
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:10,611 WARNING aurora.player: mpv[ao/sdl] could not open audio: ALSA: Couldn't open audio device: No such file or directory
+2026-10-27 17:42:10,612 WARNING aurora.player: mpv[ao] Failed to initialize audio driver 'sdl'
+2026-10-27 17:42:10,612 WARNING aurora.player: mpv[cplayer] Could not open/initialize audio device -> no sound.
+PASS  full screen player gets live-rewind LIVE badge
+PASS  channels are numbered 1 and 2
+PASS  typed number shows entry OSD in the player
+saved f_osd
+2026-10-27 17:42:12,211 INFO    aurora.player: Play http://127.0.0.1:33315/live/demo/secret/2.m3u8 (live=True, source 1/2)
+PASS  typed channel number zaps after the timeout  [Test Sport 4K]
+2026-10-27 17:42:12,213 INFO    aurora.player: Play http://127.0.0.1:33315/live/demo/secret/1.m3u8 (live=True, source 1/2)
+PASS  last-channel key goes back  [Test News HD]
+2026-10-27 17:42:12,216 INFO    aurora.player: Play http://127.0.0.1:33315/live/demo/secret/2.m3u8 (live=True, source 1/2)
+PASS  Up arrow = channel up
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 45776)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "/usr/local/lib/python3.13/http/server.py", line 451, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/local/lib/python3.13/http/server.py", line 439, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "/home/claude/aurora/tests/fake_server.py", line 80, in do_GET
+    self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data); return
+                                                                            ~~~~~~~~~~~~~~~~^^^^^^
+  File "/usr/local/lib/python3.13/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [Errno 104] Connection reset by peer
+----------------------------------------
+2026-10-27 17:42:12,243 WARNING aurora.player: mpv[mkv] Stream is not seekable or unknown size, not reading mkv metadata at end of file.
+2026-10-27 17:42:12,246 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:12,246 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+2026-10-27 17:42:12,246 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:12,246 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+PASS  fullscreen moves the control bars into floating overlays
+PASS  overlay bars appear over the video (no relayout)
+PASS  overlay sits on the video's bottom edge  [PySide6.QtCore.QRect(0, 1044, 2000, 56) vs PySide6.QtCore.QRect(0, 0, 2000, 1100)]
+2026-10-27 17:42:12,257 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Cannot load libcuda.so.1
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+2026-10-27 17:42:12,258 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Could not dynamically load CUDA
+2026-10-27 17:42:12,258 WARNING aurora.player: mpv[vaapi] libva: vaGetDriverNames() failed with unknown libva error
+PASS  channel banner shows now/next  [Now · Sport Show 2]
+2026-10-27 17:42:12,262 WARNING aurora.player: mpv[cplayer] Cannot seek in this stream.
+2026-10-27 17:42:12,264 WARNING aurora.player: mpv[cplayer] You can force it with '--force-seekable=yes'.
+[W][01673.024091] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client-rt.conf: No such file or directory
+[E][01673.024098] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client-rt.conf: No such file or directory
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:12,286 WARNING aurora.player: mpv[ao/alsa] Playback open error: No such file or directory
+Cannot connect to server socket err = No such file or directory
+Cannot connect to server request channel
+jack server is not running or cannot be started
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+2026-10-27 17:42:12,292 WARNING aurora.player: mpv[ao/jack] cannot open server
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:12,294 WARNING aurora.player: mpv[ao/sdl] could not open audio: ALSA: Couldn't open audio device: No such file or directory
+2026-10-27 17:42:12,397 WARNING aurora.player: mpv[ao] Failed to initialize audio driver 'sdl'
+2026-10-27 17:42:12,397 WARNING aurora.player: mpv[cplayer] Could not open/initialize audio device -> no sound.
+saved f_fullscreen_overlay
+PASS  leaving full screen docks the bars again
+PASS  number entry on the Live page selects that channel
+PASS  adult-looking category detected
+PASS  hidden category disappears from movies
+PASS  hidden items also vanish from recents/home
+PASS  wrong PIN does not unlock
+PASS  right PIN unlocks hidden category
+PASS  unlocked shows 3 movies
+PASS  locking hides it again
+2026-10-27 17:42:13,057 WARNING aurora.ui.main_window: Auto-hid dead channel Test News HD
+PASS  channel failing 3 times is auto-hidden
+PASS  hidden channel keeps its number slot
+PASS  restore brings it back
+2026-10-27 17:42:13,062 INFO    aurora.ui.main_window: Several failures in a row without any success - looks like a network outage, not counting them against channels
+2026-10-27 17:42:13,062 INFO    aurora.ui.main_window: Several failures in a row without any success - looks like a network outage, not counting them against channels
+PASS  burst of failures with no success is treated as a network outage (nothing hidden)
+2026-10-27 17:42:13,539 INFO    aurora.player: Player ready (hwdec=auto-safe, passthrough=off, device=auto)
+2026-10-27 17:42:13,540 INFO    aurora.player: Play http://127.0.0.1:33315/live/demo/secret/2.m3u8 (live=True, source 1/2)
+2026-10-27 17:42:13,549 WARNING aurora.player: mpv[vo/x11] Warning: this legacy VO has bad performance. Consider fixing your graphics drivers, or not forcing the x11 VO.
+2026-10-27 17:42:13,556 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:13,557 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+2026-10-27 17:42:13,557 WARNING aurora.player: mpv[vo/x11] Shared memory not supported
+2026-10-27 17:42:13,557 WARNING aurora.player: mpv[vo/x11] Reverting to normal Xlib
+2026-10-27 17:42:13,581 WARNING aurora.player: mpv[mkv] Stream is not seekable or unknown size, not reading mkv metadata at end of file.
+2026-10-27 17:42:13,585 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Cannot load libcuda.so.1
+2026-10-27 17:42:13,585 WARNING aurora.player: mpv[ffmpeg] AVHWDeviceContext: Could not dynamically load CUDA
+2026-10-27 17:42:13,585 WARNING aurora.player: mpv[vaapi] libva: vaGetDriverNames() failed with unknown libva error
+Failed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory
+2026-10-27 17:42:13,590 WARNING aurora.player: mpv[cplayer] Cannot seek in this stream.
+2026-10-27 17:42:13,590 WARNING aurora.player: mpv[cplayer] You can force it with '--force-seekable=yes'.
+[W][01674.341370] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client-rt.conf: No such file or directory
+[E][01674.341377] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client-rt.conf: No such file or directory
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:13,603 WARNING aurora.player: mpv[ao/alsa] Playback open error: No such file or directory
+Cannot connect to server socket err = No such file or directory
+Cannot connect to server request channel
+jack server is not running or cannot be started
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1, skipping unlock
+2026-10-27 17:42:13,607 WARNING aurora.player: mpv[ao/jack] cannot open server
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
+2026-10-27 17:42:13,609 WARNING aurora.player: mpv[ao/sdl] could not open audio: ALSA: Couldn't open audio device: No such file or directory
+2026-10-27 17:42:13,610 WARNING aurora.player: mpv[ao] Failed to initialize audio driver 'sdl'
+2026-10-27 17:42:13,610 WARNING aurora.player: mpv[cplayer] Could not open/initialize audio device -> no sound.
+saved f_settings_mid
+PASS  settings has TMDB key, parental and rewind controls
+[W][01674.439674] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client-rt.conf: No such file or directory
+[E][01674.439682] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client-rt.conf: No such file or directory
+PASS  wizard self-check validates the playlist  [fo panel during playback)
+…  Checking your playlist (this can take a moment)
+OK  Xtream login OK - 2 live channels found]
+saved f_wizard
+PASS  wizard returns the chosen settings
+
+43/43 checks passed

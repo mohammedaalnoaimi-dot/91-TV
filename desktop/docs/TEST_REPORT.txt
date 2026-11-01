@@ -1,0 +1,144 @@
+AURORA IPTV 1.2.0 test report - Linux (Python 3.13) - NOT Windows
+Tue Oct 27 18:49:02 +03 2026
+
+== unit ==
+PASS test_m3u
+PASS test_m3u_file_and_gzip
+PASS test_xtream_urls
+PASS test_epg
+PASS test_store
+PASS test_backup_sources
+PASS test_tmdb_title_cleaning
+PASS test_parental_and_dead
+PASS test_gamepad_mapping
+PASS test_hide_by_language
+
+== e2e_live ==
+PASS  library loaded from Xtream  [2 live]
+PASS  EPG loaded
+PASS  preview starts playing  [playing]
+PASS  preview muted by default
+PASS  guide panel shows now-playing  [News Show 2]
+PASS  chip shows LIVE  [● LIVE]
+PASS  debounce: last selection wins  [Test Sport 4K]
+PASS  second channel plays
+PASS  unmute toggles audio + saves preference
+PASS  favorite button toggles My List  [♥  In My List]
+PASS  full player opens and preview decoder released
+PASS  returns to Live TV and preview resumes
+PASS  leaving Live TV stops preview
+PASS  preview can be disabled in settings  [off]
+14/14 checks passed
+
+== e2e_series ==
+PASS  library loaded
+PASS  single click opens the series page (not a dialog)
+PASS  title cleaned  [Test Series]
+PASS  meta shows year, rating, seasons, genre  [2020   ·   ★ 8.1   ·   2 seasons   ·   Drama, Thriller]
+PASS  plot + cast shown
+PASS  episodes listed for season 1 with cleaned titles  [['Episode 1', 'The Second One']]
+PASS  season selector present
+PASS  play button targets S1 E1  [▶  Play S1 E1]
+PASS  switching season shows season 2  [['Return']]
+PASS  My List button toggles  [♥  In My List]
+PASS  clicking an episode plays it full screen
+PASS  player title is clean  [Test Series - S01E02  The Second One]
+PASS  Back from player returns to the series page
+PASS  Back from series page returns to TV Series grid
+PASS  re-open shows Resume button for last watched episode  [▶  Resume S1 E2]
+15/15 checks passed
+
+== e2e_features ==
+PASS  library loaded (3 movies incl. adult category)  [2/3]
+PASS  TMDB fills a missing poster  [http://127.0.0.1:44805/t/p/w500/thumb.jpg]
+PASS  TMDB fills plot + rating  [TMDB overview for the poster-l / 7.8]
+PASS  TMDB did not touch an item that has no match
+PASS  TMDB lookups used the clean title  [['movie|test movie|', 'movie|poster-less film|2019', 'movie|adult night|']]
+PASS  movie click opens a Netflix-style page  [Poster-less Film]
+PASS  page shows TMDB plot, cast, genre, year  [2019   ·   ★ 7.8   ·   Comedy, Drama]
+PASS  episode list hidden for movies; Play button present
+PASS  provider info is kept (plot + cast from get_vod_info)
+PASS  guide lists channels with EPG data  [2]
+PASS  guide has programmes for the selected row  [News Show 2]
+PASS  Right arrow moves to the next programme
+PASS  Down arrow moves to the next channel
+PASS  details panel shows the programme  [Sport Show 3]
+PASS  clicking a programme selects it
+PASS  guide preview started
+PASS  Enter on the guide plays the channel full screen
+PASS  full screen player gets live-rewind LIVE badge
+PASS  channels are numbered 1 and 2
+PASS  typed number shows entry OSD in the player
+PASS  typed channel number zaps after the timeout  [Test Sport 4K]
+PASS  last-channel key goes back  [Test News HD]
+PASS  Up arrow = channel up
+PASS  fullscreen moves the control bars into floating overlays
+PASS  overlay bars appear over the video (no relayout)
+PASS  overlay sits on the video's bottom edge  [PySide6.QtCore.QRect(0, 1029, 2000, 71) vs PySide6.QtCore.QRect(0, 0, 2000, 1100)]
+PASS  channel banner shows now/next  [Now · Sport Show 2]
+PASS  leaving full screen docks the bars again
+PASS  number entry on the Live page selects that channel
+PASS  adult-looking category detected
+PASS  hidden category disappears from movies
+PASS  hidden items also vanish from recents/home
+PASS  wrong PIN does not unlock
+PASS  right PIN unlocks hidden category
+PASS  unlocked shows 3 movies
+PASS  locking hides it again
+PASS  channel failing 3 times is auto-hidden
+PASS  hidden channel keeps its number slot
+PASS  restore brings it back
+PASS  burst of failures with no success is treated as a network outage (nothing hidden)
+PASS  settings has TMDB key, parental and rewind controls
+PASS  wizard self-check validates the playlist  [fo panel during playback)
+PASS  wizard returns the chosen settings
+43/43 checks passed
+
+== e2e_visual ==
+PASS  library loaded  [2/3]
+PASS  skeleton placeholders shown while loading
+PASS  skeleton cards are not clickable
+PASS  poster dominant colour computed  [#612f67]
+PASS  hovering a poster retints the page background
+PASS  hover lift animates (progress approaches 1)  [0.81]
+PASS  page fade veil animates then disappears
+PASS  animations can be turned off
+PASS  detail hero zooms in then settles
+PASS  zoom ends at rest
+PASS  series/movie page glow takes the backdrop colour
+PASS  accent switch changes theme colours  [#2e7dff]
+PASS  category list has News + Sport
+PASS  hiding a category removes it and its channels
+PASS  hide-category button on Series works
+PASS  restored by clearing hidden categories
+PASS  movies page shows Hide category button for a selected category
+PASS  Ctrl+K opens search
+PASS  search finds channels and programmes  [['CHANNELS', 'Test News HD      News', 'PROGRAMMES', 'News Show 2      Test News HD  ·  Tue 18:30', 'News Show 3      Test News HD  ·  Tue 19:15', 'News Show 4      Test News HD  ·  Tue 20:00']]
+PASS  search finds movies
+PASS  opening a series result opens its page
+PASS  opening a programme result jumps to the guide
+PASS  Esc leaves search
+PASS  movie plays
+PASS  per-channel profile is stored
+PASS  profile is re-applied next time the item plays  [{'motion': 'smooth', 'denoise': 'light', 'deband': 'off', 'deinterlace': 'auto'}]
+PASS  scrub thumbnail worker started (VOD only)
+PASS  thumbnail frame captured  [{0: (240, 135)}]
+PASS  scrub tooltip shows time/preview  [dur=(1.0, 10.0) live=False thumbs=<aurora.thumbs.ThumbWorker(0x1e0e59d0) at 0x7fe9f82b8800>]
+PASS  fullscreen bars use the bigger style  [in_player=True full=True fs=True]
+PASS  settings expose quality / denoise / accent / size / 10-foot
+31/31 checks passed
+
+== picture ==
+PASS no filter by default
+PASS per-channel denoise applies hqdn3d (video <=1080p) [[{'name': 'lavfi', 'enabled': True, 'params': {'graph': 'hqdn3d=1.5:1.2:3:2.5'}}]]
+PASS profile switch removes filter [[]]
+PASS deinterlace forced on [True]
+PASS motion smoothing + deband applied [True/True]
+PASS empty profile falls back to global settings
+6/6
+
+== recovery ==
+PASS dead link -> backup 1.5s [(0.3, 'switched')]
+PASS stalled stream -> backup 9.3s [(8.0, 'switched')]
+
+NOT tested: any Windows behaviour (D3D11/NVDEC, HDR, real IPTV provider, installer), gamepad hardware, real TMDB.

@@ -1,0 +1,10 @@
+2026-10-23 10:24:01,578 INFO    aurora.startup: AURORA IPTV 1.0.0 starting
+2026-10-23 10:24:01,580 INFO    aurora.startup: Python 3.12.3 | Linux-6.18.44-fc-v153-x86_64-with-glibc2.39 | frozen=True
+2026-10-23 10:24:01,593 WARNING aurora.secrets: keyring write failed (using local fallback): NoKeyringError
+2026-10-23 10:24:01,596 ERROR   selftest: Credential store
+Traceback (most recent call last):
+  File "aurora/app.py", line 16, in check
+  File "aurora/app.py", line 29, in <lambda>
+  File "aurora/app.py", line 29, in <genexpr>
+RuntimeError: no keyring backend; local fallback in use
+2026-10-23 10:24:01,661 INFO    aurora.player: libmpv loaded

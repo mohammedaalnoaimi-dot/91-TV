@@ -1,0 +1,16 @@
+PASS  library loaded
+PASS  single click opens the series page (not a dialog)
+PASS  title cleaned  [Test Series]
+PASS  meta shows year, rating, seasons, genre  [2020   ·   ★ 8.1   ·   2 seasons   ·   Drama, Thriller]
+PASS  plot + cast shown
+PASS  episodes listed for season 1 with cleaned titles  [['Episode 1', 'The Second One']]
+PASS  season selector present
+PASS  play button targets S1 E1  [▶  Play S1 E1]
+PASS  switching season shows season 2  [['Return']]
+PASS  My List button toggles  [♥  In My List]
+PASS  clicking an episode plays it full screen
+PASS  player title is clean  [Test Series - S01E02  The Second One]
+PASS  Back from player returns to the series page
+PASS  Back from series page returns to TV Series grid
+PASS  re-open shows Resume button for last watched episode  [▶  Resume S1 E2]
+15/15 checks passed

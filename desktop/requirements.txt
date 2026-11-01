@@ -1,0 +1,4 @@
+PySide6-Essentials>=6.8,<7
+python-mpv>=1.0.7
+requests>=2.32
+keyring>=25

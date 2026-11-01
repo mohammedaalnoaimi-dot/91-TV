@@ -1,0 +1,69 @@
+name: Build 91 TV (Mac)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["desktop/**", ".github/workflows/mac.yml"]
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15-intel, arch: intel }
+          - { os: macos-15, arch: apple-silicon }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the mpv video engine
+        run: |
+          brew install mpv
+          P="$(brew --prefix mpv)"
+          ls -la "$P/lib" | head
+          echo "MPV_DYLIB=$P/lib/libmpv.2.dylib" >> "$GITHUB_ENV"
+      - name: Install Python packages
+        run: python -m pip install -r requirements-build.txt
+      - name: Make the app icon
+        run: |
+          mkdir icon.iconset
+          for s in 16 32 64 128 256 512; do sips -z $s $s assets/aurora.png --out icon.iconset/icon_${s}x${s}.png >/dev/null; done
+          for s in 16 32 128 256; do d=$((s*2)); cp icon.iconset/icon_${d}x${d}.png icon.iconset/icon_${s}x${s}@2x.png; done
+          cp icon.iconset/icon_512x512.png icon.iconset/icon_256x256@2x.png
+          iconutil -c icns icon.iconset -o assets/aurora.icns
+      - name: Unit tests
+        run: python tests/test_core.py
+      - name: Build the app
+        run: |
+          VER=$(python -c "import re;print(re.search(r'\"([^\"]+)\"',open('aurora/__init__.py').read()).group(1))")
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          APP_VERSION=$VER python -m PyInstaller aurora-mac.spec --noconfirm --clean
+          codesign --force --deep --sign - "dist/91 TV.app"
+      - name: Self-test of the built app
+        run: |
+          export AURORA_DATA_DIR="$RUNNER_TEMP/aurora-selftest" QT_QPA_PLATFORM=offscreen
+          "dist/91 TV.app/Contents/MacOS/91TV" --selftest || { cat "$AURORA_DATA_DIR/logs/selftest.txt" 2>/dev/null; exit 1; }
+          cat "$AURORA_DATA_DIR/logs/selftest.txt" || true
+      - name: Package
+        run: |
+          mkdir -p release dmg
+          cp -R "dist/91 TV.app" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "91 TV" -srcfolder dmg -ov -format UDZO "release/91TV-${VER}-mac-${{ matrix.arch }}.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 91TV-mac-${{ matrix.arch }}
+          path: desktop/release/*
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mac-latest
+          name: 91 TV for Mac (latest build)
+          files: desktop/release/*

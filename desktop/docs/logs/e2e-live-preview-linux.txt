@@ -1,0 +1,15 @@
+PASS  library loaded from Xtream  [2 live]
+PASS  EPG loaded
+PASS  preview starts playing  [playing]
+PASS  preview muted by default
+PASS  guide panel shows now-playing  [News Show 1]
+PASS  chip shows LIVE  [● LIVE]
+PASS  debounce: last selection wins  [Test Sport 4K]
+PASS  second channel plays
+PASS  unmute toggles audio + saves preference
+PASS  favorite button toggles My List  [♥  In My List]
+PASS  full player opens and preview decoder released
+PASS  returns to Live TV and preview resumes
+PASS  leaving Live TV stops preview
+PASS  preview can be disabled in settings  [off]
+14/14 checks passed

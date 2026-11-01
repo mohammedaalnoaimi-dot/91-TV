@@ -1,0 +1,6 @@
+PASS  M3U parser - True
+PASS  Database - ok
+WARN  Credential store - RuntimeError: no keyring backend; local fallback in use
+PASS  libmpv (video engine) - libmpv loaded
+PASS  User interface - main window created and closed
+AURORA 1.0.0 | Python 3.12.3 | linux
