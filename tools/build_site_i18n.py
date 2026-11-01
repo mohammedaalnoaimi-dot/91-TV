@@ -115,7 +115,7 @@ MAIN = {
 "How do I get help?":"كيف أحصل على مساعدة؟",
 "Reply to your 91 TV receipt email and we'll help you with installing, activating or moving your licence.":"ردّ على بريد إيصال 91 TV وسنساعدك في التثبيت أو التفعيل أو نقل الترخيص.",
 "Ready when you are.":"كل شيء جاهز، تفضّل.",
-"Bring your IPTV subscription. We'll bring the cinema.":"أحضر اشتراك IPTV الخاص بك، ونحن نحضر السينما.",
+"Bring your IPTV subscription. We'll bring the cinema.":"عندك اشتراك IPTV؟ خلّ السينما علينا.",
 "© 2026 91 TV · Payments by Lemon Squeezy, our merchant of record.":'© <span id="yr">2026</span> 91 TV · المدفوعات عبر Lemon Squeezy، التاجر المسجّل لدينا.',
 "Terms":"الشروط","Privacy":"الخصوصية","Refunds":"الاسترداد",
 }
