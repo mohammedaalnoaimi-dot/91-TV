@@ -94,7 +94,14 @@ h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;col
   .card .t{font-size:14px;margin-top:8px}.card .r{font-size:12px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:22px 18px;padding:10px 36px}
   .search{width:calc(100% - 72px);max-width:520px;margin:18px 36px 10px;padding:12px 16px;font-size:16px}
-  .chips{padding:6px 36px 14px;flex-wrap:wrap;overflow:visible}.cat{font-size:14px;padding:7px 16px}
+  main:has(.split){overflow:hidden;display:flex;flex-direction:column}
+  main>.split{max-width:none;margin:0;width:100%;flex:1;min-height:0;display:grid;grid-template-columns:290px 1fr;grid-template-rows:auto minmax(0,1fr)}
+  .split .search{grid-column:2;grid-row:1;margin:16px 36px 10px 0;width:auto;max-width:520px}
+  .split .chips{grid-column:1;grid-row:1/3;flex-direction:column;flex-wrap:nowrap;gap:2px;overflow-y:auto;padding:12px 10px 20px 36px;border-right:1px solid var(--line);scrollbar-width:thin}
+  .split .cat{flex:none;text-align:left;border:0;border-radius:8px;padding:9px 12px;font-size:14px;white-space:normal;line-height:1.25;color:var(--gray)}
+  .split .cat:hover{background:#17120f;color:var(--cream)}.split .cat.on{background:var(--rose);color:#fff}
+  .split #res{grid-column:2;grid-row:2;overflow-y:auto;min-height:0;padding-bottom:30px}
+  .split .grid{padding:10px 36px 10px 0}.split .live{padding:11px 20px 11px 0}
   .live{padding:11px 36px}.live:hover{background:#120e0d}.live .lg{width:56px;height:56px}.live .n{font-size:17px}
   #res:has(.live){columns:2;column-gap:0}#res .live{break-inside:avoid}
   .empty{padding:80px 24px;font-size:18px}
@@ -250,7 +257,7 @@ async function browse(kind) {
   cats = (cats || []).map(c => ({ id: String(c.category_id), name: c.category_name }));
   if (!cat[kind]) cat[kind] = cats.length ? cats[0].id : "all";
   const chips = [{ id: "all", name: "All" }, ...cats];
-  m.innerHTML = `<input class="search" id="q" placeholder="Search ${KIND[kind].title}" autocapitalize="off" autocorrect="off"><div class="chips" id="chips">${chips.map(c => `<button class="cat ${c.id === cat[kind] ? "on" : ""}" data-c="${esc(c.id)}">${esc(c.name)}</button>`).join("")}</div><div id="res"></div>`;
+  m.innerHTML = `<div class="split"><input class="search" id="q" placeholder="Search ${KIND[kind].title}" autocapitalize="off" autocorrect="off"><div class="chips" id="chips">${chips.map(c => `<button class="cat ${c.id === cat[kind] ? "on" : ""}" data-c="${esc(c.id)}">${esc(c.name)}</button>`).join("")}</div><div id="res"></div></div>`;
   $("#chips").querySelectorAll(".cat").forEach(b => b.onclick = () => { cat[kind] = b.dataset.c; shown = 60; $("#q").value = ""; query = ""; browse(kind); });
   const on = $("#chips .on"); on && on.scrollIntoView({ inline: "center", block: "nearest" });
   let t; $("#q").oninput = e => { clearTimeout(t); t = setTimeout(() => { query = e.target.value.trim().toLowerCase(); shown = 60; draw(kind); }, 250); };
