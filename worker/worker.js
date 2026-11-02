@@ -112,7 +112,18 @@ export default {
       if (path.startsWith("/lic/") && req.method === "POST") {
         const b = await readForm(req); const tok = cleanToken(b.license_key); const act = path.slice(5);
         const raw = tok ? await env.PAIR.get("tk:" + tok) : null;
-        if (!raw) return json({ valid: false, activated: false, deactivated: false, error: "license_key not found.", license_key: null });
+        if (!raw) {
+          // Not one of our own trial tokens: a paid key. Forward to Lemon Squeezy (so web apps can use it despite CORS) and only accept our products.
+          const lk = cleanKey(b.license_key);
+          if (lk && ["validate", "activate", "deactivate"].includes(act)) {
+            const f = new URLSearchParams({ license_key: lk }); if (b.instance_name) f.set("instance_name", String(b.instance_name).slice(0, 60)); if (b.instance_id) f.set("instance_id", String(b.instance_id).slice(0, 64));
+            const r = await fetch("https://api.lemonsqueezy.com/v1/licenses/" + act, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" }, body: f });
+            const v = await r.json().catch(() => ({}));
+            if (act !== "deactivate" && !ALLOWED_PRODUCTS.includes(Number(v?.meta?.product_id))) return json({ valid: false, activated: false, deactivated: false, error: "license_key not found.", license_key: null });
+            return json(v);
+          }
+          return json({ valid: false, activated: false, deactivated: false, error: "license_key not found.", license_key: null });
+        }
         const t = JSON.parse(raw);
         if (act === "validate") {
           if (b.instance_id && !t.devs.includes(b.instance_id)) return json({ valid: false, error: "license_key not found.", license_key: null });

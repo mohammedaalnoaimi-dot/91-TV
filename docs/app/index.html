@@ -241,8 +241,10 @@ function settings() {
   m.innerHTML = `<div class="set"><div class="b"><div>Server<small>${esc(cfg.server)}</small></div><button id="s1">Change</button></div>
   <div class="b"><div>Clear watch history<small>Continue watching and positions</small></div><button id="s2">Clear</button></div>
   <div class="b"><div>Reload lists<small>Download channels, movies and series again</small></div><button id="s3">Reload</button></div>
-  <div class="b"><div>91 TV web<small>iPhone version 1.0</small></div></div></div>`;
+  <div class="b"><div>Deactivate this iPhone<small>Frees a device slot so you can use your key elsewhere</small></div><button id="s4">Deactivate</button></div>
+  <div class="b"><div>91 TV web<small>iPhone version 1.1</small></div></div></div>`;
   $("#s1").onclick = () => setup();
+  $("#s4").onclick = async () => { if (!confirm("Deactivate this iPhone?")) return; try { await licPost("deactivate", { license_key: lic.key, instance_id: lic.inst }); } catch (e) {} lic = null; LS.set("lic", null); activation(); };
   $("#s2").onclick = () => { LS.set("recent", []); LS.set("pos", {}); $("#s2").textContent = "Cleared"; };
   $("#s3").onclick = () => { for (const k in mem) if (k !== "login") delete mem[k]; $("#s3").textContent = "Done"; };
 }
@@ -335,7 +337,42 @@ async function prayerTable() {
 
 // ---------- start
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-if (cfg && cfg.server) shell(); else setup();
+// ---------- activation (same keys as the TV and Windows apps)
+const PAIR_API = "https://ninetyone-pair.mohammed-a-alnoaimi.workers.dev", GRACE = 7 * 86400000;
+let lic = LS.get("lic", null);                    // {key, inst, seen}
+async function licPost(act, o) {
+  const r = await fetch(PAIR_API + "/lic/" + act, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }, body: new URLSearchParams(o) });
+  return r.json();
+}
+function activation(msg) {
+  app.innerHTML = `<div class="form"><img src="wordmark.png" alt="91 TV">
+  <label>ACTIVATION KEY</label><input id="k" placeholder="Paste your key" autocapitalize="off" autocorrect="off" autocomplete="off">
+  <button class="btn" id="ak">Activate</button><div class="err" id="e">${esc(msg || "")}</div>
+  <div class="note">Your key is in the email from your purchase. No key yet? Get a free 7-day trial at <a href="/trial/" style="color:inherit">ninetyonetv.com/trial</a>.</div></div>`;
+  $("#ak").onclick = async () => {
+    const key = $("#k").value.trim(); if (!key) return;
+    $("#e").textContent = "Checking…";
+    try {
+      const v = await licPost("activate", { license_key: key, instance_name: "iPhone web app" });
+      if (v && v.activated && v.instance) { lic = { key, inst: v.instance.id, seen: Date.now() }; LS.set("lic", lic); return start(); }
+      const m = String((v && v.error) || "");
+      $("#e").textContent = /limit/i.test(m) ? "This key is already used on the maximum number of devices." : /expired/i.test(m) ? "This key has expired." : "Key not found. Check it and try again.";
+    } catch (e) { $("#e").textContent = "Could not reach the activation server. Check your internet and try again."; }
+  };
+}
+async function gate() {
+  if (!lic || !lic.key) return activation();
+  try {
+    const v = await licPost("validate", { license_key: lic.key, instance_id: lic.inst });
+    if (v && v.valid) { lic.seen = Date.now(); LS.set("lic", lic); return start(); }
+    lic = null; LS.set("lic", null); return activation("Your key is no longer valid. Enter a new one.");
+  } catch (e) {
+    if (Date.now() - (lic.seen || 0) < GRACE && Date.now() >= (lic.seen || 0)) return start();
+    return activation("Connect to the internet once to verify your key.");
+  }
+}
+function start() { if (cfg && cfg.server) shell(); else setup(); }
+gate();
 </script>
 </body>
 </html>
