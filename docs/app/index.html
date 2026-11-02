@@ -300,7 +300,14 @@ async function play(it) {
   const stop = () => { clearInterval(timer); try { save(); } catch (e) {} if (hls) { hls.destroy(); hls = null; } v.pause(); v.removeAttribute("src"); v.load(); pl.remove(); if (tab === "home") home(); };
   function save() { if (it.kind === "live" || !v.duration || !isFinite(v.duration)) return; const p = pos(); p[keyOf(it)] = { t: v.currentTime, d: v.duration }; LS.set("pos", p); }
   $(".back", pl).onclick = stop;
-  v.onerror = () => { err.style.display = "block"; err.textContent = it.kind === "live" ? "This channel did not start. Try another one." : "This file format may not play on iPhone (MKV files do not). Try another title or quality."; };
+  let tried = false;
+  v.onerror = () => {
+    if (it.kind !== "live" && !tried && /\.(mkv|avi|mp4|ts)$/i.test(url)) { tried = true; v.src = viaProxy(url.replace(/\.[a-z0-9]+$/i, ".m3u8")); v.play().catch(() => {}); return; }
+    const code = v.error ? v.error.code : 0, mixed = location.protocol === "https:" && /^http:/i.test(url);
+    const why = mixed ? "Your provider's streams use http, which Safari blocks inside a secure page." : it.kind === "live" ? "This channel did not start." : /\.mkv$/i.test(url) ? "iPhone cannot play MKV files here." : "This file did not start.";
+    err.style.display = "block";
+    err.innerHTML = esc(why) + `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="more" style="text-decoration:none" href="vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(url)}">Open in VLC</a><a class="more" style="text-decoration:none" href="infuse://x-callback-url/play?url=${encodeURIComponent(url)}">Open in Infuse</a></div><div style="margin-top:8px;opacity:.7;font-size:12px">Error ${code}</div>`;
+  };
   const start = () => { const sp = pos()[keyOf(it)]; if (sp && sp.t > 10 && sp.d - sp.t > 30) v.currentTime = sp.t - 3; v.play().catch(() => {}); };
   v.addEventListener("loadedmetadata", start, { once: true });
   timer = setInterval(save, 5000); v.onended = () => { const p = pos(); delete p[keyOf(it)]; LS.set("pos", p); };
