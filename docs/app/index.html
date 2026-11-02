@@ -152,8 +152,9 @@ function setup(msg) {
   <label>USERNAME</label><input id="u" value="${esc(c.user)}" autocapitalize="off" autocorrect="off">
   <label>PASSWORD</label><input id="p" type="password" value="${esc(c.pass)}" autocapitalize="off">
   <label>PROXY (ONLY IF CONNECTING FAILS)</label><input id="x" placeholder="leave empty" value="${esc(c.proxy)}" autocapitalize="off" autocorrect="off">
-  <button class="btn" id="go">Connect</button><div class="err" id="e">${esc(msg || "")}</div>
+  <button class="btn" id="go">Connect</button>${LS.get("cfg", null) ? '<button class="btn" id="cancel" style="background:none;color:var(--cream);border:1px solid var(--line);margin-top:10px">Back</button>' : ""}<div class="err" id="e">${esc(msg || "")}</div>
   <div class="note">Your login stays on this iPhone only. Tip: tap Share, then Add to Home Screen, to use 91 TV like an app.</div></div>`;
+  const cb = $("#cancel"); if (cb) cb.onclick = () => { cfg = LS.get("cfg", null); shell(); };
   $("#go").onclick = async () => {
     const n = { server: $("#s").value.trim(), user: $("#u").value.trim(), pass: $("#p").value.trim(), proxy: $("#x").value.trim() };
     if (!/^https?:\/\//i.test(n.server)) n.server = "https://" + n.server;
