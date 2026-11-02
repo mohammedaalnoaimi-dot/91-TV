@@ -74,6 +74,57 @@ h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;col
 .set button{background:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;color:var(--cream)}
 .spin{padding:30px;text-align:center;color:var(--muted)}
 .pt{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:0 16px}.pt div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 2px;text-align:center;font-size:11px;color:var(--gray)}.pt b{display:block;color:var(--cream);font-size:14px;font-weight:500;margin-top:3px}.pt .nx{border-color:var(--rose)}
+.hero0,.quick{display:none}
+/* ---- computer / TV browser: same look as the Windows and TV apps (top bar, wide rows, big posters) ---- */
+@media (min-width:900px){
+  header{position:fixed;top:0;left:0;right:0;z-index:15;height:68px;padding:0 36px;background:linear-gradient(#070506 70%,rgba(7,5,6,0))}
+  header img{height:28px}
+  .clock{font-size:20px}.chip{font-size:13px;padding:5px 12px}.ib{font-size:22px}
+  nav{top:0;bottom:auto;left:240px;right:300px;height:68px;z-index:16;background:none;border:0;padding:0;backdrop-filter:none;justify-content:center;gap:6px}
+  nav button{flex:0 0 auto;flex-direction:row;font-size:13px;letter-spacing:.14em;padding:0 18px;color:var(--gray);position:relative}
+  nav button b{display:none}
+  nav button.on{color:var(--cream)}nav button.on:after{content:"";position:absolute;left:18px;right:18px;bottom:16px;height:2px;background:var(--rose)}
+  nav button:hover{color:var(--cream)}
+  main{padding:68px 0 40px}
+  main>*{max-width:1560px;margin-left:auto;margin-right:auto}
+  h2{font-size:24px;margin:30px 36px 12px}
+  .row{padding:0 36px 8px;gap:16px}
+  .card{flex:0 0 168px}.card .p{width:168px;height:252px;border-radius:10px}
+  .card:hover .p{border-color:var(--gold)}
+  .card .t{font-size:14px;margin-top:8px}.card .r{font-size:12px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:22px 18px;padding:10px 36px}
+  .search{width:calc(100% - 72px);max-width:520px;margin:18px 36px 10px;padding:12px 16px;font-size:16px}
+  main:has(.split){overflow:hidden;display:flex;flex-direction:column}
+  main>.split{max-width:none;margin:0;width:100%;flex:1;min-height:0;display:grid;grid-template-columns:290px 1fr;grid-template-rows:auto minmax(0,1fr)}
+  .split .search{grid-column:2;grid-row:1;margin:16px 36px 10px 0;width:auto;max-width:520px}
+  .split .chips{grid-column:1;grid-row:1/3;flex-direction:column;flex-wrap:nowrap;gap:2px;overflow-y:auto;padding:12px 10px 20px 36px;border-right:1px solid var(--line);scrollbar-width:thin}
+  .split .cat{flex:none;text-align:left;border:0;border-radius:8px;padding:9px 12px;font-size:14px;white-space:normal;line-height:1.25;color:var(--gray)}
+  .split .cat:hover{background:#17120f;color:var(--cream)}.split .cat.on{background:var(--rose);color:#fff}
+  .split #res{grid-column:2;grid-row:2;overflow-y:auto;min-height:0;padding-bottom:30px}
+  .split .grid{padding:12px 36px 12px 10px}.split .live{padding:11px 20px 11px 0}
+  .live{padding:11px 36px}.live:hover{background:#120e0d}.live .lg{width:56px;height:56px}.live .n{font-size:17px}
+  #res:has(.live){columns:2;column-gap:0}#res .live{break-inside:avoid}
+  .empty{padding:80px 24px;font-size:18px}
+  .pt{padding:0 36px;gap:12px;max-width:760px;margin-left:0}.pt div{padding:12px 4px;font-size:13px}.pt b{font-size:20px}
+  #pt{max-width:none}
+  .hero0{display:flex;align-items:flex-end;height:360px;margin:0 36px 8px;border-radius:14px;overflow:hidden;position:relative;background:#14100f center 25%/cover;border:1px solid var(--line)}
+  .hero0:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,5,6,.92) 15%,rgba(7,5,6,.25)),linear-gradient(to top,rgba(7,5,6,.85),transparent 60%)}
+  .hero0 div{position:relative;padding:36px 44px;max-width:640px}
+  .hero0 small{color:var(--rose);letter-spacing:.16em;font-size:12px}
+  .hero0 h1{font:italic 700 42px/1.1 Georgia,serif;margin:8px 0 18px}
+  .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:6px 36px 8px}
+  .quick button{height:150px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(135deg,#1d1513,#0e0a09);text-align:left;padding:0 30px;display:flex;flex-direction:column;justify-content:center;gap:6px;cursor:pointer}
+  .quick button:hover{border-color:var(--gold)}
+  .quick b{font:italic 700 30px Georgia,serif;font-weight:700;color:var(--cream)}.quick span{font-size:14px;color:var(--gray)}
+  .card.lv{flex:0 0 230px}.card.lv .p{width:230px;height:130px;background-size:contain;background-repeat:no-repeat;background-color:#1a1412}
+  .sheet .hero{height:420px}
+  .sheet .in{max-width:900px;margin-left:auto;margin-right:auto;padding:0 36px}
+  .sheet h1{font-size:38px}.plot{font-size:16px}.meta{font-size:15px}
+  .back{left:36px;top:18px;width:44px;height:44px}
+  .set{max-width:760px;margin:0 auto;padding:30px 36px}
+  .form{max-width:520px;padding-top:12vh}.form img{height:44px}
+  #ptitle{left:90px;font-size:18px}
+}
 </style>
 </head>
 <body>
@@ -258,10 +309,30 @@ function rowHtml(title, items, id) { return items.length ? `<h2>${esc(title)}</h
 function home() {
   const m = $("#main"), rec = recents(), f = favs();
   const cont = rec.filter(x => x.kind !== "live").slice(0, 20), lives = rec.filter(x => x.kind === "live").slice(0, 12);
-  m.innerHTML = `<div id="pt"></div>` + (cont.length || f.length || lives.length ? "" : `<div class="empty">Welcome to 91 TV.<br>Open Movies, Series or Live to start watching.</div>`)
-    + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3") + rowHtml("My list", f.slice(0, 30), "r2");
+  const h0 = cont[0] || f[0];
+  m.innerHTML = (h0 ? `<div class="hero0" id="h0" style="background-image:url('${esc(h0.logo)}')"><div><small>${cont[0] ? "CONTINUE WATCHING" : "FROM YOUR LIST"}</small><h1>${esc(clean(h0.name))}</h1><button class="btn" id="h0b">▶ ${cont[0] ? "Resume" : "Open"}</button></div></div>` : "") + `<div class="quick"><button data-t="live"><b>Live TV</b><span>Channels, news and sport</span></button><button data-t="movie"><b>Movies</b><span>Your film library</span></button><button data-t="series"><b>Series</b><span>Shows and episodes</span></button></div><div id="pt"></div>` + (cont.length || f.length || lives.length ? "" : `<div class="empty">Welcome to 91 TV.<br>Open Movies, Series or Live to start watching.</div>`)
+    + `<div id="hc"></div>` + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3").replace(/class="card"/g, 'class="card lv"') + rowHtml("My list", f.slice(0, 30), "r2");
   [["r1", cont], ["r3", lives], ["r2", f.slice(0, 30)]].forEach(([id, a]) => { const e = $("#" + id); if (e) bind(e, a); });
-  prayerTable();
+  m.querySelectorAll(".quick button").forEach(b => b.onclick = () => go(b.dataset.t));
+  const hb = $("#h0b"); if (hb) hb.onclick = () => open(h0);
+  prayerTable(); homeExtras();
+}
+async function homeExtras() {
+  const m = $("#main"); if (!m) return;
+  m.insertAdjacentHTML("beforeend", `<div id="hx"></div>`);
+  for (const kind of ["movie", "series"]) {
+    try {
+      const [cats, all] = await Promise.all([api(KIND[kind].cats), listOf(kind, "all")]);
+      const hx = $("#hx"); if (!hx || tab !== "home") return;
+      const top = all.filter(i => i.rate > 0 && i.rate <= 10).sort((a, b) => b.rate - a.rate).slice(0, 24);
+      const cl = (cats || []).slice(0, 40);
+      const id = "tr" + kind, ic = "ct" + kind, nm = KIND[kind].title;
+      hx.insertAdjacentHTML("beforeend", rowHtml("Top rated " + nm.toLowerCase(), top, id)
+        + (cl.length ? `<h2>${nm} categories</h2><div class="chips">${cl.map(c => `<button class="cat" data-c="${esc(String(c.category_id))}" data-k="${kind}">${esc(c.category_name)}</button>`).join("")}</div>` : ""));
+      const r = $("#" + id); if (r) bind(r, top);
+      hx.querySelectorAll(`.cat[data-k="${kind}"]`).forEach(b => b.onclick = () => { cat[kind] = b.dataset.c; go(kind); });
+    } catch (e) {}
+  }
 }
 
 async function browse(kind) {
@@ -271,7 +342,7 @@ async function browse(kind) {
   cats = (cats || []).map(c => ({ id: String(c.category_id), name: c.category_name }));
   if (!cat[kind]) cat[kind] = cats.length ? cats[0].id : "all";
   const chips = [{ id: "all", name: "All" }, ...cats];
-  m.innerHTML = `<input class="search" id="q" placeholder="Search ${KIND[kind].title}" autocapitalize="off" autocorrect="off"><div class="chips" id="chips">${chips.map(c => `<button class="cat ${c.id === cat[kind] ? "on" : ""}" data-c="${esc(c.id)}">${esc(c.name)}</button>`).join("")}</div><div id="res"></div>`;
+  m.innerHTML = `<div class="split"><input class="search" id="q" placeholder="Search ${KIND[kind].title}" autocapitalize="off" autocorrect="off"><div class="chips" id="chips">${chips.map(c => `<button class="cat ${c.id === cat[kind] ? "on" : ""}" data-c="${esc(c.id)}">${esc(c.name)}</button>`).join("")}</div><div id="res"></div></div>`;
   $("#chips").querySelectorAll(".cat").forEach(b => b.onclick = () => { cat[kind] = b.dataset.c; shown = 60; $("#q").value = ""; query = ""; browse(kind); });
   const on = $("#chips .on"); on && on.scrollIntoView({ inline: "center", block: "nearest" });
   let t; $("#q").oninput = e => { clearTimeout(t); t = setTimeout(() => { query = e.target.value.trim().toLowerCase(); shown = 60; draw(kind); }, 250); };

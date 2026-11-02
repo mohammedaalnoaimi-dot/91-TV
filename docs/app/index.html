@@ -101,7 +101,7 @@ h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;col
   .split .cat{flex:none;text-align:left;border:0;border-radius:8px;padding:9px 12px;font-size:14px;white-space:normal;line-height:1.25;color:var(--gray)}
   .split .cat:hover{background:#17120f;color:var(--cream)}.split .cat.on{background:var(--rose);color:#fff}
   .split #res{grid-column:2;grid-row:2;overflow-y:auto;min-height:0;padding-bottom:30px}
-  .split .grid{padding:10px 36px 10px 0}.split .live{padding:11px 20px 11px 0}
+  .split .grid{padding:12px 36px 12px 10px}.split .live{padding:11px 20px 11px 0}
   .live{padding:11px 36px}.live:hover{background:#120e0d}.live .lg{width:56px;height:56px}.live .n{font-size:17px}
   #res:has(.live){columns:2;column-gap:0}#res .live{break-inside:avoid}
   .empty{padding:80px 24px;font-size:18px}
@@ -465,5 +465,6 @@ async function gate() {
 function start() { if (cfg && cfg.server) shell(); else setup(); }
 gate();
 </script>
+<script src="tv.js"></script>
 </body>
 </html>

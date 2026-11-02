@@ -15,6 +15,7 @@ s = s[:i] + '<script src="$WEBAPIS/webapis/webapis.js"></script>\n<style>' + css
 a = "  pushRecent(it);\n  const url = streamUrl(it)"
 assert a in s
 s = s.replace(a, "  pushRecent(it);\n  if (window.webapis && webapis.avplay) return tvPlay(it, streamUrl(it));\n  const url = streamUrl(it)", 1)
+s = s.replace('\n<script src="tv.js"></script>', "")
 s = s.replace('if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});', "")
 open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(s)
 open(os.path.join(out, "config.xml"), "w", encoding="utf-8").write('''<?xml version="1.0" encoding="UTF-8"?>
