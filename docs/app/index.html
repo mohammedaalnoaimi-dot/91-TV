@@ -180,7 +180,7 @@ async function listOf(kind, catId) {
   return (arr || []).map(s => norm(kind, s));
 }
 function streamUrl(it) {
-  const b = base(), c = encodeURIComponent(cfg.user) + "/" + encodeURIComponent(cfg.pass);
+  const b = (cfg.stream || "").trim() ? (/^https?:\/\//i.test(cfg.stream.trim()) ? cfg.stream.trim() : "https://" + cfg.stream.trim()).replace(/\/+$/, "") : base(), c = encodeURIComponent(cfg.user) + "/" + encodeURIComponent(cfg.pass);
   if (it.kind === "live") return `${b}/live/${c}/${it.id}.m3u8`;
   if (it.kind === "movie") return `${b}/movie/${c}/${it.id}.${it.ext || "mp4"}`;
   return `${b}/series/${c}/${it.id}.${it.ext || "mp4"}`;
@@ -204,12 +204,13 @@ function setup(msg) {
   <label>SERVER</label><input id="s" placeholder="https://example.com" value="${esc(c.server)}" autocapitalize="off" autocorrect="off">
   <label>USERNAME</label><input id="u" value="${esc(c.user)}" autocapitalize="off" autocorrect="off">
   <label>PASSWORD</label><input id="p" type="password" value="${esc(c.pass)}" autocapitalize="off">
+  <label>STREAM SERVER (OPTIONAL)</label><input id="st" placeholder="only if your provider gave a separate video address" value="${esc(c.stream)}" autocapitalize="off" autocorrect="off">
   <label>PROXY (ONLY IF CONNECTING FAILS)</label><input id="x" placeholder="leave empty" value="${esc(c.proxy)}" autocapitalize="off" autocorrect="off">
   <button class="btn" id="go">Connect</button>${LS.get("cfg", null) ? '<button class="btn" id="cancel" style="background:none;color:var(--cream);border:1px solid var(--line);margin-top:10px">Back</button>' : ""}<div class="err" id="e">${esc(msg || "")}</div>
   <div class="note">Your login stays on this iPhone only. Tip: tap Share, then Add to Home Screen, to use 91 TV like an app.</div></div>`;
   const cb = $("#cancel"); if (cb) cb.onclick = () => { cfg = LS.get("cfg", null); shell(); };
   $("#go").onclick = async () => {
-    const n = { server: $("#s").value.trim(), user: $("#u").value.trim(), pass: $("#p").value.trim(), proxy: $("#x").value.trim() };
+    const n = { server: $("#s").value.trim(), user: $("#u").value.trim(), pass: $("#p").value.trim(), proxy: $("#x").value.trim(), stream: $("#st").value.trim() };
     if (!/^https?:\/\//i.test(n.server)) n.server = "https://" + n.server;
     cfg = n; $("#e").textContent = "Connecting…";
     try {
