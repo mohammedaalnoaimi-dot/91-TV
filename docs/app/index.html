@@ -249,11 +249,28 @@ function home() {
   const cont = rec.filter(x => x.kind !== "live").slice(0, 20), lives = rec.filter(x => x.kind === "live").slice(0, 12);
   const h0 = cont[0] || f[0];
   m.innerHTML = (h0 ? `<div class="hero0" id="h0" style="background-image:url('${esc(h0.logo)}')"><div><small>${cont[0] ? "CONTINUE WATCHING" : "FROM YOUR LIST"}</small><h1>${esc(clean(h0.name))}</h1><button class="btn" id="h0b">▶ ${cont[0] ? "Resume" : "Open"}</button></div></div>` : "") + `<div class="quick"><button data-t="live"><b>Live TV</b><span>Channels, news and sport</span></button><button data-t="movie"><b>Movies</b><span>Your film library</span></button><button data-t="series"><b>Series</b><span>Shows and episodes</span></button></div><div id="pt"></div>` + (cont.length || f.length || lives.length ? "" : `<div class="empty">Welcome to 91 TV.<br>Open Movies, Series or Live to start watching.</div>`)
-    + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3").replace(/class="card"/g, 'class="card lv"') + rowHtml("My list", f.slice(0, 30), "r2");
+    + `<div id="hc"></div>` + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3").replace(/class="card"/g, 'class="card lv"') + rowHtml("My list", f.slice(0, 30), "r2");
   [["r1", cont], ["r3", lives], ["r2", f.slice(0, 30)]].forEach(([id, a]) => { const e = $("#" + id); if (e) bind(e, a); });
   m.querySelectorAll(".quick button").forEach(b => b.onclick = () => go(b.dataset.t));
   const hb = $("#h0b"); if (hb) hb.onclick = () => open(h0);
-  prayerTable();
+  prayerTable(); homeExtras();
+}
+async function homeExtras() {
+  const m = $("#main"); if (!m) return;
+  m.insertAdjacentHTML("beforeend", `<div id="hx"></div>`);
+  for (const kind of ["movie", "series"]) {
+    try {
+      const [cats, all] = await Promise.all([api(KIND[kind].cats), listOf(kind, "all")]);
+      const hx = $("#hx"); if (!hx || tab !== "home") return;
+      const top = all.filter(i => i.rate > 0 && i.rate <= 10).sort((a, b) => b.rate - a.rate).slice(0, 24);
+      const cl = (cats || []).slice(0, 40);
+      const id = "tr" + kind, ic = "ct" + kind, nm = KIND[kind].title;
+      hx.insertAdjacentHTML("beforeend", rowHtml("Top rated " + nm.toLowerCase(), top, id)
+        + (cl.length ? `<h2>${nm} categories</h2><div class="chips">${cl.map(c => `<button class="cat" data-c="${esc(String(c.category_id))}" data-k="${kind}">${esc(c.category_name)}</button>`).join("")}</div>` : ""));
+      const r = $("#" + id); if (r) bind(r, top);
+      hx.querySelectorAll(`.cat[data-k="${kind}"]`).forEach(b => b.onclick = () => { cat[kind] = b.dataset.c; go(kind); });
+    } catch (e) {}
+  }
 }
 
 async function browse(kind) {
