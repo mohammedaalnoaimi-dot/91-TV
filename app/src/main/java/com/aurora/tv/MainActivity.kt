@@ -239,19 +239,51 @@ class MainActivity : Activity() {
         setContentView(col); s.requestFocus()
     }
 
-    private fun splash() {
-        val f = FrameLayout(this).apply { setBackgroundColor(BG) }
-        f.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER },
-            FrameLayout.LayoutParams(dp(420), dp(64), Gravity.CENTER))
-        setContentView(f)
+    /** Loading screen: sharp wordmark that fades in, a soft rose glow that breathes, a tagline and a sweeping progress line. */
+    private fun splash(msg: String = "") {
+        val root = FrameLayout(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor("#1c0d11"), BG, Color.parseColor("#0d0809")))
+        }
+        val glow = View(this).apply {
+            background = GradientDrawable().apply {
+                gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(520).toFloat()
+                colors = intArrayOf(Color.parseColor("#40C9475C"), Color.parseColor("#00C9475C"))
+            }
+            alpha = 0.55f
+        }
+        root.addView(glow, FrameLayout.LayoutParams(dp(1040), dp(1040), Gravity.CENTER))
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
+        val logo = ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER; alpha = 0f; scaleX = 0.93f; scaleY = 0.93f }
+        col.addView(logo, LinearLayout.LayoutParams(dp(600), dp(90)))
+        val tag = TextView(this).apply {
+            text = "Everything you watch. In one beautiful app."; textSize = 16f; setTextColor(GOLD); gravity = Gravity.CENTER
+            letterSpacing = 0.06f; alpha = 0f; setPadding(0, dp(22), 0, 0)
+        }
+        col.addView(tag)
+        val track = FrameLayout(this).apply { background = GradientDrawable().apply { setColor(Color.parseColor("#2a2220")); cornerRadius = dp(2).toFloat() } }
+        val bar = View(this).apply { background = GradientDrawable().apply { setColor(ROSE); cornerRadius = dp(2).toFloat() } }
+        track.addView(bar, FrameLayout.LayoutParams(dp(90), dp(3)))
+        col.addView(track, LinearLayout.LayoutParams(dp(280), dp(3)).apply { topMargin = dp(46) })
+        val note = TextView(this).apply { text = msg; textSize = 15f; setTextColor(Color.parseColor("#8f806c")); gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0) }
+        col.addView(note)
+        root.addView(col, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        setContentView(root)
+        val anims = ArrayList<android.animation.Animator>()
+        fun go(a: android.animation.Animator) { anims.add(a); a.start() }
+        go(android.animation.ObjectAnimator.ofFloat(logo, "alpha", 0f, 1f).apply { duration = 900 })
+        go(android.animation.ObjectAnimator.ofFloat(logo, "scaleX", 0.93f, 1f).apply { duration = 1200 })
+        go(android.animation.ObjectAnimator.ofFloat(logo, "scaleY", 0.93f, 1f).apply { duration = 1200 })
+        go(android.animation.ObjectAnimator.ofFloat(tag, "alpha", 0f, 0.9f).apply { duration = 900; startDelay = 600 })
+        go(android.animation.ObjectAnimator.ofFloat(glow, "alpha", 0.35f, 0.8f).apply { duration = 2200; repeatMode = android.animation.ValueAnimator.REVERSE; repeatCount = android.animation.ValueAnimator.INFINITE })
+        go(android.animation.ObjectAnimator.ofFloat(bar, "translationX", -dp(90).toFloat(), dp(280).toFloat()).apply {
+            duration = 1500; repeatCount = android.animation.ValueAnimator.INFINITE; interpolator = android.view.animation.LinearInterpolator() })
+        root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) { anims.forEach { it.cancel() } }
+        })
     }
 
-    private fun bigMessage(t: String) {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setBackgroundColor(BG) }
-        col.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(420), dp(64)))
-        col.addView(TextView(this).apply { text = t.removePrefix("91 TV").trim(); textSize = 22f; setTextColor(CREAM); gravity = Gravity.CENTER; setPadding(0, dp(24), 0, 0) })
-        setContentView(col)
-    }
+    private fun bigMessage(t: String) { splash(t.removePrefix("91 TV").trim()) }
 
     private fun setData(l: List<Item>?, m: List<Item>?, se: List<Item>?) {
         if (l != null) live = l; if (m != null) movies = m; if (se != null) series = se; visCache.clear(); smart.clear()

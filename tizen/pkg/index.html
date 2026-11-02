@@ -112,6 +112,8 @@ h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;col
   .hero0 div{position:relative;padding:36px 44px;max-width:640px}
   .hero0 small{color:var(--rose);letter-spacing:.16em;font-size:12px}
   .hero0 h1{font:italic 700 42px/1.1 Georgia,serif;margin:8px 0 18px}
+  .row{scrollbar-width:thin;scrollbar-color:#3a2d29 transparent;padding-bottom:14px}.row::-webkit-scrollbar{display:block;height:8px}.row::-webkit-scrollbar-thumb{background:#3a2d29;border-radius:4px}
+  #hx .chips{flex-wrap:wrap;max-height:150px;overflow:hidden auto;padding:6px 36px 14px;scrollbar-width:thin;scrollbar-color:#3a2d29 transparent}
   .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:6px 36px 8px}
   .quick button{height:150px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(135deg,#1d1513,#0e0a09);text-align:left;padding:0 30px;display:flex;flex-direction:column;justify-content:center;gap:6px;cursor:pointer}
   .quick button:hover{border-color:var(--gold)}
@@ -240,7 +242,7 @@ async function listOf(kind, catId) {
   return (arr || []).map(s => norm(kind, s));
 }
 function streamUrl(it) {
-  const b = base(), c = encodeURIComponent(cfg.user) + "/" + encodeURIComponent(cfg.pass);
+  const b = (cfg.stream || "").trim() ? (/^https?:\/\//i.test(cfg.stream.trim()) ? cfg.stream.trim() : "https://" + cfg.stream.trim()).replace(/\/+$/, "") : base(), c = encodeURIComponent(cfg.user) + "/" + encodeURIComponent(cfg.pass);
   if (it.kind === "live") return `${b}/live/${c}/${it.id}.m3u8`;
   if (it.kind === "movie") return `${b}/movie/${c}/${it.id}.${it.ext || "mp4"}`;
   return `${b}/series/${c}/${it.id}.${it.ext || "mp4"}`;
@@ -264,12 +266,13 @@ function setup(msg) {
   <label>SERVER</label><input id="s" placeholder="https://example.com" value="${esc(c.server)}" autocapitalize="off" autocorrect="off">
   <label>USERNAME</label><input id="u" value="${esc(c.user)}" autocapitalize="off" autocorrect="off">
   <label>PASSWORD</label><input id="p" type="password" value="${esc(c.pass)}" autocapitalize="off">
+  <label>STREAM SERVER (OPTIONAL)</label><input id="st" placeholder="only if your provider gave a separate video address" value="${esc(c.stream)}" autocapitalize="off" autocorrect="off">
   <label>PROXY (ONLY IF CONNECTING FAILS)</label><input id="x" placeholder="leave empty" value="${esc(c.proxy)}" autocapitalize="off" autocorrect="off">
   <button class="btn" id="go">Connect</button>${LS.get("cfg", null) ? '<button class="btn" id="cancel" style="background:none;color:var(--cream);border:1px solid var(--line);margin-top:10px">Back</button>' : ""}<div class="err" id="e">${esc(msg || "")}</div>
   <div class="note">Your login stays on this iPhone only. Tip: tap Share, then Add to Home Screen, to use 91 TV like an app.</div></div>`;
   const cb = $("#cancel"); if (cb) cb.onclick = () => { cfg = LS.get("cfg", null); shell(); };
   $("#go").onclick = async () => {
-    const n = { server: $("#s").value.trim(), user: $("#u").value.trim(), pass: $("#p").value.trim(), proxy: $("#x").value.trim() };
+    const n = { server: $("#s").value.trim(), user: $("#u").value.trim(), pass: $("#p").value.trim(), proxy: $("#x").value.trim(), stream: $("#st").value.trim() };
     if (!/^https?:\/\//i.test(n.server)) n.server = "https://" + n.server;
     cfg = n; $("#e").textContent = "Connecting…";
     try {
@@ -430,7 +433,7 @@ async function play(it) {
   const url = streamUrl(it), pl = document.createElement("div"); pl.id = "player";
   pl.innerHTML = `<video controls playsinline webkit-playsinline autoplay></video><button class="back">‹</button><div id="ptitle">${esc(clean(it.name))}</div><div id="perr"></div>`;
   document.body.appendChild(pl);
-  const v = $("video", pl), err = $("#perr", pl); let timer;
+  const v = $("video", pl), err = $("#perr", pl); let timer, dbg = "";
   const stop = () => { clearInterval(timer); try { save(); } catch (e) {} if (hls) { hls.destroy(); hls = null; } v.pause(); v.removeAttribute("src"); v.load(); pl.remove(); if (tab === "home") home(); };
   function save() { if (it.kind === "live" || !v.duration || !isFinite(v.duration)) return; const p = pos(); p[keyOf(it)] = { t: v.currentTime, d: v.duration }; LS.set("pos", p); }
   $(".back", pl).onclick = stop;
@@ -440,14 +443,15 @@ async function play(it) {
     const code = v.error ? v.error.code : 0, mixed = location.protocol === "https:" && /^http:/i.test(url);
     const why = mixed ? "Your provider's streams use http, which Safari blocks inside a secure page." : it.kind === "live" ? "This channel did not start." : /\.mkv$/i.test(url) ? "iPhone cannot play MKV files here." : "This file did not start.";
     err.style.display = "block";
-    err.innerHTML = esc(why) + `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="more" style="text-decoration:none" href="vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(url)}">Open in VLC</a><a class="more" style="text-decoration:none" href="infuse://x-callback-url/play?url=${encodeURIComponent(url)}">Open in Infuse</a></div><div style="margin-top:8px;opacity:.7;font-size:12px">Error ${code}</div>`;
+    err.innerHTML = esc(why) + `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="more" style="text-decoration:none" href="vlc://${url}">Open in VLC</a><a class="more" id="cpy" style="text-decoration:none" href="#">Copy link</a><a class="more" style="text-decoration:none" href="infuse://x-callback-url/play?url=${encodeURIComponent(url)}">Open in Infuse</a></div><div style="margin-top:8px;opacity:.7;font-size:12px">Error ${code}${dbg ? " · " + esc(dbg) : ""}</div><div style="margin-top:6px;opacity:.7;font-size:12px;word-break:break-all">${esc(url.replace(/^(https?:\/\/[^/]+\/(?:live|movie|series)\/)[^/]+\/[^/]+\//i, "$1•••/•••/"))}</div>`;
+    const cp = $("#cpy", err); if (cp) cp.onclick = async ev => { ev.preventDefault(); try { await navigator.clipboard.writeText(url); cp.textContent = "Copied. Paste in VLC > Network"; } catch (e) { prompt("Copy this link:", url); } };
   };
   const start = () => { const sp = pos()[keyOf(it)]; if (sp && sp.t > 10 && sp.d - sp.t > 30) v.currentTime = sp.t - 3; v.play().catch(() => {}); };
   v.addEventListener("loadedmetadata", start, { once: true });
   timer = setInterval(save, 5000); v.onended = () => { const p = pos(); delete p[keyOf(it)]; LS.set("pos", p); };
   const target = viaProxy(url);
   if (it.kind === "live" && !v.canPlayType("application/vnd.apple.mpegurl")) {
-    try { await loadHls(); if (window.Hls && Hls.isSupported()) { hls = new Hls(); hls.loadSource(target); hls.attachMedia(v); hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) v.onerror(); }); v.play().catch(() => {}); return; } } catch (e) {}
+    try { await loadHls(); if (window.Hls && Hls.isSupported()) { hls = new Hls(); hls.loadSource(target); hls.attachMedia(v); hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) { dbg = d.type + " / " + d.details + (d.response ? " / HTTP " + d.response.code : d.type === "networkError" ? " / blocked or unreachable (CORS?)" : ""); v.onerror(); } }); v.play().catch(() => {}); return; } dbg = "player library not supported in this browser"; } catch (e) { dbg = "player library did not load"; }
   }
   v.src = target; v.play().catch(() => {});
 }
@@ -477,6 +481,8 @@ async function prayerTable() {
   e.innerHTML = `<h2>Prayer times</h2><div class="pt">${["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].map(k => `<div class="${n && n.n === k ? "nx" : ""}">${k}<b>${ptDay.t[k].slice(0, 5)}</b></div>`).join("")}</div>`;
 }
 
+// mouse wheel scrolls rows sideways on computers
+document.addEventListener("wheel", e => { const r = e.target.closest && e.target.closest(".row"); if (r && Math.abs(e.deltaY) > Math.abs(e.deltaX) && r.scrollWidth > r.clientWidth) { r.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
 // ---------- start
 
 // ---------- activation (same keys as the TV and Windows apps)
