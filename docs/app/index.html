@@ -74,7 +74,7 @@ h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;col
 .set button{background:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;color:var(--cream)}
 .spin{padding:30px;text-align:center;color:var(--muted)}
 .pt{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:0 16px}.pt div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 2px;text-align:center;font-size:11px;color:var(--gray)}.pt b{display:block;color:var(--cream);font-size:14px;font-weight:500;margin-top:3px}.pt .nx{border-color:var(--rose)}
-.hero0{display:none}
+.hero0,.quick{display:none}
 /* ---- computer / TV browser: same look as the Windows and TV apps (top bar, wide rows, big posters) ---- */
 @media (min-width:900px){
   header{position:fixed;top:0;left:0;right:0;z-index:15;height:68px;padding:0 36px;background:linear-gradient(#070506 70%,rgba(7,5,6,0))}
@@ -112,6 +112,11 @@ h2{font:italic 600 19px Georgia,"Times New Roman",serif;margin:18px 16px 8px;col
   .hero0 div{position:relative;padding:36px 44px;max-width:640px}
   .hero0 small{color:var(--rose);letter-spacing:.16em;font-size:12px}
   .hero0 h1{font:italic 700 42px/1.1 Georgia,serif;margin:8px 0 18px}
+  .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:6px 36px 8px}
+  .quick button{height:150px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(135deg,#1d1513,#0e0a09);text-align:left;padding:0 30px;display:flex;flex-direction:column;justify-content:center;gap:6px;cursor:pointer}
+  .quick button:hover{border-color:var(--gold)}
+  .quick b{font:italic 700 30px Georgia,serif;font-weight:700;color:var(--cream)}.quick span{font-size:14px;color:var(--gray)}
+  .card.lv{flex:0 0 230px}.card.lv .p{width:230px;height:130px;background-size:contain;background-repeat:no-repeat;background-color:#1a1412}
   .sheet .hero{height:420px}
   .sheet .in{max-width:900px;margin-left:auto;margin-right:auto;padding:0 36px}
   .sheet h1{font-size:38px}.plot{font-size:16px}.meta{font-size:15px}
@@ -243,9 +248,10 @@ function home() {
   const m = $("#main"), rec = recents(), f = favs();
   const cont = rec.filter(x => x.kind !== "live").slice(0, 20), lives = rec.filter(x => x.kind === "live").slice(0, 12);
   const h0 = cont[0] || f[0];
-  m.innerHTML = (h0 ? `<div class="hero0" id="h0" style="background-image:url('${esc(h0.logo)}')"><div><small>${cont[0] ? "CONTINUE WATCHING" : "FROM YOUR LIST"}</small><h1>${esc(clean(h0.name))}</h1><button class="btn" id="h0b">▶ ${cont[0] ? "Resume" : "Open"}</button></div></div>` : "") + `<div id="pt"></div>` + (cont.length || f.length || lives.length ? "" : `<div class="empty">Welcome to 91 TV.<br>Open Movies, Series or Live to start watching.</div>`)
-    + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3") + rowHtml("My list", f.slice(0, 30), "r2");
+  m.innerHTML = (h0 ? `<div class="hero0" id="h0" style="background-image:url('${esc(h0.logo)}')"><div><small>${cont[0] ? "CONTINUE WATCHING" : "FROM YOUR LIST"}</small><h1>${esc(clean(h0.name))}</h1><button class="btn" id="h0b">▶ ${cont[0] ? "Resume" : "Open"}</button></div></div>` : "") + `<div class="quick"><button data-t="live"><b>Live TV</b><span>Channels, news and sport</span></button><button data-t="movie"><b>Movies</b><span>Your film library</span></button><button data-t="series"><b>Series</b><span>Shows and episodes</span></button></div><div id="pt"></div>` + (cont.length || f.length || lives.length ? "" : `<div class="empty">Welcome to 91 TV.<br>Open Movies, Series or Live to start watching.</div>`)
+    + rowHtml("Continue watching", cont, "r1") + rowHtml("Recent channels", lives, "r3").replace(/class="card"/g, 'class="card lv"') + rowHtml("My list", f.slice(0, 30), "r2");
   [["r1", cont], ["r3", lives], ["r2", f.slice(0, 30)]].forEach(([id, a]) => { const e = $("#" + id); if (e) bind(e, a); });
+  m.querySelectorAll(".quick button").forEach(b => b.onclick = () => go(b.dataset.t));
   const hb = $("#h0b"); if (hb) hb.onclick = () => open(h0);
   prayerTable();
 }
