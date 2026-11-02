@@ -14,8 +14,8 @@ RECHECK_S = 1 * DAY                  # online re-check at most once a day
 GRACE_S = 7 * DAY                    # keeps working offline this long after the last good check
 API = "https://api.lemonsqueezy.com/v1/licenses/"
 PAIR_API = "https://ninetyone-pair.mohammed-a-alnoaimi.workers.dev"   # our own server: issues and checks the free-trial codes
-OWNER_HASH = "4c0370c68585860d7442a9f93dae1246b941b6965d665b4096a61bcad0dd014d"
-OWNER_PIN_HASH = "c8eedf804802cc4b28c6fee6f8a2782c64b55d1059f22459568991b97bfe2bd3"
+OWNER_HASH = "146a00214bdc124e201464ee733c5e935c5f11a7be38743656e569a0c515c066"
+OWNER_PIN_HASH = "242b8faf3b09925bbe051cb47f25b9168ae9ca6ea43458a5c6a993407056f62d"
 
 
 class NoNet(Exception):
@@ -61,7 +61,7 @@ def is_owner(code) -> bool:
     if c in _owner_cache: return _owner_cache[c]
     digits = re.sub(r"\D", "", c)
     r = hashlib.sha256(("91tv-owner:" + c).encode()).hexdigest() == OWNER_HASH or \
-        (len(digits) == 10 and len(digits) == len(re.sub(r"[^A-Za-z0-9]", "", c)) and _pbkdf2(digits, "91tv-owner-pin", 100000) == OWNER_PIN_HASH)
+        (len(digits) == 14 and len(digits) == len(re.sub(r"[^A-Za-z0-9]", "", c)) and _pbkdf2(digits, "91tv-owner-pin", 100000) == OWNER_PIN_HASH)
     _owner_cache[c] = r
     return r
 

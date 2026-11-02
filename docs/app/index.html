@@ -245,7 +245,7 @@ function settings() {
   <div class="b"><div>Deactivate this iPhone<small>Frees a device slot so you can use your key elsewhere</small></div><button id="s4">Deactivate</button></div>
   <div class="b"><div>91 TV web<small>iPhone version 1.1</small></div></div></div>`;
   $("#s1").onclick = () => setup();
-  $("#s4").onclick = async () => { if (!confirm("Deactivate this iPhone?")) return; try { await licPost("deactivate", { license_key: lic.key, instance_id: lic.inst }); } catch (e) {} lic = null; LS.set("lic", null); activation(); };
+  $("#s4").onclick = async () => { if (!confirm("Deactivate this iPhone?")) return; if (!lic.owner) { try { await licPost("deactivate", { license_key: lic.key, instance_id: lic.inst }); } catch (e) {} } lic = null; LS.set("lic", null); activation(); };
   $("#s2").onclick = () => { LS.set("recent", []); LS.set("pos", {}); $("#s2").textContent = "Cleared"; };
   $("#s3").onclick = () => { for (const k in mem) if (k !== "login") delete mem[k]; $("#s3").textContent = "Done"; };
 }
@@ -340,6 +340,16 @@ async function prayerTable() {
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 // ---------- activation (same keys as the TV and Windows apps)
 const PAIR_API = "https://ninetyone-pair.mohammed-a-alnoaimi.workers.dev", GRACE = 7 * 86400000;
+const OWNER_PIN_HASH = "242b8faf3b09925bbe051cb47f25b9168ae9ca6ea43458a5c6a993407056f62d";
+async function isOwner(code) {
+  const d = String(code || "").replace(/\D/g, "");
+  if (d.length !== 14 || d.length !== String(code).replace(/[^A-Za-z0-9]/g, "").length) return false;
+  try {
+    const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(d), "PBKDF2", false, ["deriveBits"]);
+    const b = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode("91tv-owner-pin"), iterations: 100000 }, k, 256);
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("") === OWNER_PIN_HASH;
+  } catch (e) { return false; }
+}
 let lic = LS.get("lic", null);                    // {key, inst, seen}
 async function licPost(act, o) {
   const r = await fetch(PAIR_API + "/lic/" + act, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }, body: new URLSearchParams(o) });
@@ -353,6 +363,7 @@ function activation(msg) {
   $("#ak").onclick = async () => {
     const key = $("#k").value.trim(); if (!key) return;
     $("#e").textContent = "Checking…";
+    if (await isOwner(key)) { lic = { key, owner: true, seen: Date.now() }; LS.set("lic", lic); return start(); }
     try {
       const v = await licPost("activate", { license_key: key, instance_name: "iPhone web app" });
       if (v && v.activated && v.instance) { lic = { key, inst: v.instance.id, seen: Date.now() }; LS.set("lic", lic); return start(); }
@@ -363,6 +374,7 @@ function activation(msg) {
 }
 async function gate() {
   if (!lic || !lic.key) return activation();
+  if (lic.owner) { if (await isOwner(lic.key)) return start(); lic = null; LS.set("lic", null); return activation(); }
   try {
     const v = await licPost("validate", { license_key: lic.key, instance_id: lic.inst });
     if (v && v.valid) { lic.seen = Date.now(); LS.set("lic", lic); return start(); }

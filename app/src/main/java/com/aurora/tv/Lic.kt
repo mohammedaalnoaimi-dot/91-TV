@@ -33,9 +33,9 @@ object Lic {
     const val TRIAL_DAYS = 7                       // length of the free trial code (set in Lemon Squeezy)
     private const val API = "https://api.lemonsqueezy.com/v1/licenses/"
     /** Owner code: only its SHA-256 fingerprint is in the app. Unlocks forever, offline, on any number of devices. */
-    private const val OWNER_HASH = "4c0370c68585860d7442a9f93dae1246b941b6965d665b4096a61bcad0dd014d"
+    private const val OWNER_HASH = "146a00214bdc124e201464ee733c5e935c5f11a7be38743656e569a0c515c066"
     /** Short numeric owner code for the remote: PBKDF2-SHA256, 100k rounds, so it can't be guessed by trying numbers. */
-    private const val OWNER_PIN_HASH = "c8eedf804802cc4b28c6fee6f8a2782c64b55d1059f22459568991b97bfe2bd3"
+    private const val OWNER_PIN_HASH = "242b8faf3b09925bbe051cb47f25b9168ae9ca6ea43458a5c6a993407056f62d"
     @Volatile private var ownerCache: Pair<String, Boolean>? = null
 
     // Overridable for tests.
@@ -88,7 +88,7 @@ object Lic {
         ownerCache?.let { if (it.first == c) return it.second }
         val digits = c.filter { it.isDigit() }
         val r = hex(java.security.MessageDigest.getInstance("SHA-256").digest(("91tv-owner:" + c).toByteArray())) == OWNER_HASH ||
-            (digits.length == 10 && digits.length == c.count { it.isLetterOrDigit() } && pbkdf2(digits, "91tv-owner-pin", 100000) == OWNER_PIN_HASH)
+            (digits.length == 14 && digits.length == c.count { it.isLetterOrDigit() } && pbkdf2(digits, "91tv-owner-pin", 100000) == OWNER_PIN_HASH)
         ownerCache = c to r
         return r
     }
