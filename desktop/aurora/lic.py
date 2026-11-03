@@ -5,6 +5,7 @@ import hashlib, json, re, socket, time, urllib.parse, urllib.request, urllib.err
 
 REQUIRED = True
 PRODUCT_ID = 1488315                 # "91 TV for Windows" product
+HAND_ISSUED_PRODUCT_ID = 1488147     # hand-issued lifetime codes from our own server are reported under the main 91 TV product
 TRIAL_PRODUCT_ID = 1492379           # "91 TV Free Trial (7 days)": free trial, codes issued by our own server, one per email
 TRIAL_URL = "https://ninetyonetv.com/trial/"
 BUY_URL = "91tv.lemonsqueezy.com"
@@ -105,7 +106,7 @@ class Lic:
 
     def _belongs(self, o: dict) -> bool:
         m = o.get("meta") or {}
-        return PRODUCT_ID == 0 or m.get("product_id") in (PRODUCT_ID, TRIAL_PRODUCT_ID)
+        return PRODUCT_ID == 0 or m.get("product_id") in (PRODUCT_ID, TRIAL_PRODUCT_ID, HAND_ISSUED_PRODUCT_ID)
 
     def _is_trial(self) -> bool: return int(self._g("lic_pid", 0) or 0) == TRIAL_PRODUCT_ID
 
