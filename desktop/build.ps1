@@ -8,7 +8,7 @@ param([switch]$SkipInstaller, [switch]$CI)
 # Native tools (pip, PyInstaller) write progress to stderr; do not treat that as failure. Exit codes are checked explicitly.
 $ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
-$Version = "1.5.1"
+$Version = ([regex]::Match((Get-Content aurora\__init__.py -Raw), '__version__\s*=\s*"([^"]+)"')).Groups[1].Value
 
 function Step($m) { Write-Host "`n=== $m ===" -ForegroundColor Red }
 

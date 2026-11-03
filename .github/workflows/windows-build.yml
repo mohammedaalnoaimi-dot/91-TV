@@ -1,0 +1,39 @@
+name: Build 91 TV (Windows)
+on:
+  workflow_dispatch:
+  push:
+    paths: ["desktop/**"]
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64
+      - name: Build (EXE + self-test + ZIP)
+        shell: pwsh
+        run: ./build.ps1 -CI -SkipInstaller
+      - name: Name the ZIP for the download link
+        shell: pwsh
+        run: Copy-Item (Get-ChildItem release\*-win64-portable.zip | Select-Object -First 1).FullName release\91TV-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 91TV-windows
+          path: desktop/release/*
+      - name: Publish as the latest Windows release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          target_commitish: main
+          name: 91 TV for Windows (latest)
+          body: "91 TV for Windows. Includes a 7-day free trial. Plans at https://ninetyonetv.com"
+          files: desktop/release/91TV-Windows.zip
+          make_latest: false
