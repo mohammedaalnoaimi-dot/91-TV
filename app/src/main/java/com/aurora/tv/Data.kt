@@ -20,21 +20,31 @@ data class SeriesData(val info: Info, val seasons: Map<String, List<Item>>)
 
 object Http {
     const val UA = "VLC/3.0.20 LibVLC/3.0.20"
+    /** Some providers refuse one kind of player name; if the first answer is an error we retry once with each of these. */
+    private val FALLBACK_UAS = listOf("IPTVSmartersPro", "okhttp/4.12.0", "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
     /** Opens a URL and follows redirects by hand (HttpURLConnection will not follow http -> https). */
     fun open(url0: String): HttpURLConnection {
         var url = url0
-        for (i in 0 until 6) {
+        var ua = UA; var tried = 0
+        var i = 0
+        while (i < 8) {
+            i++
             val c = URL(url).openConnection() as HttpURLConnection
             c.connectTimeout = 15000; c.readTimeout = 60000; c.instanceFollowRedirects = false
-            c.setRequestProperty("User-Agent", UA)
+            c.setRequestProperty("User-Agent", ua)
             val code = c.responseCode
             if (code in 301..308 && code != 304) {
                 val loc = c.getHeaderField("Location"); c.disconnect()
                 if (loc == null) throw RuntimeException("Redirect without a target")
                 url = URL(URL(url), loc).toString(); continue
             }
-            if (code !in 200..299) { c.disconnect(); throw RuntimeException("Server answered HTTP $code") }
+            if (code !in 200..299) {
+                val body = try { c.errorStream?.bufferedReader()?.use { it.readText() }?.replace(Regex("\\s+"), " ")?.take(120) ?: "" } catch (e: Exception) { "" }
+                c.disconnect()
+                if (code != 404 && tried < FALLBACK_UAS.size) { ua = FALLBACK_UAS[tried++]; i--; continue }
+                throw RuntimeException("Server answered HTTP $code" + (if (body.isNotBlank()) " (" + body + ")" else ""))
+            }
             return c
         }
         throw RuntimeException("Too many redirects")
