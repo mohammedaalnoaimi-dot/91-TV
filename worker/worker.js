@@ -27,7 +27,12 @@ function normEmail(e) {
 }
 async function sha(s) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
 function newToken() { const b = crypto.getRandomValues(new Uint8Array(8)); return [...b].map(x => x.toString(16).padStart(2, "0")).join("").toUpperCase(); }
-function cleanToken(k) { const h = String(k || "").replace(/[^0-9a-fA-F]/g, "").toUpperCase(); return h.length === 16 ? h : null; }
+function cleanToken(k) {
+  const a = String(k || "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+  if (a.length === 16 && /^[0-9A-F]{16}$/.test(a)) return a;           // trial token
+  if (a.length === 8 && [...a].every(c => ALPHABET.includes(c))) return a; // short hand-issued lifetime code
+  return null;
+}
 function licBody(t, extra) {
   if (t.life) return { valid: true, license_key: { status: "active", expires_at: null }, meta: { product_id: 1488147, variant_name: "Lifetime" }, ...extra };
   const left = t.exp - Date.now();

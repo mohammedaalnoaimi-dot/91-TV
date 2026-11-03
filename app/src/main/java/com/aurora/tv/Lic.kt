@@ -66,7 +66,9 @@ object Lic {
 
     internal fun isTrialKey(k: String): Boolean {
         val h = k.filter { it.isLetterOrDigit() }
-        return h.length == 16 && h.all { it in '0'..'9' || it.uppercaseChar() in 'A'..'F' } && k.all { it.isLetterOrDigit() || it == '-' || it == ' ' }
+        if (!k.all { it.isLetterOrDigit() || it == '-' || it == ' ' }) return false
+        // 16 hex = free-trial token; 8 characters (no 0/O/1/I) = short lifetime code. Both are checked by our own server.
+        return (h.length == 16 && h.all { it in '0'..'9' || it.uppercaseChar() in 'A'..'F' }) || (h.length == 8 && h.uppercase().all { it in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" })
     }
 
     private fun deviceName(ctx: Context): String =

@@ -24,7 +24,9 @@ class NoNet(Exception):
 
 def is_trial_key(k: str) -> bool:
     h = re.sub(r"[^A-Za-z0-9]", "", k or "")
-    return len(h) == 16 and re.fullmatch(r"[0-9a-fA-F]{16}", h) is not None and re.fullmatch(r"[A-Za-z0-9\- ]+", k) is not None
+    if re.fullmatch(r"[A-Za-z0-9\- ]+", k or "") is None: return False
+    # 16 hex = free-trial token; 8 characters (no 0/O/1/I) = short lifetime code. Both are checked by our own server.
+    return re.fullmatch(r"[0-9a-fA-F]{16}", h) is not None or re.fullmatch(r"[A-HJ-NP-Za-hj-np-z2-9]{8}", h) is not None
 
 
 def _post(path: str, kv: dict) -> dict:
