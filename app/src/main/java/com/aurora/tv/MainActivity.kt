@@ -546,6 +546,15 @@ class MainActivity : Activity() {
     private var smartBusy = false
     private var becauseRows: List<Pair<String, List<Item>>> = emptyList()
     private var becauseSig = ""
+    private fun favCats(): Set<String> = prefs.getStringSet("favcats", emptySet()) ?: emptySet()
+    private fun isFavCat(kind: String, g: String) = "$kind|$g" in favCats()
+    private fun toggleFavCat(kind: String, g: String) {
+        val v = "$kind|$g"; val n = HashSet(favCats()); if (!n.remove(v)) n.add(v)
+        prefs.edit().putStringSet("favcats", n).apply()
+        Toast.makeText(this, if (v in n) "★ “$g” is now a favourite category (shown first)" else "“$g” removed from favourite categories", Toast.LENGTH_SHORT).show()
+    }
+    /** Favourite categories first, then the rest A to Z. */
+    private fun sortGroups(kind: String, groups: Collection<String>): List<String> = groups.sortedWith(compareBy({ !isFavCat(kind, it) }, { it.lowercase() }))
     private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         val h = hidden(); if (h.isEmpty()) return items
@@ -606,15 +615,18 @@ class MainActivity : Activity() {
         if (it.kind == "live") { opts += "▣ Watch in a small corner screen"; acts += { startPip(it) } }
         if (pip != null) { opts += "▣ Corner screen options…"; acts += { pipMenu() } }
         val kind = hideKind(it); val pre = groupPrefix(it.group)
+        opts += if (isFavCat(kind, it.group)) "★ Remove “${it.group}” from favourite categories" else "★ Make “${it.group}” a favourite category"; acts += { toggleFavCat(kind, it.group); catFor[kind] = null; liveCat = 0; refreshPage() }
         opts += "Hide category “${it.group}”"; acts += { addHidden("$kind|${it.group}"); refreshPage() }
         if (pre.isNotEmpty()) { opts += "Hide every category starting with $pre"; acts += { addHidden("$kind|prefix:$pre"); refreshPage() } }
         android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
     }
     private fun groupMenu(kind: String, g: String) {
-        val pre = groupPrefix(g); val opts = ArrayList<String>(); opts += "Hide “$g”"; if (pre.isNotEmpty()) opts += "Hide every category starting with $pre"
-        android.app.AlertDialog.Builder(this).setTitle("Category").setItems(opts.toTypedArray()) { _, i ->
-            addHidden(if (i == 0) "$kind|$g" else "$kind|prefix:$pre"); catFor[kind] = null; liveCat = 0; refreshPage()
-        }.show()
+        val pre = groupPrefix(g); val opts = ArrayList<String>(); val acts = ArrayList<() -> Unit>()
+        opts += if (isFavCat(kind, g)) "★ Remove “$g” from favourite categories" else "★ Make “$g” a favourite category"
+        acts += { toggleFavCat(kind, g); catFor[kind] = null; liveCat = 0; refreshPage() }
+        opts += "Hide “$g”"; acts += { addHidden("$kind|$g"); catFor[kind] = null; liveCat = 0; refreshPage() }
+        if (pre.isNotEmpty()) { opts += "Hide every category starting with $pre"; acts += { addHidden("$kind|prefix:$pre"); catFor[kind] = null; liveCat = 0; refreshPage() } }
+        android.app.AlertDialog.Builder(this).setTitle("Category").setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
     }
 
     private fun searchDialog() {
@@ -770,7 +782,7 @@ class MainActivity : Activity() {
         val base = visible(kind, if (kind == "movie") movies else series)
         val counts = base.groupingBy { it.group }.eachCount()
         val specials = listOf("@recent", "@top", "@new", "@hollywood").filter { kind == "movie" || it != "@hollywood" }.filter { smartList(kind, it).isNotEmpty() }
-        val groups = specials + counts.keys.sortedBy { it.lowercase() }
+        val groups = specials + sortGroups(kind, counts.keys)
         var sel = catFor[kind]; if (sel != null && sel !in groups) sel = null; catFor[kind] = sel
         fun shown(): List<Item> { val c = catFor[kind]; return if (c == null) base else if (c.startsWith("@")) smartList(kind, c) else base.filter { it.group == c } }
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(22), dp(10), 0) }
@@ -781,7 +793,7 @@ class MainActivity : Activity() {
         val cards = PosterAdapter(this, shown(), { l, p -> openAny(l, p) }, { itemMenu(it) })
         fun upd() { heading.text = (if (kind == "movie") "Movies" else "TV Series") + "   ·   ${shown().size}" }
         upd()
-        val labels = listOf("All  (${base.size})") + groups.map { if (it.startsWith("@")) "★ ${smartTitle(it)}  (${smartList(kind, it).size})" else "$it  (${counts[it]})" }
+        val labels = listOf("All  (${base.size})") + groups.map { if (it.startsWith("@")) "★ ${smartTitle(it)}  (${smartList(kind, it).size})" else (if (isFavCat(kind, it)) "★ " else "") + "$it  (${counts[it]})" }
         val chips = RecyclerView(this).apply {
             layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
             adapter = ChipAdapter(this@MainActivity, labels, if (catFor[kind] == null) 0 else groups.indexOf(catFor[kind]) + 1, false,
@@ -968,8 +980,8 @@ class MainActivity : Activity() {
     // =====================================================================================
     private fun liveView(): View {
         val base = visible("live", live)
-        val groups = base.map { it.group }.distinct().sortedBy { it.lowercase() }
-        val labels = listOf("All channels", "★  Favorites", "Recently watched") + groups
+        val groups = sortGroups("live", base.map { it.group }.distinct())
+        val labels = listOf("All channels", "★  Favorites", "Recently watched") + groups.map { (if (isFavCat("live", it)) "★ " else "") + it }
         if (liveCat >= labels.size) liveCat = 0
         fun listFor(i: Int): List<Item> = when (i) {
             0 -> base
