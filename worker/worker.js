@@ -29,9 +29,12 @@ async function sha(s) { const b = await crypto.subtle.digest("SHA-256", new Text
 function newToken() { const b = crypto.getRandomValues(new Uint8Array(8)); return [...b].map(x => x.toString(16).padStart(2, "0")).join("").toUpperCase(); }
 function cleanToken(k) { const h = String(k || "").replace(/[^0-9a-fA-F]/g, "").toUpperCase(); return h.length === 16 ? h : null; }
 function licBody(t, extra) {
+  if (t.life) return { valid: true, license_key: { status: "active", expires_at: null }, meta: { product_id: 1488147, variant_name: "Lifetime" }, ...extra };
   const left = t.exp - Date.now();
   return { valid: left > 0, license_key: { status: left > 0 ? "active" : "expired", expires_at: new Date(t.exp).toISOString() }, meta: { product_id: TRIAL_PRODUCT, variant_name: "Free trial" }, ...extra };
 }
+// Hand-issued lifetime codes (for people you know): paste them in a Worker variable named LIFE_CODES, comma separated. Remove a code from the list to revoke it.
+function isLife(env, tok) { return !!tok && String(env.LIFE_CODES || "").split(/[,\s]+/).map(cleanToken).includes(tok); }
 async function readForm(req) {
   const ct = req.headers.get("Content-Type") || "";
   if (ct.includes("json")) return await req.json().catch(() => ({}));
@@ -111,7 +114,9 @@ export default {
       }
       if (path.startsWith("/lic/") && req.method === "POST") {
         const b = await readForm(req); const tok = cleanToken(b.license_key); const act = path.slice(5);
-        const raw = tok ? await env.PAIR.get("tk:" + tok) : null;
+        let raw = tok ? await env.PAIR.get("tk:" + tok) : null;
+        if (!raw && isLife(env, tok)) raw = JSON.stringify({ life: true, exp: 0, devs: [] });
+        if (raw && JSON.parse(raw).life && !isLife(env, tok)) raw = null; // revoked
         if (!raw) {
           // Not one of our own trial tokens: a paid key. Forward to Lemon Squeezy (so web apps can use it despite CORS) and only accept our products.
           const lk = cleanKey(b.license_key);
@@ -130,7 +135,7 @@ export default {
           return json(licBody(t));
         }
         if (act === "activate") {
-          if (t.exp <= Date.now()) return json({ activated: false, error: "license_key has expired." });
+          if (!t.life && t.exp <= Date.now()) return json({ activated: false, error: "license_key has expired." });
           if (t.devs.length >= TRIAL_DEVICES) return json({ activated: false, error: "This license key has reached the activation limit." });
           const id = newSecret().slice(0, 16); t.devs.push(id); await env.PAIR.put("tk:" + tok, JSON.stringify(t));
           return json({ activated: true, instance: { id, name: String(b.instance_name || "") }, ...licBody(t) });
