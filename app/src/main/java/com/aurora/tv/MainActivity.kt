@@ -257,42 +257,9 @@ class MainActivity : Activity() {
         visCache.clear(); smart.clear(); becauseRows = emptyList(); becauseSig = ""; catFor.clear(); liveCat = 0; query = ""
     }
 
-    private fun pinOf() = prefs.getString("kidsPin", "") ?: ""
-
-    private fun pinDialog(title: String, onOk: () -> Unit) {
-        val et = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; textSize = 30f; gravity = Gravity.CENTER
-            filters = arrayOf(android.text.InputFilter.LengthFilter(4)); setSingleLine()
-        }
-        android.app.AlertDialog.Builder(this).setTitle(title).setView(et)
-            .setPositiveButton("OK") { _, _ -> if (et.text.toString() == pinOf()) onOk() else Toast.makeText(this, "Wrong PIN", Toast.LENGTH_SHORT).show() }
-            .setNegativeButton("Cancel", null).show()
-    }
-
-    /** Creates, changes or clears the 4 digit Kids PIN. Leaving it empty means no PIN. */
-    private fun setNewPin(done: () -> Unit) {
-        val et = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; textSize = 30f; gravity = Gravity.CENTER
-            filters = arrayOf(android.text.InputFilter.LengthFilter(4)); setSingleLine(); hint = "4 digits"
-        }
-        android.app.AlertDialog.Builder(this).setTitle("PIN for the Kids profile").setMessage("Choose 4 digits. The PIN is asked when someone leaves the Kids profile. Leave it empty for no PIN.").setView(et)
-            .setPositiveButton("Save") { _, _ ->
-                val v = et.text.toString()
-                if (v.isEmpty() || v.length == 4) { prefs.edit().putString("kidsPin", v).putBoolean("kidsPinAsked", true).apply(); done() }
-                else { Toast.makeText(this, "The PIN must be 4 digits", Toast.LENGTH_LONG).show(); setNewPin(done) }
-            }
-            .setNegativeButton("Skip") { _, _ -> prefs.edit().putBoolean("kidsPinAsked", true).apply(); done() }
-            .setOnCancelListener { prefs.edit().putBoolean("kidsPinAsked", true).apply(); done() }.show()
-    }
-
     private fun pickProfile(p: String) {
-        val cur = profile()
-        fun go() { profileChosen = true; pickerOpen = false; setProfile(p); buildShell(); nav(if (p == "kids") "home" else startSection()) }
-        when {
-            cur == "kids" && p != "kids" && pinOf().isNotEmpty() -> pinDialog("PIN to leave Kids") { go() }
-            p == "kids" && pinOf().isEmpty() && !prefs.getBoolean("kidsPinAsked", false) -> setNewPin { go() }
-            else -> go()
-        }
+        profileChosen = true; pickerOpen = false
+        setProfile(p); buildShell(); nav(if (p == "kids") "home" else startSection())
     }
 
     /** "Who is watching?" - four floating names. The focused one lifts, glows and gets a gold line. */
@@ -1326,7 +1293,6 @@ class MainActivity : Activity() {
         }
         head("YOU")
         row("Who is watching", "Now: ${profName()}.  Press to choose Mr, Mrs, Together or Kids") { showProfilePicker(false) }
-        row("Kids PIN", (if ((prefs.getString("kidsPin", "") ?: "").isEmpty()) "No PIN set" else "A PIN is set") + "  - press to change it. The PIN is asked when leaving the Kids profile") { setNewPin { refreshPage() } }
         head("PRAYER TIMES  ·  BAHRAIN")
         row("Calculation method", "${Prayer.methodName(prefs)}  - press to change (Gulf Region is the usual one for Bahrain). Times come from Aladhan and can differ by a minute or two from the official timetable") {
             val i = Prayer.METHODS.indexOfFirst { it.first == prefs.getInt("ptMethod", 8) }
