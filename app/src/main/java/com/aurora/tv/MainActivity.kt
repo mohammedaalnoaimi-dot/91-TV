@@ -641,18 +641,19 @@ class MainActivity : Activity() {
     private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
     // Kids profile: only what clearly looks like children's content is shown. Anything unrecognised stays hidden, and anything that looks adult is always hidden.
     // Plain word lists and a per-category memo keep this fast even on a TV with a big playlist (the first version used regexes on every title and froze the app).
-    private val kidsWords = listOf("kids", "kidz", "cartoon", "toon", "disney", "nickelodeon", "nick jr", "nick", "junior", "baby", "animation", "animated", "family", "children", "pixar",
+    private val kidsWords = listOf("kids", "kidz", "cartoon", "toon", "disney", "nickelodeon", "nick jr", "junior", "baby", "children", "pixar",
         "boomerang", "spacetoon", "majid", "mbc3", "mbc 3", "baraem", "karameesh", "toyor", "jeem", "cartoonito", "pogo", "duck tv", "babytv", "nicktoons", "cbeebies", "cbbc", "tiny pop",
-        "da vinci", "boing", "gulli", "teletoon", "zoo moo", "kika", "dreamworks", "اطفال", "أطفال", "كرتون", "رسوم", "سبيستون", "ماجد", "براعم", "طيور الجنة", "عائل")
+        "da vinci", "boing", "gulli", "teletoon", "zoo moo", "kika", "dreamworks", "اطفال", "أطفال", "كرتون", "سبيستون", "ماجد", "براعم", "طيور الجنة")
     private val adultWords = listOf("xxx", "adult", "18+", "+18", "18 +", "porn", "sex", "erotic", "playboy", "brazzers", "hentai", "nude", "nsfw", "uncensored", "للكبار", "للبالغين", "جنس", "اباح", "إباح", "عاري", "ساخن")
     private val studioWords = listOf("disney", "pixar", "dreamworks", "illumination", "spongebob", "paw patrol", "peppa", "bluey", "tom and jerry", "tom & jerry", "mickey", "toy story", "frozen",
         "moana", "encanto", "minions", "shrek", "kung fu panda", "ice age", "madagascar", "lion king", "finding nemo", "cocomelon", "barbie", "my little pony", "looney tunes", "scooby", "pocoyo", "masha")
+    private val scaryWords = listOf("blood", "vampire", "killer", "murder", "horror", "zombie", "massacre", "slasher", "demon slayer", "gore", "naked", "erotic", "lust", "seduc", "bdsm", "fetish")
     private fun hasAny(text: String, words: List<String>): Boolean { val l = text.lowercase(); for (w in words) if (l.contains(w)) return true; return false }
     private val groupMemo = java.util.concurrent.ConcurrentHashMap<String, Int>()      // 1 = kids category, 2 = adult category, 0 = neither
     private fun groupClass(g: String): Int = groupMemo.getOrPut(g) { if (hasAny(g, adultWords)) 2 else if (hasAny(g, kidsWords)) 1 else 0 }
     private fun kidsOk(it: Item): Boolean = when (groupClass(it.group)) {
         2 -> false
-        1 -> !hasAny(it.name, adultWords)
+        1 -> !hasAny(it.name, adultWords) && !hasAny(it.name, scaryWords)
         else -> (if (it.kind == "live") hasAny(it.name, kidsWords) else hasAny(it.name, studioWords)) && !hasAny(it.name, adultWords)
     }
     private fun visible(kind: String, items: List<Item>): List<Item> {
