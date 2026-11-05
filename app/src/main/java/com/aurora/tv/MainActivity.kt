@@ -653,7 +653,7 @@ class MainActivity : Activity() {
     private val strictKidsGroups = listOf("kids", "kidz", "cartoon", "children", "disney", "pixar", "nickelodeon", "nick jr", "dreamworks", "اطفال", "أطفال", "كرتون", "اطفال")
     private val matureTitles = listOf("stranger things", "disenchantment", "blue eye", "mating season", "batman", "mickey 17", "transformers", "violet evergarden", "garden of words", "ocean waves",
         "typhoon", "who (", "goat", "wild robot", "knightfall", "one piece", "naruto", "attack on titan", "demon", "death note", "bleach", "jujutsu", "chainsaw", "berserk", "hunter", "south park", "family guy",
-        "simpsons", "rick and morty", "bojack", "big mouth", "harley", "invincible", "castlevania", "arcane", "love death", "midnight gospel", "archer", "futurama", "american dad", "bob's burgers", "deadpool", "joker", "venom", "spider-man")
+        "simpsons", "rick and morty", "bojack", "big mouth", "harley", "invincible", "castlevania", "arcane", "love death", "midnight gospel", "archer", "futurama", "american dad", "bob's burgers", "deadpool", "joker", "venom", "spider-man", "justice league", "crisis on infinite", "dc league", "suicide squad", "watchmen", "gen v", "the boys")
     private val groupMemo = java.util.concurrent.ConcurrentHashMap<String, Int>()      // 1 = kids category, 2 = adult category, 0 = neither
     private fun groupClass(g: String): Int = groupMemo.getOrPut(g) { if (hasAny(g, adultWords)) 2 else if (hasAny(g, kidsWords)) 1 else 0 }
     private val strictMemo = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
