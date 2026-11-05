@@ -259,7 +259,14 @@ class MainActivity : Activity() {
 
     private fun pickProfile(p: String) {
         profileChosen = true; pickerOpen = false
-        setProfile(p); buildShell(); nav(if (p == "kids") "home" else startSection())
+        setProfile(p)
+        if (p == "kids") {
+            splash("Getting the Kids profile ready")
+            Thread {
+                try { visible("live", live); visible("movie", movies); visible("series", series) } catch (e: Throwable) { }
+                ui.post { buildShell(); nav("home") }
+            }.start()
+        } else { buildShell(); nav(startSection()) }
     }
 
     /** "Who is watching?" - four floating names. The focused one lifts, glows and gets a gold line. */
@@ -543,7 +550,7 @@ class MainActivity : Activity() {
     // data helpers: hiding, favourites, recents, epg
     // =====================================================================================
     private fun hidden(): Set<String> = prefs.getStringSet("hidden", emptySet()) ?: emptySet()
-    private val visCache = HashMap<String, List<Item>>()
+    private val visCache = java.util.concurrent.ConcurrentHashMap<String, List<Item>>()
     private val smart = HashMap<String, List<Item>>()
     private val HOLLY = Regex("hollywood|english|\\bEN\\b|^\\s*EN\\s*[|:\\-\\]]|\\bUSA?\\b|\\bUK\\b", RegexOption.IGNORE_CASE)
     private val YEAR = Regex("\\((\\d{4})\\)")
@@ -633,14 +640,20 @@ class MainActivity : Activity() {
     private fun sortGroups(kind: String, groups: Collection<String>): List<String> = groups.sortedWith(compareBy({ !isFavCat(kind, it) }, { it.lowercase() }))
     private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
     // Kids profile: only what clearly looks like children's content is shown. Anything unrecognised stays hidden, and anything that looks adult is always hidden.
-    private val kidsRx = Regex("(?i)(\\bkids?\\b|\\bkidz\\b|\\bcartoons?\\b|\\btoons?\\b|disney|nickelodeon|\\bnick\\b|junior|\\bjr\\b|baby|animation|animated|\\bfamily\\b|children|pixar|boomerang|spacetoon|majid|mbc ?3|baraem|karameesh|toyor|jeem|cartoon network|\\bcn\\b|dreamworks|cartoonito|\\bpogo\\b|duck ?tv|baby ?tv|nick ?jr|nicktoons?|disney ?(xd|junior|channel|\\+)|discovery kids|pbs kids|cbeebies|cbbc|tiny ?pop|da ?vinci|boing|gulli|clan tv|teletoon|zoo ?moo|kika|\\btoyor\\b|\\bmajed\\b|اطفال|أطفال|كرتون|رسوم|سبيستون|ماجد|براعم|طيور الجنة|عائل)")
-    private val adultRx = Regex("(?i)(\\bxxx\\b|\\badults?\\b|18 ?\\+|\\+ ?18|porn|\\bsex|erotic|playboy|brazzers|hentai|nude|nsfw|uncensored|للكبار|للبالغين|جنس|اباح|إباح|عاري|ساخن)")
-    private val kidsTitleRx = Regex("(?i)(disney|pixar|dreamworks|illumination|spongebob|paw patrol|peppa|bluey|tom (and|&) jerry|mickey|toy story|frozen|moana|encanto|minions|shrek|kung fu panda|ice age|madagascar|lion king|finding nemo|cocomelon|barbie|my little pony|looney tunes|scooby|pocoyo|masha)")
-    private fun kidsOk(it: Item): Boolean {
-        if (adultRx.containsMatchIn(it.group) || adultRx.containsMatchIn(it.name)) return false
-        if (kidsRx.containsMatchIn(it.group)) return true
-        if (it.kind == "live") return kidsRx.containsMatchIn(it.name)
-        return kidsTitleRx.containsMatchIn(it.name)
+    // Plain word lists and a per-category memo keep this fast even on a TV with a big playlist (the first version used regexes on every title and froze the app).
+    private val kidsWords = listOf("kids", "kidz", "cartoon", "toon", "disney", "nickelodeon", "nick jr", "nick", "junior", "baby", "animation", "animated", "family", "children", "pixar",
+        "boomerang", "spacetoon", "majid", "mbc3", "mbc 3", "baraem", "karameesh", "toyor", "jeem", "cartoonito", "pogo", "duck tv", "babytv", "nicktoons", "cbeebies", "cbbc", "tiny pop",
+        "da vinci", "boing", "gulli", "teletoon", "zoo moo", "kika", "dreamworks", "اطفال", "أطفال", "كرتون", "رسوم", "سبيستون", "ماجد", "براعم", "طيور الجنة", "عائل")
+    private val adultWords = listOf("xxx", "adult", "18+", "+18", "18 +", "porn", "sex", "erotic", "playboy", "brazzers", "hentai", "nude", "nsfw", "uncensored", "للكبار", "للبالغين", "جنس", "اباح", "إباح", "عاري", "ساخن")
+    private val studioWords = listOf("disney", "pixar", "dreamworks", "illumination", "spongebob", "paw patrol", "peppa", "bluey", "tom and jerry", "tom & jerry", "mickey", "toy story", "frozen",
+        "moana", "encanto", "minions", "shrek", "kung fu panda", "ice age", "madagascar", "lion king", "finding nemo", "cocomelon", "barbie", "my little pony", "looney tunes", "scooby", "pocoyo", "masha")
+    private fun hasAny(text: String, words: List<String>): Boolean { val l = text.lowercase(); for (w in words) if (l.contains(w)) return true; return false }
+    private val groupMemo = java.util.concurrent.ConcurrentHashMap<String, Int>()      // 1 = kids category, 2 = adult category, 0 = neither
+    private fun groupClass(g: String): Int = groupMemo.getOrPut(g) { if (hasAny(g, adultWords)) 2 else if (hasAny(g, kidsWords)) 1 else 0 }
+    private fun kidsOk(it: Item): Boolean = when (groupClass(it.group)) {
+        2 -> false
+        1 -> !hasAny(it.name, adultWords)
+        else -> (if (it.kind == "live") hasAny(it.name, kidsWords) else hasAny(it.name, studioWords)) && !hasAny(it.name, adultWords)
     }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         if (profile() == "kids") { val ck = "kids|$kind"; visCache[ck]?.let { return it }; val out = items.filter { kidsOk(it) }; visCache[ck] = out; return out }
