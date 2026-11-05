@@ -239,6 +239,116 @@ class MainActivity : Activity() {
         setContentView(col); s.requestFocus()
     }
 
+
+    // =====================================================================================
+    // profiles: Mr / Mrs / Together / Kids  ("Who is watching" screen)
+    // =====================================================================================
+    private var profileChosen = false
+    private var pickerOpen = false
+
+    /** After the channels are ready: ask who is watching (once per start), then open the app. */
+    private fun enterApp() {
+        if (profileChosen) { buildShell(); nav(startSection()); return }
+        showProfilePicker(true)
+    }
+
+    private fun setProfile(p: String) {
+        prefs.edit().putString("profile", p).apply()
+        visCache.clear(); smart.clear(); becauseRows = emptyList(); becauseSig = ""; catFor.clear(); liveCat = 0; query = ""
+    }
+
+    private fun pinOf() = prefs.getString("kidsPin", "") ?: ""
+
+    private fun pinDialog(title: String, onOk: () -> Unit) {
+        val et = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; textSize = 30f; gravity = Gravity.CENTER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(4)); setSingleLine()
+        }
+        android.app.AlertDialog.Builder(this).setTitle(title).setView(et)
+            .setPositiveButton("OK") { _, _ -> if (et.text.toString() == pinOf()) onOk() else Toast.makeText(this, "Wrong PIN", Toast.LENGTH_SHORT).show() }
+            .setNegativeButton("Cancel", null).show()
+    }
+
+    /** Creates, changes or clears the 4 digit Kids PIN. Leaving it empty means no PIN. */
+    private fun setNewPin(done: () -> Unit) {
+        val et = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; textSize = 30f; gravity = Gravity.CENTER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(4)); setSingleLine(); hint = "4 digits"
+        }
+        android.app.AlertDialog.Builder(this).setTitle("PIN for the Kids profile").setMessage("Choose 4 digits. The PIN is asked when someone leaves the Kids profile. Leave it empty for no PIN.").setView(et)
+            .setPositiveButton("Save") { _, _ ->
+                val v = et.text.toString()
+                if (v.isEmpty() || v.length == 4) { prefs.edit().putString("kidsPin", v).putBoolean("kidsPinAsked", true).apply(); done() }
+                else { Toast.makeText(this, "The PIN must be 4 digits", Toast.LENGTH_LONG).show(); setNewPin(done) }
+            }
+            .setNegativeButton("Skip") { _, _ -> prefs.edit().putBoolean("kidsPinAsked", true).apply(); done() }
+            .setOnCancelListener { prefs.edit().putBoolean("kidsPinAsked", true).apply(); done() }.show()
+    }
+
+    private fun pickProfile(p: String) {
+        val cur = profile()
+        fun go() { profileChosen = true; pickerOpen = false; setProfile(p); buildShell(); nav(if (p == "kids") "home" else startSection()) }
+        when {
+            cur == "kids" && p != "kids" && pinOf().isNotEmpty() -> pinDialog("PIN to leave Kids") { go() }
+            p == "kids" && pinOf().isEmpty() && !prefs.getBoolean("kidsPinAsked", false) -> setNewPin { go() }
+            else -> go()
+        }
+    }
+
+    /** "Who is watching?" - four floating names. The focused one lifts, glows and gets a gold line. */
+    private fun showProfilePicker(atStart: Boolean) {
+        pickerOpen = !atStart
+        val root = FrameLayout(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor("#1c0d11"), BG, Color.parseColor("#0d0809")))
+        }
+        val glow = View(this).apply {
+            background = GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(520).toFloat(); colors = intArrayOf(Color.parseColor("#33C9475C"), Color.parseColor("#00C9475C")) }
+        }
+        root.addView(glow, FrameLayout.LayoutParams(dp(1100), dp(1100), Gravity.CENTER))
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
+        col.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(420), dp(63)))
+        col.addView(mkText("WHO IS WATCHING?", 18f, GRAY, true).apply { letterSpacing = 0.3f; gravity = Gravity.CENTER; setPadding(0, dp(26), 0, dp(54)) })
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false }
+        col.clipChildren = false; root.clipChildren = false
+        val defs = listOf(Triple("mr", "MR", "Favourites"), Triple("mrs", "MRS", "Favourites"), Triple("together", "TOGETHER", "Saved by both"), Triple("kids", "KIDS", "Cartoons & family"))
+        val cur = profile(); var first: View? = null; var curView: View? = null
+        val anims = ArrayList<android.animation.Animator>()
+        defs.forEachIndexed { i, (key, name, sub) ->
+            val item = FrameLayout(this).apply { isFocusable = true; isClickable = true; alpha = 0.42f; clipChildren = false; setPadding(dp(30), dp(18), dp(30), dp(22)) }
+            val spot = View(this).apply { alpha = 0f; background = GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(150).toFloat(); colors = intArrayOf(Color.parseColor("#55C9475C"), Color.parseColor("#00C9475C")) } }
+            item.addView(spot, FrameLayout.LayoutParams(dp(300), dp(190), Gravity.CENTER))
+            val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            val nm = mkText(name, 34f, CREAM, true).apply { letterSpacing = 0.1f; gravity = Gravity.CENTER; typeface = fDisplay() }
+            val sb = mkText(sub, 13f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) }
+            val line = View(this).apply { setBackgroundColor(GOLD); scaleX = 0f }
+            box.addView(nm); box.addView(sb); box.addView(line, LinearLayout.LayoutParams(dp(120), dp(3)).apply { topMargin = dp(10) })
+            item.addView(box, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+            item.setOnFocusChangeListener { v, f ->
+                v.animate().alpha(if (f) 1f else 0.42f).scaleX(if (f) 1.14f else 1f).scaleY(if (f) 1.14f else 1f).setDuration(260).start()
+                spot.animate().alpha(if (f) 1f else 0f).setDuration(260).start()
+                line.animate().scaleX(if (f) 1f else 0f).setDuration(300).start()
+                nm.setTextColor(if (f) GOLD else CREAM); sb.setTextColor(if (f) CREAM else GRAY)
+            }
+            item.setOnClickListener { pickProfile(key) }
+            val fl = android.animation.ObjectAnimator.ofFloat(box, "translationY", 0f, -dp(7).toFloat()).apply {
+                duration = 2600; startDelay = i * 450L; repeatMode = android.animation.ValueAnimator.REVERSE; repeatCount = android.animation.ValueAnimator.INFINITE
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            }
+            anims.add(fl); fl.start()
+            row.addView(item, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(10), 0, dp(10), 0) })
+            if (first == null) first = item; if (key == cur) curView = item
+        }
+        col.addView(row)
+        col.addView(mkText("Use ◀ ▶ to choose, OK to open", 13f, Color.parseColor("#8f806c")).apply { gravity = Gravity.CENTER; setPadding(0, dp(46), 0, 0) })
+        root.addView(col, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) { anims.forEach { it.cancel() } }
+        })
+        setContentView(root)
+        (curView ?: first)?.requestFocus()
+    }
+
     /** Loading screen: sharp wordmark that fades in, a soft rose glow that breathes, a tagline and a sweeping progress line. */
     private fun splash(msg: String = "") {
         val root = FrameLayout(this).apply {
@@ -261,10 +371,10 @@ class MainActivity : Activity() {
         }
         col.addView(tag)
         val track = FrameLayout(this).apply { background = GradientDrawable().apply { setColor(Color.parseColor("#2a2220")); cornerRadius = dp(2).toFloat() } }
-        val bar = View(this).apply { background = GradientDrawable().apply { setColor(ROSE); cornerRadius = dp(2).toFloat() } }
+        val bar = View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, GOLD, Color.TRANSPARENT)).apply { cornerRadius = dp(2).toFloat() } }
         track.addView(bar, FrameLayout.LayoutParams(dp(90), dp(3)))
         col.addView(track, LinearLayout.LayoutParams(dp(280), dp(3)).apply { topMargin = dp(46) })
-        val note = TextView(this).apply { text = msg; textSize = 15f; setTextColor(Color.parseColor("#8f806c")); gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0) }
+        val note = TextView(this).apply { text = if (msg.isBlank()) "Loading channels" else msg; textSize = 15f; setTextColor(Color.parseColor("#8f806c")); gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0) }
         col.addView(note)
         root.addView(col, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
         setContentView(root)
@@ -301,7 +411,7 @@ class MainActivity : Activity() {
                 val cl = Cache.load(this, "live")
                 if (cl != null && cl.isNotEmpty()) {
                     val mv = Cache.load(this, "movie") ?: emptyList(); val sr = Cache.load(this, "series") ?: emptyList()
-                    ui.post { setData(cl, mv, sr); buildShell(); nav(startSection()) }
+                    ui.post { setData(cl, mv, sr); enterApp() }
                     if (Cache.ageHours(this, "live") >= 6) refreshInBackground(server, m3uUrl)
                 } else ui.post { startLoading(true) }
             }.start()
@@ -315,7 +425,7 @@ class MainActivity : Activity() {
                     val x = xt!!; x.login()
                     ui.post { bigMessage("91 TV\n\nLoading channels… (first time only)") }
                     val l = x.live(); Cache.save(this, "live", l)
-                    ui.post { setData(l, null, null); buildShell(); nav(startSection()) }; shown = true
+                    ui.post { setData(l, null, null); enterApp() }; shown = true
                     val m = try { x.movies() } catch (e: Throwable) { emptyList() }; Cache.save(this, "movie", m)
                     ui.post { setData(null, m, null) }
                     val se = try { x.series() } catch (e: Throwable) { emptyList() }; Cache.save(this, "series", se)
@@ -325,7 +435,7 @@ class MainActivity : Activity() {
                     val l = all.filter { it.kind == "live" }; val m = all.filter { it.kind == "movie" }; val se = all.filter { it.kind == "episode" }
                     setData(l, m, se); Cache.save(this, "live", l); Cache.save(this, "movie", m); Cache.save(this, "series", se)
                 }
-                if (!shown) ui.post { buildShell(); nav(startSection()) }
+                if (!shown) ui.post { enterApp() }
             } catch (e: Throwable) {
                 ui.post { Toast.makeText(this, "Could not connect: ${e.message ?: e.javaClass.simpleName}", Toast.LENGTH_LONG).show(); setupView() }
             }
@@ -384,10 +494,11 @@ class MainActivity : Activity() {
         // ---- top menu
         val navRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) }
         navItems.clear()
-        val entries = listOf("home" to "HOME", "live" to "LIVE TV", "multi" to "MULTI", "movie" to "MOVIES", "series" to "TV SERIES",
-            "list" to "MY LIST", "prayer" to "PRAYER", "search" to "SEARCH", "settings" to "SETTINGS")
+        val entries = if (profile() == "kids") listOf("home" to "HOME", "live" to "LIVE TV", "movie" to "MOVIES", "series" to "TV SERIES", "list" to "MY LIST", "profile" to "WHO IS WATCHING")
+        else listOf("home" to "HOME", "live" to "LIVE TV", "multi" to "MULTI", "movie" to "MOVIES", "series" to "TV SERIES",
+            "list" to "MY LIST", "prayer" to "PRAYER", "search" to "SEARCH", "settings" to "SETTINGS", "profile" to profName().uppercase())
         for ((k, label) in entries) {
-            val ni = NavItem(this, label).apply { setOnClickListener { if (k == "search") searchDialog() else if (k == "multi") { releasePreview(); startActivity(android.content.Intent(this@MainActivity, MultiActivity::class.java)) } else nav(k) } }
+            val ni = NavItem(this, label).apply { setOnClickListener { if (k == "profile") showProfilePicker(false) else if (k == "search") searchDialog() else if (k == "multi") { releasePreview(); startActivity(android.content.Intent(this@MainActivity, MultiActivity::class.java)) } else nav(k) } }
             navItems[k] = ni; navRow.addView(ni, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(6), 0, dp(6), 0) })
         }
         root.addView(navRow, LinearLayout.LayoutParams(-1, -2))
@@ -436,9 +547,10 @@ class MainActivity : Activity() {
         banner = t; ui.postDelayed(dropBanner, 9000)
     }
 
-    private fun startSection(): String { val x = prefs.getString("lastSection", "home") ?: "home"; return if (x in setOf("home", "live", "movie", "series", "list", "prayer")) x else "home" }
+    private fun startSection(): String { val x = prefs.getString("lastSection", "home") ?: "home"; return if (profile() == "kids") (if (x in setOf("home", "live", "movie", "series", "list")) x else "home") else if (x in setOf("home", "live", "movie", "series", "list", "prayer")) x else "home" }
 
-    private fun nav(sec: String) {
+    private fun nav(sec0: String) {
+        val sec = if (profile() == "kids" && sec0 !in setOf("home", "live", "movie", "series", "list")) "home" else sec0
         if (sec != "settings") prefs.edit().putString("lastSection", sec).apply()
         section = sec; pageStack.clear(); markSection()
         showPage {
@@ -457,6 +569,7 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (playerRoot != null) { leavePlayer(); return }
+        if (pickerOpen && shell != null) { pickerOpen = false; setContentView(shell); return }
         if (shell == null) { finish(); return }
         if (pageStack.isNotEmpty()) { currentPage = pageStack.removeLast(); currentPage!!(); return }
         if (section != "home") { nav("home"); return }
@@ -556,7 +669,16 @@ class MainActivity : Activity() {
     /** Favourite categories first, then the rest A to Z. */
     private fun sortGroups(kind: String, groups: Collection<String>): List<String> = groups.sortedWith(compareBy({ !isFavCat(kind, it) }, { it.lowercase() }))
     private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
+    // Kids profile: only what clearly looks like children's content is shown. Anything unrecognised stays hidden, and anything that looks adult is always hidden.
+    private val kidsRx = Regex("(?i)(\\bkids?\\b|\\bkidz\\b|\\bcartoons?\\b|\\btoons?\\b|disney|nickelodeon|\\bnick\\b|junior|\\bjr\\b|baby|animation|animated|\\bfamily\\b|children|pixar|boomerang|spacetoon|majid|mbc ?3|baraem|karameesh|toyor|jeem|cartoon network|\\bcn\\b|dreamworks|اطفال|أطفال|كرتون|رسوم|سبيستون|ماجد|براعم|طيور الجنة|عائل)")
+    private val adultRx = Regex("(?i)(\\bxxx\\b|\\badults?\\b|18 ?\\+|\\+ ?18|porn|\\bsex|erotic|playboy|brazzers|hentai|nude|nsfw|uncensored|للكبار|للبالغين|جنس|اباح|إباح|عاري|ساخن)")
+    private fun kidsOk(it: Item): Boolean {
+        if (adultRx.containsMatchIn(it.group) || adultRx.containsMatchIn(it.name)) return false
+        if (kidsRx.containsMatchIn(it.group)) return true
+        return it.kind == "live" && kidsRx.containsMatchIn(it.name)
+    }
     private fun visible(kind: String, items: List<Item>): List<Item> {
+        if (profile() == "kids") { val ck = "kids|$kind"; visCache[ck]?.let { return it }; val out = items.filter { kidsOk(it) }; visCache[ck] = out; return out }
         val h = hidden(); if (h.isEmpty()) return items
         visCache[kind]?.let { return it }
         val bad = HashSet<String>()
@@ -571,16 +693,23 @@ class MainActivity : Activity() {
     }
     private fun writeList(key: String, l: List<Item>) { val a = JSONArray(); l.forEach { a.put(it.toJson()) }; prefs.edit().putString(key, a.toString()).apply() }
     private fun profile(): String = prefs.getString("profile", "mr") ?: "mr"
-    private fun profName(p: String = profile()) = if (p == "mrs") "Mrs" else "Mr"
-    private fun favsOf(p: String) = readList("favs_$p")
+    private fun profName(p: String = profile()) = when (p) { "mrs" -> "Mrs"; "kids" -> "Kids"; "together" -> "Together"; else -> "Mr" }
+    private fun favsOf(p: String): List<Item> {
+        if (p == "together") { val b = readList("favs_mrs").map { it.key }.toSet(); return readList("favs_mr").filter { it.key in b } }
+        return readList("favs_$p")
+    }
     private fun favs() = favsOf(profile())
     private fun isFav(it: Item) = favs().any { f -> f.key == it.key }
     private fun isFavOf(p: String, it: Item) = favsOf(p).any { f -> f.key == it.key }
-    private fun toggleFav(it: Item) { val l = favs().toMutableList(); if (!l.removeAll { f -> f.key == it.key }) l.add(0, it); writeList("favs_" + profile(), l) }
+    private fun toggleFav(it: Item) {
+        if (profile() == "together") { if (isFav(it)) { removeFavFrom("mr", it); removeFavFrom("mrs", it) } else { addFavTo("mr", it); addFavTo("mrs", it) }; return }
+        val l = favs().toMutableList(); if (!l.removeAll { f -> f.key == it.key }) l.add(0, it); writeList("favs_" + profile(), l)
+    }
     private fun addFavTo(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.none { f -> f.key == it.key }) { l.add(0, it); writeList("favs_$p", l) } }
     private fun removeFavFrom(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.removeAll { f -> f.key == it.key }) writeList("favs_$p", l) }
-    private fun recents() = readList("recent")
-    private fun addRecent(it: Item) { val l = recents().toMutableList(); l.removeAll { r -> r.key == it.key }; l.add(0, it); writeList("recent", l.take(60)) }
+    private fun recentKey() = if (profile() == "kids") "recent_kids" else "recent"
+    private fun recents() = readList(recentKey())
+    private fun addRecent(it: Item) { val l = recents().toMutableList(); l.removeAll { r -> r.key == it.key }; l.add(0, it); writeList(recentKey(), l.take(60)) }
     private fun savedPos(it: Item): Long = prefs.getLong("pos_" + it.key, 0L)
     /** How much of a movie / episode has been watched (0..1), for the red bar on "Continue watching" posters. */
     fun progressOf(it: Item): Float { if (it.kind != "movie" && it.kind != "episode") return 0f; val d = prefs.getLong("dur_" + it.key, 0L); val p = savedPos(it); return if (d > 0 && p > 0) (p.toFloat() / d).coerceIn(0f, 1f) else 0f }
@@ -610,6 +739,7 @@ class MainActivity : Activity() {
     private fun itemMenu(it: Item) {
         val opts = ArrayList<String>(); val acts = ArrayList<() -> Unit>()
         opts += if (isFav(it)) "Remove from ${profName()}'s list" else "Add to ${profName()}'s list"; acts += { toggleFav(it); refreshPage() }
+        if (profile() == "kids") { android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show(); return }
         if (isFavOf("mr", it) && isFavOf("mrs", it)) { opts += "Remove from both lists"; acts += { removeFavFrom("mr", it); removeFavFrom("mrs", it); refreshPage() } }
         else { opts += "Add to both lists (Together)"; acts += { addFavTo("mr", it); addFavTo("mrs", it); refreshPage() } }
         if (it.kind == "live") { opts += "▣ Watch in a small corner screen"; acts += { startPip(it) } }
@@ -621,6 +751,7 @@ class MainActivity : Activity() {
         android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
     }
     private fun groupMenu(kind: String, g: String) {
+        if (profile() == "kids") return
         val pre = groupPrefix(g); val opts = ArrayList<String>(); val acts = ArrayList<() -> Unit>()
         opts += if (isFavCat(kind, g)) "★ Remove “$g” from favourite categories" else "★ Make “$g” a favourite category"
         acts += { toggleFavCat(kind, g); catFor[kind] = null; liveCat = 0; refreshPage() }
@@ -823,14 +954,28 @@ class MainActivity : Activity() {
         return root
     }
 
+    private fun kidsListPage(): View {
+        val scroll = ScrollView(this).apply { setBackgroundColor(BG); isFillViewport = true; clipChildren = false }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(0, dp(18), 0, dp(24)) }
+        col.addView(eyebrow("MY LIST").apply { setPadding(dp(32), 0, 0, 0) })
+        col.addView(mkText("Kids' list", 26f, CREAM, true).apply { setPadding(dp(32), dp(6), 0, dp(10)) })
+        val fv = favs().filter { kidsOk(it) }
+        if (fv.isEmpty()) col.addView(mkItalic("Nothing saved yet. Hold OK on a cartoon or show to add it here.", 16f, GRAY).apply { setPadding(dp(32), dp(8), 0, 0) })
+        else col.addView(rowView("Saved", fv))
+        scroll.addView(col, FrameLayout.LayoutParams(-1, -2))
+        scroll.post { (findFirstFocusable(col, 1))?.requestFocus() }
+        return scroll
+    }
+
     private fun listPage(): View {
+        if (profile() == "kids") return kidsListPage()
         val mr = favsOf("mr"); val mrs = favsOf("mrs")
         val mrsKeys = mrs.map { it.key }.toSet()
         val both = mr.filter { it.key in mrsKeys }
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(18), dp(24), 0) }
         root.addView(eyebrow("WATCHLIST"))
         root.addView(mkText("What shall we watch tonight?", 26f, CREAM, true).apply { setPadding(0, dp(6), 0, 0) })
-        root.addView(mkItalic("You are adding as ${profName()}  ·  change who is watching in Settings  ·  hold OK on any title for more", 14f, GRAY).apply { setPadding(0, dp(2), 0, dp(10)) })
+        root.addView(mkItalic("You are adding as ${profName()}  ·  change who is watching with the profile button in the top bar  ·  hold OK on any title for more", 14f, GRAY).apply { setPadding(0, dp(2), 0, dp(10)) })
         val cols = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; clipChildren = false }
         val grids = ArrayList<RecyclerView>()
         fun column(title: String, sub: String, items: List<Item>, accent: Int, empty: String) {
@@ -1182,7 +1327,8 @@ class MainActivity : Activity() {
             if (firstRow == null) firstRow = r
         }
         head("YOU")
-        row("Who is watching", "Now: ${profName()}.  Titles you save go to the ${profName()}'s list  - press to switch to ${if (profile() == "mr") "Mrs" else "Mr"}") { prefs.edit().putString("profile", if (profile() == "mr") "mrs" else "mr").apply(); refreshPage() }
+        row("Who is watching", "Now: ${profName()}.  Press to choose Mr, Mrs, Together or Kids") { showProfilePicker(false) }
+        row("Kids PIN", (if ((prefs.getString("kidsPin", "") ?: "").isEmpty()) "No PIN set" else "A PIN is set") + "  - press to change it. The PIN is asked when leaving the Kids profile") { setNewPin { refreshPage() } }
         head("PRAYER TIMES  ·  BAHRAIN")
         row("Calculation method", "${Prayer.methodName(prefs)}  - press to change (Gulf Region is the usual one for Bahrain). Times come from Aladhan and can differ by a minute or two from the official timetable") {
             val i = Prayer.METHODS.indexOfFirst { it.first == prefs.getInt("ptMethod", 8) }
@@ -1357,7 +1503,7 @@ class MainActivity : Activity() {
     private fun startSaver() {
         if (playerRoot != null || saver != null) return
         if ((prefs.getString("saverStyle", "clock") ?: "clock") == "clock") { startAmbient(); return }
-        val pool = (movies + series).filter { it.logo.isNotEmpty() }
+        val pool = (visible("movie", movies) + visible("series", series)).filter { it.logo.isNotEmpty() }
         if (pool.isEmpty()) return
         saverList = pool.shuffled().take(60); saverIdx = 0
         val f = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); alpha = 0f }
