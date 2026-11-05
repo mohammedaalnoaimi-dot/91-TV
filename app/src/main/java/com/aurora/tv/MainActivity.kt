@@ -649,12 +649,20 @@ class MainActivity : Activity() {
         "moana", "encanto", "minions", "shrek", "kung fu panda", "ice age", "madagascar", "lion king", "finding nemo", "cocomelon", "barbie", "my little pony", "looney tunes", "scooby", "pocoyo", "masha")
     private val scaryWords = listOf("blood", "vampire", "killer", "murder", "horror", "zombie", "massacre", "slasher", "demon slayer", "gore", "naked", "erotic", "lust", "seduc", "bdsm", "fetish")
     private fun hasAny(text: String, words: List<String>): Boolean { val l = text.lowercase(); for (w in words) if (l.contains(w)) return true; return false }
+    // Movies/series: a category only counts when it is clearly a kids category, and mature titles are always blocked even inside one.
+    private val strictKidsGroups = listOf("kids", "kidz", "cartoon", "children", "disney", "pixar", "nickelodeon", "nick jr", "dreamworks", "اطفال", "أطفال", "كرتون", "اطفال")
+    private val matureTitles = listOf("stranger things", "disenchantment", "blue eye", "mating season", "batman", "mickey 17", "transformers", "violet evergarden", "garden of words", "ocean waves",
+        "typhoon", "who (", "goat", "wild robot", "knightfall", "one piece", "naruto", "attack on titan", "demon", "death note", "bleach", "jujutsu", "chainsaw", "berserk", "hunter", "south park", "family guy",
+        "simpsons", "rick and morty", "bojack", "big mouth", "harley", "invincible", "castlevania", "arcane", "love death", "midnight gospel", "archer", "futurama", "american dad", "bob's burgers", "deadpool", "joker", "venom", "spider-man")
     private val groupMemo = java.util.concurrent.ConcurrentHashMap<String, Int>()      // 1 = kids category, 2 = adult category, 0 = neither
     private fun groupClass(g: String): Int = groupMemo.getOrPut(g) { if (hasAny(g, adultWords)) 2 else if (hasAny(g, kidsWords)) 1 else 0 }
-    private fun kidsOk(it: Item): Boolean = when (groupClass(it.group)) {
-        2 -> false
-        1 -> !hasAny(it.name, adultWords) && !hasAny(it.name, scaryWords)
-        else -> (if (it.kind == "live") hasAny(it.name, kidsWords) else hasAny(it.name, studioWords)) && !hasAny(it.name, adultWords)
+    private val strictMemo = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    private fun strictKids(g: String): Boolean = strictMemo.getOrPut(g) { !hasAny(g, adultWords) && hasAny(g, strictKidsGroups) }
+    private fun kidsOk(it: Item): Boolean {
+        if (hasAny(it.name, adultWords)) return false
+        if (it.kind == "live") return when (groupClass(it.group)) { 2 -> false; 1 -> !hasAny(it.name, scaryWords); else -> hasAny(it.name, kidsWords) }
+        if (hasAny(it.name, matureTitles) || hasAny(it.name, scaryWords)) return false
+        return hasAny(it.name, studioWords) || strictKids(it.group)
     }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         if (profile() == "kids") { val ck = "kids|$kind"; visCache[ck]?.let { return it }; val out = items.filter { kidsOk(it) }; visCache[ck] = out; return out }
