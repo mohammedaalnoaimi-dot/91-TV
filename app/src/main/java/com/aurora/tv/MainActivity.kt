@@ -670,12 +670,14 @@ class MainActivity : Activity() {
     private fun sortGroups(kind: String, groups: Collection<String>): List<String> = groups.sortedWith(compareBy({ !isFavCat(kind, it) }, { it.lowercase() }))
     private fun addHidden(v: String) { prefs.edit().putStringSet("hidden", HashSet(hidden()) + v).apply(); visCache.clear(); smart.clear() }
     // Kids profile: only what clearly looks like children's content is shown. Anything unrecognised stays hidden, and anything that looks adult is always hidden.
-    private val kidsRx = Regex("(?i)(\\bkids?\\b|\\bkidz\\b|\\bcartoons?\\b|\\btoons?\\b|disney|nickelodeon|\\bnick\\b|junior|\\bjr\\b|baby|animation|animated|\\bfamily\\b|children|pixar|boomerang|spacetoon|majid|mbc ?3|baraem|karameesh|toyor|jeem|cartoon network|\\bcn\\b|dreamworks|اطفال|أطفال|كرتون|رسوم|سبيستون|ماجد|براعم|طيور الجنة|عائل)")
+    private val kidsRx = Regex("(?i)(\\bkids?\\b|\\bkidz\\b|\\bcartoons?\\b|\\btoons?\\b|disney|nickelodeon|\\bnick\\b|junior|\\bjr\\b|baby|animation|animated|\\bfamily\\b|children|pixar|boomerang|spacetoon|majid|mbc ?3|baraem|karameesh|toyor|jeem|cartoon network|\\bcn\\b|dreamworks|cartoonito|\\bpogo\\b|duck ?tv|baby ?tv|nick ?jr|nicktoons?|disney ?(xd|junior|channel|\\+)|discovery kids|pbs kids|cbeebies|cbbc|tiny ?pop|da ?vinci|boing|gulli|clan tv|teletoon|zoo ?moo|kika|\\btoyor\\b|\\bmajed\\b|اطفال|أطفال|كرتون|رسوم|سبيستون|ماجد|براعم|طيور الجنة|عائل)")
     private val adultRx = Regex("(?i)(\\bxxx\\b|\\badults?\\b|18 ?\\+|\\+ ?18|porn|\\bsex|erotic|playboy|brazzers|hentai|nude|nsfw|uncensored|للكبار|للبالغين|جنس|اباح|إباح|عاري|ساخن)")
+    private val kidsTitleRx = Regex("(?i)(disney|pixar|dreamworks|illumination|spongebob|paw patrol|peppa|bluey|tom (and|&) jerry|mickey|toy story|frozen|moana|encanto|minions|shrek|kung fu panda|ice age|madagascar|lion king|finding nemo|cocomelon|barbie|my little pony|looney tunes|scooby|pocoyo|masha)")
     private fun kidsOk(it: Item): Boolean {
         if (adultRx.containsMatchIn(it.group) || adultRx.containsMatchIn(it.name)) return false
         if (kidsRx.containsMatchIn(it.group)) return true
-        return it.kind == "live" && kidsRx.containsMatchIn(it.name)
+        if (it.kind == "live") return kidsRx.containsMatchIn(it.name)
+        return kidsTitleRx.containsMatchIn(it.name)
     }
     private fun visible(kind: String, items: List<Item>): List<Item> {
         if (profile() == "kids") { val ck = "kids|$kind"; visCache[ck]?.let { return it }; val out = items.filter { kidsOk(it) }; visCache[ck] = out; return out }
