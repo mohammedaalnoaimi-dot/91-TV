@@ -298,13 +298,9 @@ class MainActivity : Activity() {
     /** "Who is watching?" - four floating names. The focused one lifts, glows and gets a gold line. */
     private fun showProfilePicker(atStart: Boolean) {
         pickerOpen = !atStart
-        val root = FrameLayout(this).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor("#1c0d11"), BG, Color.parseColor("#0d0809")))
-        }
-        val glow = View(this).apply {
-            background = GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(520).toFloat(); colors = intArrayOf(Color.parseColor("#33C9475C"), Color.parseColor("#00C9475C")) }
-        }
-        root.addView(glow, FrameLayout.LayoutParams(dp(1100), dp(1100), Gravity.CENTER))
+        val root = FrameLayout(this).apply { setBackgroundColor(BG) }
+        val glow = ImageView(this).apply { setImageResource(R.drawable.glow_rose); scaleType = ImageView.ScaleType.FIT_XY; alpha = 0.32f }
+        root.addView(glow, FrameLayout.LayoutParams(dp(900), dp(620), Gravity.CENTER))
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         col.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(420), dp(63)))
         col.addView(mkText("WHO IS WATCHING?", 18f, GRAY, true).apply { letterSpacing = 0.3f; gravity = Gravity.CENTER; setPadding(0, dp(26), 0, dp(54)) })
@@ -314,11 +310,11 @@ class MainActivity : Activity() {
         val cur = profile(); var first: View? = null; var curView: View? = null
         val anims = ArrayList<android.animation.Animator>()
         defs.forEachIndexed { i, (key, name, sub) ->
-            val item = FrameLayout(this).apply { isFocusable = true; isClickable = true; alpha = 0.42f; clipChildren = false; setPadding(dp(30), dp(18), dp(30), dp(22)) }
-            val spot = View(this).apply { alpha = 0f; background = GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(150).toFloat(); colors = intArrayOf(Color.parseColor("#55C9475C"), Color.parseColor("#00C9475C")) } }
-            item.addView(spot, FrameLayout.LayoutParams(dp(300), dp(190), Gravity.CENTER))
+            val item = FrameLayout(this).apply { isFocusable = true; isClickable = true; alpha = 0.42f; clipChildren = false; setPadding(dp(24), dp(18), dp(24), dp(22)) }
+            val spot = ImageView(this).apply { alpha = 0f; setImageResource(R.drawable.glow_rose); scaleType = ImageView.ScaleType.FIT_XY }
+            item.addView(spot, FrameLayout.LayoutParams(-1, -1).apply { setMargins(-dp(70), -dp(50), -dp(70), -dp(50)) })
             val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-            val nm = mkText(name, 34f, CREAM, true).apply { letterSpacing = 0.1f; gravity = Gravity.CENTER; typeface = fDisplay() }
+            val nm = mkText(name, 30f, CREAM, true).apply { maxLines = 1 }.also { it.setSingleLine() }.apply { letterSpacing = 0.1f; gravity = Gravity.CENTER; typeface = fDisplay() }
             val sb = mkText(sub, 13f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) }
             val line = View(this).apply { setBackgroundColor(GOLD); scaleX = 0f }
             box.addView(nm); box.addView(sb); box.addView(line, LinearLayout.LayoutParams(dp(120), dp(3)).apply { topMargin = dp(10) })
@@ -335,7 +331,7 @@ class MainActivity : Activity() {
                 interpolator = android.view.animation.AccelerateDecelerateInterpolator()
             }
             anims.add(fl); fl.start()
-            row.addView(item, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(10), 0, dp(10), 0) })
+            row.addView(item, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(14), 0, dp(14), 0) })
             if (first == null) first = item; if (key == cur) curView = item
         }
         col.addView(row)
