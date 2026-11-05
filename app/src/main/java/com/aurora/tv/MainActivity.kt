@@ -680,6 +680,9 @@ class MainActivity : Activity() {
     }
     private fun writeList(key: String, l: List<Item>) { val a = JSONArray(); l.forEach { a.put(it.toJson()) }; prefs.edit().putString(key, a.toString()).apply() }
     private fun profile(): String = prefs.getString("profile", "mr") ?: "mr"
+    /** Kids profile gets bigger, brighter tiles. */
+    fun isKids(): Boolean = profile() == "kids"
+    fun tileW(): Int = if (isKids()) 200 else 150
     private fun profName(p: String = profile()) = when (p) { "mrs" -> "Mrs"; "kids" -> "Kids"; "together" -> "Together"; else -> "Mr" }
     private fun favsOf(p: String): List<Item> {
         if (p == "together") { val b = readList("favs_mrs").map { it.key }.toSet(); return readList("favs_mr").filter { it.key in b } }
@@ -889,7 +892,7 @@ class MainActivity : Activity() {
             adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
             clipChildren = false; clipToPadding = false; setPadding(0, dp(6), dp(30), dp(10)); itemAnimator = null
         }
-        box.addView(rv, LinearLayout.LayoutParams(-1, dp(225 + 74)))
+        box.addView(rv, LinearLayout.LayoutParams(-1, dp(tileW() * 3 / 2 + 74)))
         return box
     }
 
@@ -920,7 +923,7 @@ class MainActivity : Activity() {
             clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(6))
         }
         root.addView(chips, LinearLayout.LayoutParams(-1, -2))
-        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(60)) / (dp(150) + dp(14)))
+        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(60)) / (dp(tileW()) + dp(14)))
         grid.apply { layoutManager = GridLayoutManager(this@MainActivity, span); adapter = cards; clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(40)); itemAnimator = null }
         root.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
         grid.post { (grid.getChildAt(0) ?: chips.getChildAt(0))?.requestFocus() }
@@ -932,7 +935,7 @@ class MainActivity : Activity() {
         root.addView(eyebrow(label))
         root.addView(mkText(headingText, 30f, CREAM, true).apply { setPadding(0, 0, 0, dp(8)) })
         if (items.isEmpty()) { root.addView(mkText(emptyMsg, 18f, GRAY)); return root }
-        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(60)) / (dp(150) + dp(14)))
+        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(60)) / (dp(tileW()) + dp(14)))
         val grid = RecyclerView(this).apply {
             layoutManager = GridLayoutManager(this@MainActivity, span); adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
             clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(40)); itemAnimator = null
@@ -1213,6 +1216,7 @@ class MainActivity : Activity() {
             }
         }
     }
+    fun hmOf(sec: Long): String = hm(sec)
     private fun hm(sec: Long): String { val c = java.util.Calendar.getInstance(); c.timeInMillis = sec * 1000; return String.format("%02d:%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE)) }
 
     private fun startPreview(it: Item) {
@@ -1610,6 +1614,26 @@ class MainActivity : Activity() {
         p.prepare(); p.playWhenReady = true
     }
 
+    private var nextBtn: TextView? = null
+    private fun hasNextEp(): Boolean { val c = zapList.getOrNull(zapIndex) ?: return false; return c.kind == "episode" && zapIndex + 1 < zapList.size }
+    private fun goNextEpisode() {
+        if (!hasNextEp()) return
+        ui.removeCallbacks(nextRun); savePosition(); prefs.edit().remove("pos_" + zapList[zapIndex].key).apply()
+        zapIndex++; startCurrent(); updateNextBtn()
+    }
+    /** "Next episode" button: visible with the controls, and automatically for the last 90 seconds of an episode. */
+    private fun updateNextBtn() {
+        val b = nextBtn ?: return
+        val p = player; val d = p?.duration ?: -1L
+        val ending = d > 0 && p != null && d - p.currentPosition < 90_000L
+        val ctl = playerView?.isControllerFullyVisible == true
+        if (hasNextEp() && (ending || ctl)) {
+            val n = zapList[zapIndex + 1].name
+            b.text = "NEXT EPISODE  ▶    " + (if (n.length > 38) n.take(36) + "…" else n) + "      (press ▲)"; b.visibility = View.VISIBLE
+        } else b.visibility = View.GONE
+        if (playerRoot != null && hasNextEp()) { ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500) }
+    }
+    private val nextBtnTick = Runnable { updateNextBtn() }
     private var chainNext = false
     private var prevLiveKey = ""
     private var numBuf = ""
@@ -1629,6 +1653,12 @@ class MainActivity : Activity() {
         root.addView(pv, FrameLayout.LayoutParams(-1, -1))
         titleView = TextView(this).apply { textSize = 24f; setTextColor(CREAM); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)); visibility = View.GONE }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
+        nextBtn = TextView(this).apply {
+            textSize = 20f; setTextColor(Color.BLACK); typeface = fMedium(); background = rbg(GOLD, Color.TRANSPARENT, 12, 0); setPadding(dp(26), dp(14), dp(26), dp(14)); visibility = View.GONE
+            isFocusable = false; setOnClickListener { goNextEpisode() }
+        }
+        root.addView(nextBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(110)) })
+        ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500)
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
@@ -1778,7 +1808,7 @@ class MainActivity : Activity() {
     }
 
     private fun leavePlayer() {
-        ui.removeCallbacks(nextRun); ui.removeCallbacks(numRun); numBuf = ""
+        ui.removeCallbacks(nextRun); ui.removeCallbacks(nextBtnTick); nextBtn = null; ui.removeCallbacks(numRun); numBuf = ""
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
         request4k(false)
@@ -1807,6 +1837,8 @@ class MainActivity : Activity() {
         if (playerRoot == null && e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0) { if (fastScroll(e)) return true }
         if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
             val hidden = playerView?.isControllerFullyVisible == false
+            if (nextBtn?.visibility == View.VISIBLE && hasNextEp() && (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || e.keyCode == KeyEvent.KEYCODE_CHANNEL_UP)) { goNextEpisode(); return true }
+            if (hasNextEp() && (e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || e.keyCode == KeyEvent.KEYCODE_CHANNEL_UP)) { goNextEpisode(); return true }
             if (e.keyCode == KeyEvent.KEYCODE_MENU || e.keyCode == KeyEvent.KEYCODE_INFO || (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && hidden)) { audioDialog(); return true }
         }
         return super.dispatchKeyEvent(e)

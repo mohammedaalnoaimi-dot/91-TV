@@ -50,26 +50,28 @@ class PosterAdapter(
     class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val rate: TextView, val bg: GradientDrawable, val prog: Bar) : RecyclerView.ViewHolder(cell)
     override fun getItemCount() = items.size
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val bg = a.rbg(CARD, Color.TRANSPARENT, 3, 3)
+        val kids = a.isKids(); val w = a.tileW(); val hgt = w * 3 / 2
+        val bg = a.rbg(CARD, if (kids) Color.parseColor("#55FFC93C") else Color.TRANSPARENT, if (kids) 18 else 3, 3)
         val cell = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL; isFocusable = true
-            layoutParams = RecyclerView.LayoutParams(a.dp(150), -2).apply { setMargins(a.dp(7), a.dp(7), a.dp(7), a.dp(7)) }
+            layoutParams = RecyclerView.LayoutParams(a.dp(w), -2).apply { setMargins(a.dp(7), a.dp(7), a.dp(7), a.dp(7)) }
         }
         val box = FrameLayout(a).apply { background = bg; clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
         val ini = TextView(a).apply { setTextColor(Color.parseColor("#CCFFFFFF")); textSize = 15f; gravity = Gravity.CENTER; setPadding(a.dp(10), 0, a.dp(10), 0); maxLines = 4 }
         box.addView(ini, FrameLayout.LayoutParams(-1, -1))
         val img = ImageView(a); box.addView(img, FrameLayout.LayoutParams(-1, -1))
         val prog = Bar(a).apply { visibility = android.view.View.GONE }; box.addView(prog, FrameLayout.LayoutParams(-1, a.dp(5), Gravity.BOTTOM))
-        cell.addView(box, LinearLayout.LayoutParams(a.dp(150), a.dp(225)))
-        val label = TextView(a).apply { typeface = a.fBody(); setTextColor(CREAM); textSize = 13f; maxLines = 2; ellipsize = TextUtils.TruncateAt.END; setPadding(a.dp(2), a.dp(6), a.dp(2), 0) }
+        cell.addView(box, LinearLayout.LayoutParams(a.dp(w), a.dp(hgt)))
+        val label = TextView(a).apply { typeface = a.fBody(); setTextColor(CREAM); textSize = if (kids) 17f else 13f; if (kids) typeface = a.fMedium(); maxLines = 2; ellipsize = TextUtils.TruncateAt.END; setPadding(a.dp(2), a.dp(6), a.dp(2), 0) }
         cell.addView(label, LinearLayout.LayoutParams(-1, -2))
         val rate = TextView(a).apply { typeface = a.fMedium(); setTextColor(GOLD); textSize = 11f; maxLines = 1; setPadding(a.dp(2), a.dp(1), a.dp(2), 0) }
         cell.addView(rate, LinearLayout.LayoutParams(-1, -2))
         cell.setOnFocusChangeListener { v, f ->
             val fast = System.currentTimeMillis() < a.holdUntil
             if (f) a.tick()
-            if (fast) { v.animate().cancel(); v.scaleX = if (f) 1.06f else 1f; v.scaleY = if (f) 1.06f else 1f } else v.animate().scaleX(if (f) 1.06f else 1f).scaleY(if (f) 1.06f else 1f).setDuration(100).start()
-            bg.setStroke(a.dp(3), if (f) CREAM else Color.TRANSPARENT)
+            val z = if (kids) 1.12f else 1.06f
+            if (fast) { v.animate().cancel(); v.scaleX = if (f) z else 1f; v.scaleY = if (f) z else 1f } else v.animate().scaleX(if (f) z else 1f).scaleY(if (f) z else 1f).setDuration(100).start()
+            bg.setStroke(a.dp(if (kids) 5 else 3), if (f) (if (kids) Color.parseColor("#FFC93C") else CREAM) else (if (kids) Color.parseColor("#55FFC93C") else Color.TRANSPARENT))
         }
         return VH(cell, img, ini, label, rate, bg, prog)
     }
@@ -83,7 +85,7 @@ class PosterAdapter(
         h.img.scaleType = if (live) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER_CROP
         h.img.setPadding(if (live) a.dp(18) else 0, if (live) a.dp(18) else 0, if (live) a.dp(18) else 0, if (live) a.dp(18) else 0)
         h.ini.text = if (it.logo.isBlank()) it.name else ""
-        Img.load(it.logo, h.img, a.dp(150))
+        Img.load(it.logo, h.img, a.dp(a.tileW()))
         h.cell.setOnClickListener { onPick(items, h.adapterPosition) }
         h.cell.setOnLongClickListener { onLong(items[h.adapterPosition]); true }
     }
@@ -125,12 +127,21 @@ class ChannelAdapter(
         val it = items[position]
         h.num.text = "${position + 1}"; h.name.text = it.name; h.sub.text = it.group; h.bar.frac = 0f
         h.ini.text = it.name.take(2).uppercase(); Img.load(it.logo, h.img, a.dp(54)); h.row.tag = it.key
-        a.epgFor(it, false) { list ->
-            if (h.row.tag == it.key) {
-                val now = a.nowOf(list)
-                if (now != null) { h.sub.text = now.title; h.bar.frac = (System.currentTimeMillis() / 1000 - now.start).toFloat() / maxOf(1L, now.end - now.start) }
+        fun show(list: List<Prog>) {
+            if (h.row.tag != it.key) return
+            val now = a.nowOf(list) ?: return
+            val t = System.currentTimeMillis() / 1000
+            val nx = list.firstOrNull { x -> x.start >= now.end }
+            val head = "NOW  "; val txt = head + now.title + (if (nx != null) "     NEXT " + a.hmOf(nx.start) + "  " + nx.title else "")
+            h.sub.text = android.text.SpannableString(txt).apply {
+                setSpan(android.text.style.ForegroundColorSpan(RED), 0, head.length - 1, 0)
+                if (nx != null) { val i = txt.indexOf("NEXT "); setSpan(android.text.style.ForegroundColorSpan(GOLD), i, i + 4, 0) }
             }
+            h.bar.frac = ((t - now.start).toFloat() / maxOf(1L, now.end - now.start)).coerceIn(0f, 1f)
         }
+        a.epgFor(it, false) { list -> show(list) }
+        // guide data for rows that stay on screen (short delay so fast scrolling doesn't queue hundreds of requests)
+        h.row.postDelayed({ if (h.row.tag == it.key) a.epgFor(it, true) { list -> show(list) } }, 350)
         h.row.setOnFocusChangeListener { v, f ->
             v.background = a.rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#12FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2)
             if (f) onFocus(it)
