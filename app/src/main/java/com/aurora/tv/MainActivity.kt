@@ -273,7 +273,7 @@ class MainActivity : Activity() {
     private fun showProfilePicker(atStart: Boolean) {
         pickerOpen = !atStart
         val root = FrameLayout(this).apply { setBackgroundColor(BG) }
-        val glow = ImageView(this).apply { setImageResource(R.drawable.glow_rose); scaleType = ImageView.ScaleType.FIT_XY; alpha = 0.32f }
+        val glow = ImageView(this).apply { setImageResource(R.drawable.glow_rose); scaleType = ImageView.ScaleType.FIT_XY; alpha = 0.12f }
         root.addView(glow, FrameLayout.LayoutParams(dp(900), dp(620), Gravity.CENTER))
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         col.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(420), dp(63)))
@@ -292,8 +292,9 @@ class MainActivity : Activity() {
             val sb = mkText(sub, 13f, GRAY).apply { gravity = Gravity.CENTER; maxLines = 1; setPadding(0, dp(4), 0, 0) }
             val line = View(this).apply { setBackgroundColor(GOLD); scaleX = 0f }
             box.alpha = 0.42f   // fade the text only: fading the whole item put the glow in an offscreen layer cropped to a square
-            box.addView(nm); box.addView(sb); box.addView(line, LinearLayout.LayoutParams(dp(120), dp(3)).apply { topMargin = dp(10) })
-            item.addView(box, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+            box.addView(nm, LinearLayout.LayoutParams(-1, -2)); box.addView(sb, LinearLayout.LayoutParams(-1, -2)); box.addView(line, LinearLayout.LayoutParams(dp(120), dp(3)).apply { topMargin = dp(10); gravity = Gravity.CENTER_HORIZONTAL })
+            if (android.os.Build.VERSION.SDK_INT >= 26) nm.setAutoSizeTextTypeUniformWithConfiguration(12, 24, 1, android.util.TypedValue.COMPLEX_UNIT_SP)   // long names shrink instead of being cut
+            item.addView(box, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
             item.setOnFocusChangeListener { v, f ->
                 v.animate().scaleX(if (f) 1.14f else 1f).scaleY(if (f) 1.14f else 1f).setDuration(260).start(); box.animate().alpha(if (f) 1f else 0.42f).setDuration(260).start()
                 spot.animate().alpha(if (f) 0.6f else 0f).setDuration(260).start()
