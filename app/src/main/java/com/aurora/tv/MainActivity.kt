@@ -456,6 +456,15 @@ class MainActivity : Activity() {
         val brand = android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
         brandBox.addView(brand, LinearLayout.LayoutParams(dp(190), dp(29)))
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
+        if (profile() != "kids") {
+            val sp = TextView(this).apply {
+                text = "⌕   SEARCH"; textSize = 14f; typeface = fMedium(); setTextColor(CREAM); letterSpacing = 0.12f; isFocusable = true
+                setPadding(dp(18), dp(8), dp(18), dp(8)); background = rbg(Color.parseColor("#14FFFFFF"), Color.parseColor("#33EBDDC4"), 20, 1)
+                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.parseColor("#33EBDDC4"), 20, if (f) 2 else 1) }
+                setOnClickListener { searchDialog() }
+            }
+            head.addView(sp, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(28) })
+        }
         val rightBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
         hdrClock = mkText("", 26f, CREAM).apply { gravity = Gravity.END }
         hdrDate = mkText("", 13f, GRAY).apply { gravity = Gravity.END }
@@ -775,11 +784,29 @@ class MainActivity : Activity() {
         android.app.AlertDialog.Builder(this).setTitle("Category").setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
     }
 
-    private fun searchDialog() {
-        val et = EditText(this).apply { hint = "Type a channel, movie or series…"; setSingleLine(); setText(query); textSize = 22f }
-        android.app.AlertDialog.Builder(this).setTitle("Search").setView(et)
-            .setPositiveButton("Search") { _, _ -> query = et.text.toString().trim(); if (query.isNotBlank()) { section = "search"; markSection(); pageStack.clear(); showPage { searchView() } } }
-            .setNegativeButton("Cancel", null).show()
+    private fun recentSearches(): List<String> = (prefs.getString("searches", "") ?: "").split('\u0001').filter { it.isNotBlank() }
+    private fun addSearch(q: String) { val l = recentSearches().toMutableList(); l.removeAll { it.equals(q, true) }; l.add(0, q); prefs.edit().putString("searches", l.take(8).joinToString("\u0001")).apply() }
+    private fun runSearch(q: String) { query = q.trim(); if (query.isNotBlank()) { addSearch(query); section = "search"; markSection(); pageStack.clear(); showPage { searchView() } } }
+    fun searchDialog() {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(8)) }
+        val et = EditText(this).apply { hint = "Type a channel, movie or series…"; setSingleLine(); setText(query); textSize = 22f; imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH }
+        box.addView(et)
+        var dlg: android.app.AlertDialog? = null
+        val rs = recentSearches()
+        if (rs.isNotEmpty()) {
+            box.addView(mkText("RECENT SEARCHES", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(0, dp(16), 0, dp(6)) })
+            for (r in rs) box.addView(mkText("↺   $r", 18f, CREAM).apply {
+                isFocusable = true; setPadding(dp(10), dp(9), dp(10), dp(9))
+                setOnFocusChangeListener { v, f -> v.setBackgroundColor(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT) }
+                setOnClickListener { dlg?.dismiss(); runSearch(r) }
+            })
+        }
+        dlg = android.app.AlertDialog.Builder(this).setTitle("Search").setView(ScrollView(this).apply { addView(box) })
+            .setPositiveButton("Search") { _, _ -> runSearch(et.text.toString()) }
+            .setNeutralButton(if (rs.isNotEmpty()) "Clear recent" else null) { _, _ -> prefs.edit().remove("searches").apply() }
+            .setNegativeButton("Cancel", null).create()
+        et.setOnEditorActionListener { _, _, _ -> dlg.dismiss(); runSearch(et.text.toString()); true }
+        dlg.show()
     }
 
     // =====================================================================================
@@ -1649,6 +1676,20 @@ class MainActivity : Activity() {
     }
 
     private var nextBtn: TextView? = null
+    private var skipBtn: TextView? = null
+    private var lastSkipAt = 0L
+    private fun seriesKeyOf(it: Item) = "intro_" + it.name.replace(Regex("(?i)\\s*[-–]?\\s*s\\d+\\s*e\\d+.*"), "").trim().lowercase().take(60).ifBlank { it.group.lowercase() }
+    private fun skipVisible(): Boolean { val c = zapList.getOrNull(zapIndex) ?: return false; val p = player ?: return false; return c.kind == "episode" && p.currentPosition < 240_000L && p.currentPosition > 3_000L }
+    /** Skip intro: the provider sends no intro timings, so the first press jumps to the remembered end of this series' intro (or +85 s). Pressing again within 10 s adds 30 s and the app remembers it for the next episodes. */
+    private fun doSkipIntro() {
+        val c = zapList.getOrNull(zapIndex) ?: return; val p = player ?: return
+        val k = seriesKeyOf(c); val now = System.currentTimeMillis()
+        val target = if (now - lastSkipAt < 10_000L) p.currentPosition + 30_000L else { val saved = prefs.getLong(k, 0L); if (saved > p.currentPosition + 5_000L) saved else p.currentPosition + 85_000L }
+        p.seekTo(target); lastSkipAt = now
+        prefs.edit().putLong(k, target).apply()
+        showTitle("Intro skipped   (press ▲ again within 10 s to skip a bit more)", 3500)
+        updateNextBtn()
+    }
     private fun hasNextEp(): Boolean { val c = zapList.getOrNull(zapIndex) ?: return false; return c.kind == "episode" && zapIndex + 1 < zapList.size }
     private fun goNextEpisode() {
         if (!hasNextEp()) return
@@ -1661,11 +1702,14 @@ class MainActivity : Activity() {
         val p = player; val d = p?.duration ?: -1L
         val ending = d > 0 && p != null && d - p.currentPosition < 90_000L
         val ctl = playerView?.isControllerFullyVisible == true
-        if (hasNextEp() && (ending || ctl)) {
+        val sk = skipBtn
+        if (sk != null) { if (skipVisible()) { sk.text = "SKIP INTRO  ▶      (press ▲)"; sk.visibility = View.VISIBLE } else sk.visibility = View.GONE }
+        val skipShown = sk?.visibility == View.VISIBLE
+        if (hasNextEp() && (ending || (ctl && !skipShown))) {
             val n = zapList[zapIndex + 1].name
             b.text = "NEXT EPISODE  ▶    " + (if (n.length > 38) n.take(36) + "…" else n) + "      (press ▲)"; b.visibility = View.VISIBLE
         } else b.visibility = View.GONE
-        if (playerRoot != null && hasNextEp()) { ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500) }
+        if (playerRoot != null && zapList.getOrNull(zapIndex)?.kind == "episode") { ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500) }
     }
     private val nextBtnTick = Runnable { updateNextBtn() }
     private var chainNext = false
@@ -1692,6 +1736,11 @@ class MainActivity : Activity() {
             isFocusable = false; setOnClickListener { goNextEpisode() }
         }
         root.addView(nextBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(110)) })
+        skipBtn = TextView(this).apply {
+            textSize = 20f; setTextColor(Color.WHITE); typeface = fMedium(); background = rbg(Color.parseColor("#CC18110F"), CREAM, 12, 2); setPadding(dp(26), dp(14), dp(26), dp(14)); visibility = View.GONE
+            isFocusable = false; setOnClickListener { doSkipIntro() }
+        }
+        root.addView(skipBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(190)) })
         ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500)
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
         if (android.os.Build.VERSION.SDK_INT >= 26 && prefs.getInt("hdrmode", 0) != 2) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
@@ -1857,7 +1906,7 @@ class MainActivity : Activity() {
     }
 
     private fun leavePlayer() {
-        ui.removeCallbacks(nextRun); ui.removeCallbacks(nextBtnTick); nextBtn = null; ui.removeCallbacks(numRun); numBuf = ""
+        ui.removeCallbacks(nextRun); ui.removeCallbacks(nextBtnTick); nextBtn = null; skipBtn = null; ui.removeCallbacks(numRun); numBuf = ""
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
         request4k(false)
@@ -1886,6 +1935,7 @@ class MainActivity : Activity() {
         if (playerRoot == null && e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0) { if (fastScroll(e)) return true }
         if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
             val hidden = playerView?.isControllerFullyVisible == false
+            if (skipBtn?.visibility == View.VISIBLE && (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT)) { doSkipIntro(); return true }
             if (nextBtn?.visibility == View.VISIBLE && hasNextEp() && (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || e.keyCode == KeyEvent.KEYCODE_CHANNEL_UP)) { goNextEpisode(); return true }
             if (hasNextEp() && (e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || e.keyCode == KeyEvent.KEYCODE_CHANNEL_UP)) { goNextEpisode(); return true }
             if (e.keyCode == KeyEvent.KEYCODE_MENU || e.keyCode == KeyEvent.KEYCODE_INFO || (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && hidden)) { audioDialog(); return true }
@@ -1894,6 +1944,7 @@ class MainActivity : Activity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_SEARCH && playerRoot == null && shell != null && profile() != "kids") { searchDialog(); return true }
         if (pip != null && playerRoot == null && keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) { pipMenu(); return true }
         if (playerRoot != null && zapList.getOrNull(zapIndex)?.kind == "live") {
             when (keyCode) {
