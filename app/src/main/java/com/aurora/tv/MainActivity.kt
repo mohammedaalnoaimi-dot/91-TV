@@ -278,7 +278,7 @@ class MainActivity : Activity() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         col.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(420), dp(63)))
         col.addView(mkText("WHO IS WATCHING?", 18f, GRAY, true).apply { letterSpacing = 0.3f; gravity = Gravity.CENTER; setPadding(0, dp(26), 0, dp(54)) })
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false; setPadding(dp(48), 0, dp(48), 0); weightSum = 4f }
         col.clipChildren = false; root.clipChildren = false
         val defs = listOf(Triple("mr", "MR", "Favourites"), Triple("mrs", "MRS", "Favourites"), Triple("together", "TOGETHER", "Saved by both"), Triple("kids", "KIDS", "Cartoons & family"))
         val cur = profile(); var first: View? = null; var curView: View? = null
@@ -288,15 +288,15 @@ class MainActivity : Activity() {
             val spot = ImageView(this).apply { alpha = 0f; setImageResource(R.drawable.glow_rose); scaleType = ImageView.ScaleType.FIT_XY }
             item.addView(spot, FrameLayout.LayoutParams(dp(300), dp(300), Gravity.CENTER))   // round halo, same size behind every name
             val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-            val nm = mkText(name, 30f, CREAM, true).apply { maxLines = 1 }.also { it.setSingleLine() }.apply { letterSpacing = 0.1f; gravity = Gravity.CENTER; typeface = fDisplay() }
-            val sb = mkText(sub, 13f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) }
+            val nm = mkText(name, 28f, CREAM, true).apply { maxLines = 1 }.also { it.setSingleLine() }.apply { letterSpacing = 0.1f; gravity = Gravity.CENTER; typeface = fDisplay() }
+            val sb = mkText(sub, 13f, GRAY).apply { gravity = Gravity.CENTER; maxLines = 1; setPadding(0, dp(4), 0, 0) }
             val line = View(this).apply { setBackgroundColor(GOLD); scaleX = 0f }
             box.alpha = 0.42f   // fade the text only: fading the whole item put the glow in an offscreen layer cropped to a square
             box.addView(nm); box.addView(sb); box.addView(line, LinearLayout.LayoutParams(dp(120), dp(3)).apply { topMargin = dp(10) })
             item.addView(box, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
             item.setOnFocusChangeListener { v, f ->
                 v.animate().scaleX(if (f) 1.14f else 1f).scaleY(if (f) 1.14f else 1f).setDuration(260).start(); box.animate().alpha(if (f) 1f else 0.42f).setDuration(260).start()
-                spot.animate().alpha(if (f) 1f else 0f).setDuration(260).start()
+                spot.animate().alpha(if (f) 0.6f else 0f).setDuration(260).start()
                 line.animate().scaleX(if (f) 1f else 0f).setDuration(300).start()
                 nm.setTextColor(if (f) GOLD else CREAM); sb.setTextColor(if (f) CREAM else GRAY)
             }
@@ -306,10 +306,10 @@ class MainActivity : Activity() {
                 interpolator = android.view.animation.AccelerateDecelerateInterpolator()
             }
             anims.add(fl); fl.start()
-            row.addView(item, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(14), 0, dp(14), 0) })
+            row.addView(item, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(6), 0, dp(6), 0) })   // four equal columns, so nothing runs off the screen
             if (first == null) first = item; if (key == cur) curView = item
         }
-        col.addView(row)
+        col.addView(row, LinearLayout.LayoutParams(-1, -2))
         col.addView(mkText("Use ◀ ▶ to choose, OK to open", 13f, Color.parseColor("#8f806c")).apply { gravity = Gravity.CENTER; setPadding(0, dp(46), 0, 0) })
         root.addView(col, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
         root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
