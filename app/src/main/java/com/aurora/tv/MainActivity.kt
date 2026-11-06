@@ -458,12 +458,12 @@ class MainActivity : Activity() {
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
         if (profile() != "kids") {
             val sp = TextView(this).apply {
-                text = "⌕   SEARCH"; textSize = 14f; typeface = fMedium(); setTextColor(CREAM); letterSpacing = 0.12f; isFocusable = true
-                setPadding(dp(18), dp(8), dp(18), dp(8)); background = rbg(Color.parseColor("#14FFFFFF"), Color.parseColor("#33EBDDC4"), 20, 1)
-                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.parseColor("#33EBDDC4"), 20, if (f) 2 else 1) }
+                text = "⌕"; textSize = 17f; setTextColor(CREAM); gravity = Gravity.CENTER; isFocusable = true
+                background = rbg(Color.parseColor("#14FFFFFF"), Color.parseColor("#59EBDDC4"), 20, 1)
+                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.parseColor("#59EBDDC4"), 20, if (f) 2 else 1); v.animate().scaleX(if (f) 1.15f else 1f).scaleY(if (f) 1.15f else 1f).setDuration(120).start() }
                 setOnClickListener { searchDialog() }
             }
-            head.addView(sp, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(28) })
+            head.addView(sp, LinearLayout.LayoutParams(dp(34), dp(34)).apply { leftMargin = dp(22) })
         }
         val rightBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
         hdrClock = mkText("", 26f, CREAM).apply { gravity = Gravity.END }
@@ -476,7 +476,7 @@ class MainActivity : Activity() {
         navItems.clear()
         val entries = if (profile() == "kids") listOf("home" to "HOME", "live" to "LIVE TV", "movie" to "MOVIES", "series" to "TV SERIES", "list" to "MY LIST", "profile" to "WHO IS WATCHING")
         else listOf("home" to "HOME", "live" to "LIVE TV", "multi" to "MULTI", "movie" to "MOVIES", "series" to "TV SERIES",
-            "list" to "MY LIST", "prayer" to "PRAYER", "search" to "SEARCH", "settings" to "SETTINGS", "profile" to profName().uppercase())
+            "list" to "MY LIST", "prayer" to "PRAYER", "settings" to "SETTINGS", "profile" to profName().uppercase())
         for ((k, label) in entries) {
             val ni = NavItem(this, label).apply { setOnClickListener { if (k == "profile") showProfilePicker(false) else if (k == "search") searchDialog() else if (k == "multi") { releasePreview(); startActivity(android.content.Intent(this@MainActivity, MultiActivity::class.java)) } else nav(k) } }
             navItems[k] = ni; navRow.addView(ni, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(6), 0, dp(6), 0) })
