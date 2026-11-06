@@ -286,7 +286,7 @@ class MainActivity : Activity() {
         defs.forEachIndexed { i, (key, name, sub) ->
             val item = FrameLayout(this).apply { isFocusable = true; isClickable = true; clipChildren = false; clipToPadding = false; setPadding(dp(24), dp(18), dp(24), dp(22)) }
             val spot = ImageView(this).apply { alpha = 0f; setImageResource(R.drawable.glow_rose); scaleType = ImageView.ScaleType.FIT_XY }
-            item.addView(spot, FrameLayout.LayoutParams(-1, -1).apply { setMargins(-dp(70), -dp(50), -dp(70), -dp(50)) })
+            item.addView(spot, FrameLayout.LayoutParams(dp(300), dp(300), Gravity.CENTER))   // round halo, same size behind every name
             val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
             val nm = mkText(name, 30f, CREAM, true).apply { maxLines = 1 }.also { it.setSingleLine() }.apply { letterSpacing = 0.1f; gravity = Gravity.CENTER; typeface = fDisplay() }
             val sb = mkText(sub, 13f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) }
