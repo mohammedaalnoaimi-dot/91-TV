@@ -260,7 +260,7 @@ class MainActivity : Activity() {
     private fun pickProfile(p: String) {
         profileChosen = true; pickerOpen = false
         setProfile(p)
-        if (p == "kids") {
+        if (profType(p) == "kids") {
             splash("Getting the Kids profile ready")
             Thread {
                 try { visible("live", live); visible("movie", movies); visible("series", series) } catch (e: Throwable) { }
@@ -278,9 +278,11 @@ class MainActivity : Activity() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         col.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(420), dp(63)))
         col.addView(mkText("WHO IS WATCHING?", 18f, GRAY, true).apply { letterSpacing = 0.3f; gravity = Gravity.CENTER; setPadding(0, dp(26), 0, dp(54)) })
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false; setPadding(dp(48), 0, dp(48), 0); weightSum = 4f }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false; setPadding(dp(48), 0, dp(48), 0); weightSum = 5f }
         col.clipChildren = false; root.clipChildren = false
-        val defs = listOf(Triple("mr", "MR", "Favourites"), Triple("mrs", "MRS", "Favourites"), Triple("together", "TOGETHER", "Saved by both"), Triple("kids", "KIDS", "Cartoons & family"))
+        val defs = ArrayList<Triple<String, String, String>>()
+        for (p in profs()) defs.add(Triple(p.id, p.name.uppercase(), when (p.type) { "kids" -> "Cartoons & family"; "together" -> if (stdIds().size == 2) "Saved by both" else "Saved by all"; else -> "Favourites" }))
+        if (profs().size < 5) defs.add(Triple("__add", "+ ADD", "New profile"))
         val cur = profile(); var first: View? = null; var curView: View? = null
         val anims = ArrayList<android.animation.Animator>()
         defs.forEachIndexed { i, (key, name, sub) ->
@@ -301,7 +303,8 @@ class MainActivity : Activity() {
                 line.animate().scaleX(if (f) 1f else 0f).setDuration(300).start()
                 nm.setTextColor(if (f) GOLD else CREAM); sb.setTextColor(if (f) CREAM else GRAY)
             }
-            item.setOnClickListener { pickProfile(key) }
+            item.setOnClickListener { if (key == "__add") addProfileFlow() else pickProfile(key) }
+            if (key != "__add") item.setOnLongClickListener { profileMenu(key); true }
             val fl = android.animation.ObjectAnimator.ofFloat(box, "translationY", 0f, -dp(7).toFloat()).apply {
                 duration = 2600; startDelay = i * 450L; repeatMode = android.animation.ValueAnimator.REVERSE; repeatCount = android.animation.ValueAnimator.INFINITE
                 interpolator = android.view.animation.AccelerateDecelerateInterpolator()
@@ -311,7 +314,7 @@ class MainActivity : Activity() {
             if (first == null) first = item; if (key == cur) curView = item
         }
         col.addView(row, LinearLayout.LayoutParams(-1, -2))
-        col.addView(mkText("Use ◀ ▶ to choose, OK to open", 13f, Color.parseColor("#8f806c")).apply { gravity = Gravity.CENTER; setPadding(0, dp(46), 0, 0) })
+        col.addView(mkText("Use ◀ ▶ to choose, OK to open   ·   hold OK to rename or delete", 13f, Color.parseColor("#8f806c")).apply { gravity = Gravity.CENTER; setPadding(0, dp(46), 0, 0) })
         root.addView(col, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
         root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) {}
@@ -319,6 +322,89 @@ class MainActivity : Activity() {
         })
         setContentView(root)
         (curView ?: first)?.requestFocus()
+    }
+
+    // ---------------------------------------------------------------- profile management
+    private val quickNames = listOf("Dad", "Mum", "Me", "Guest", "Grandpa", "Grandma", "Son", "Daughter")
+    private fun appDialog(build: (LinearLayout, android.app.Dialog) -> Unit): android.app.Dialog {
+        val dlg = android.app.Dialog(this); dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(30), dp(24), dp(30), dp(22)); background = rbg(PANEL, Color.parseColor("#59D7B88A"), 16, 1) }
+        build(panel, dlg)
+        dlg.setContentView(ScrollView(this).apply { addView(panel) })
+        dlg.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)); setLayout(dp(640), android.view.WindowManager.LayoutParams.WRAP_CONTENT); setDimAmount(0.78f) }
+        return dlg
+    }
+    private fun dlgButton(label: String, filled: Boolean, onClick: () -> Unit) = TextView(this).apply {
+        text = label; textSize = 14f; typeface = fDisplay(); letterSpacing = 0.14f; isFocusable = true; setPadding(dp(22), dp(11), dp(22), dp(11)); setTextColor(if (filled) Color.parseColor("#1A1208") else CREAM)
+        fun paint(f: Boolean) { background = rbg(if (filled) CREAM else Color.TRANSPARENT, if (f) RED else if (filled) CREAM else Color.parseColor("#4DEBDDC4"), 10, if (f) 3 else 1) }
+        paint(false); setOnFocusChangeListener { _, f -> paint(f) }; setOnClickListener { onClick() }
+    }
+    private fun choiceRow(label: String, onClick: () -> Unit) = mkText(label, 19f, CREAM).apply {
+        isFocusable = true; setPadding(dp(14), dp(13), dp(14), dp(13)); background = rbg(Color.TRANSPARENT, Color.TRANSPARENT, 8, 2)
+        setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.TRANSPARENT, 8, 2) }; setOnClickListener { onClick() }
+    }
+    private fun nameDialog(title: String, initial: String, onDone: (String) -> Unit) {
+        appDialog { panel, dlg ->
+            panel.addView(mkText(title, 16f, GOLD, true).apply { letterSpacing = 0.24f; typeface = fDisplay(); setPadding(0, 0, 0, dp(12)) })
+            val et = EditText(this).apply {
+                hint = "Name (up to 10 letters)"; setSingleLine(); setText(initial); textSize = 22f; typeface = fBody(); setTextColor(CREAM); setHintTextColor(MUTED)
+                filters = arrayOf(android.text.InputFilter.LengthFilter(10)); setPadding(dp(16), dp(12), dp(16), dp(12)); background = rbg(Color.parseColor("#0AFFFFFF"), RED, 10, 2)
+                imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            }
+            panel.addView(et, LinearLayout.LayoutParams(-1, -2))
+            panel.addView(mkText("QUICK PICKS", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(0, dp(16), 0, dp(6)) })
+            val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            var line: LinearLayout? = null
+            quickNames.forEachIndexed { i, n ->
+                if (i % 4 == 0) { line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }; wrap.addView(line) }
+                line!!.addView(mkText(n, 17f, CREAM).apply {
+                    isFocusable = true; setPadding(dp(14), dp(8), dp(14), dp(8)); background = rbg(Color.TRANSPARENT, Color.parseColor("#40EBDDC4"), 18, 1)
+                    setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.parseColor("#40EBDDC4"), 18, if (f) 2 else 1) }
+                    setOnClickListener { et.setText(n); et.setSelection(n.length) }
+                }, LinearLayout.LayoutParams(-2, -2).apply { setMargins(0, 0, dp(8), dp(8)) })
+            }
+            panel.addView(wrap)
+            fun done() { val v = et.text.toString().trim(); if (v.isNotBlank()) { dlg.dismiss(); onDone(v) } }
+            et.setOnEditorActionListener { _, _, _ -> done(); true }
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END; setPadding(0, dp(14), 0, 0) }
+            row.addView(dlgButton("CANCEL", false) { dlg.dismiss() }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(12) })
+            row.addView(dlgButton("SAVE", true) { done() }); panel.addView(row)
+        }.show()
+    }
+    private fun refreshPicker() { showProfilePicker(!pickerOpen) }
+    private fun addProfileFlow() {
+        nameDialog("NEW PROFILE", "") { name ->
+            appDialog { panel, dlg ->
+                panel.addView(mkText("WHO IS \"${name.uppercase()}\"?", 16f, GOLD, true).apply { letterSpacing = 0.2f; typeface = fDisplay(); setPadding(0, 0, 0, dp(10)) })
+                fun add(type: String) { dlg.dismiss(); val id = "p" + (System.currentTimeMillis() % 1000000); saveProfs(profs() + Prof(id, name, type)); refreshPicker() }
+                panel.addView(choiceRow("Standard profile  -  own favourites and history") { add("std") })
+                panel.addView(choiceRow("Kids profile  -  cartoons and family only") { add("kids") })
+                if (profs().none { it.type == "together" } && stdIds().size >= 2) panel.addView(choiceRow("Together  -  titles everyone saved") { add("together") })
+            }.show()
+        }
+    }
+    private fun profileMenu(id: String) {
+        val p = profOf(id) ?: return
+        appDialog { panel, dlg ->
+            panel.addView(mkText(p.name.uppercase(), 16f, GOLD, true).apply { letterSpacing = 0.24f; typeface = fDisplay(); setPadding(0, 0, 0, dp(10)) })
+            panel.addView(choiceRow("Rename") { dlg.dismiss(); nameDialog("RENAME", p.name) { n -> saveProfs(profs().map { x -> if (x.id == id) x.copy(name = n) else x }); refreshPicker() } })
+            if (profs().size > 1) panel.addView(choiceRow("Delete this profile") {
+                dlg.dismiss()
+                appDialog { p2, d2 ->
+                    p2.addView(mkText("DELETE ${p.name.uppercase()}?", 16f, GOLD, true).apply { letterSpacing = 0.2f; typeface = fDisplay(); setPadding(0, 0, 0, dp(8)) })
+                    p2.addView(mkItalic("Its favourites and watch history are removed. This cannot be undone.", 15f, GRAY))
+                    val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END; setPadding(0, dp(16), 0, 0) }
+                    r.addView(dlgButton("KEEP", false) { d2.dismiss() }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(12) })
+                    r.addView(dlgButton("DELETE", true) {
+                        d2.dismiss(); val rest = profs().filter { x -> x.id != id }
+                        prefs.edit().remove("favs_$id").remove(recentKeyOf(id)).apply(); saveProfs(rest)
+                        if (prefs.getString("profile", "") == id) setProfile(rest.first().id)
+                        refreshPicker()
+                    }); p2.addView(r)
+                }.show()
+            })
+            panel.addView(choiceRow("Close") { dlg.dismiss() })
+        }.show()
     }
 
     /** Loading screen: sharp wordmark that fades in, a soft rose glow that breathes, a tagline and a sweeping progress line. */
@@ -460,7 +546,7 @@ class MainActivity : Activity() {
         val brand = android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
         brandBox.addView(brand, LinearLayout.LayoutParams(dp(190), dp(29)))
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
-        if (profile() != "kids") {
+        if (!isKids()) {
             val sp = TextView(this).apply {
                 text = "⌕"; textSize = 17f; setTextColor(CREAM); gravity = Gravity.CENTER; isFocusable = true
                 background = rbg(Color.parseColor("#14FFFFFF"), Color.parseColor("#59EBDDC4"), 20, 1)
@@ -478,7 +564,7 @@ class MainActivity : Activity() {
         // ---- top menu
         val navRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) }
         navItems.clear()
-        val entries = if (profile() == "kids") listOf("home" to "HOME", "live" to "LIVE TV", "movie" to "MOVIES", "series" to "TV SERIES", "list" to "MY LIST", "profile" to "WHO IS WATCHING")
+        val entries = if (isKids()) listOf("home" to "HOME", "live" to "LIVE TV", "movie" to "MOVIES", "series" to "TV SERIES", "list" to "MY LIST", "profile" to "WHO IS WATCHING")
         else listOf("home" to "HOME", "live" to "LIVE TV", "multi" to "MULTI", "movie" to "MOVIES", "series" to "TV SERIES",
             "list" to "MY LIST", "prayer" to "PRAYER", "settings" to "SETTINGS", "profile" to profName().uppercase())
         for ((k, label) in entries) {
@@ -531,10 +617,10 @@ class MainActivity : Activity() {
         banner = t; ui.postDelayed(dropBanner, 9000)
     }
 
-    private fun startSection(): String { val x = prefs.getString("lastSection", "home") ?: "home"; return if (profile() == "kids") (if (x in setOf("home", "live", "movie", "series", "list")) x else "home") else if (x in setOf("home", "live", "movie", "series", "list", "prayer")) x else "home" }
+    private fun startSection(): String { val x = prefs.getString("lastSection", "home") ?: "home"; return if (isKids()) (if (x in setOf("home", "live", "movie", "series", "list")) x else "home") else if (x in setOf("home", "live", "movie", "series", "list", "prayer")) x else "home" }
 
     private fun nav(sec0: String) {
-        val sec = if (profile() == "kids" && sec0 !in setOf("home", "live", "movie", "series", "list")) "home" else sec0
+        val sec = if (isKids() && sec0 !in setOf("home", "live", "movie", "series", "list")) "home" else sec0
         if (sec != "settings") prefs.edit().putString("lastSection", sec).apply()
         section = sec; pageStack.clear(); markSection()
         showPage {
@@ -703,7 +789,7 @@ class MainActivity : Activity() {
         return hasAny(it.name, studioWords) || strictKids(it.group)
     }
     private fun visible(kind: String, items: List<Item>): List<Item> {
-        if (profile() == "kids") { val ck = "kids|$kind"; visCache[ck]?.let { return it }; val out = items.filter { kidsOk(it) }; visCache[ck] = out; return out }
+        if (isKids()) { val ck = "kids|$kind"; visCache[ck]?.let { return it }; val out = items.filter { kidsOk(it) }; visCache[ck] = out; return out }
         val h = hidden(); if (h.isEmpty()) return items
         visCache[kind]?.let { return it }
         val bad = HashSet<String>()
@@ -717,25 +803,47 @@ class MainActivity : Activity() {
         return try { val a = JSONArray(s); (0 until a.length()).map { Item.fromJson(a.getJSONObject(it)) } } catch (e: Exception) { emptyList() }
     }
     private fun writeList(key: String, l: List<Item>) { val a = JSONArray(); l.forEach { a.put(it.toJson()) }; prefs.edit().putString(key, a.toString()).apply() }
-    private fun profile(): String = prefs.getString("profile", "mr") ?: "mr"
+    // ---- profiles: any household can rename, add and remove them. type: std (own favourites), together (shared favourites of all std), kids (cartoons and family only)
+    data class Prof(val id: String, val name: String, val type: String)
+    private var profsCache: List<Prof>? = null
+    private fun defaultProfs() = listOf(Prof("mr", "Mr", "std"), Prof("mrs", "Mrs", "std"), Prof("together", "Together", "together"), Prof("kids", "Kids", "kids"))
+    fun profs(): List<Prof> {
+        profsCache?.let { return it }
+        val l = try { val a = org.json.JSONArray(prefs.getString("profiles", "") ?: ""); (0 until a.length()).map { val o = a.getJSONObject(it); Prof(o.getString("id"), o.getString("name"), o.getString("type")) } } catch (e: Exception) { emptyList() }
+        return (if (l.isEmpty()) defaultProfs() else l).also { profsCache = it }
+    }
+    private fun saveProfs(l: List<Prof>) {
+        val a = org.json.JSONArray(); l.forEach { a.put(org.json.JSONObject().put("id", it.id).put("name", it.name).put("type", it.type)) }
+        prefs.edit().putString("profiles", a.toString()).apply(); profsCache = l
+    }
+    private fun profOf(id: String) = profs().firstOrNull { it.id == id }
+    private fun profile(): String { val p = prefs.getString("profile", "mr") ?: "mr"; return if (profOf(p) != null) p else profs().first().id }
+    private fun profType(p: String = profile()) = profOf(p)?.type ?: "std"
     /** Kids profile gets bigger, brighter tiles. */
-    fun isKids(): Boolean = profile() == "kids"
+    fun isKids(): Boolean = profType() == "kids"
+    private fun isTogether(p: String = profile()) = profType(p) == "together"
+    private fun stdIds() = profs().filter { it.type == "std" }.map { it.id }
     fun tileW(): Int = if (isKids()) 200 else 150
-    private fun profName(p: String = profile()) = when (p) { "mrs" -> "Mrs"; "kids" -> "Kids"; "together" -> "Together"; else -> "Mr" }
+    private fun profName(p: String = profile()) = profOf(p)?.name ?: "Mr"
     private fun favsOf(p: String): List<Item> {
-        if (p == "together") { val b = readList("favs_mrs").map { it.key }.toSet(); return readList("favs_mr").filter { it.key in b } }
+        if (isTogether(p)) {
+            val ids = stdIds(); if (ids.isEmpty()) return emptyList()
+            var out = readList("favs_" + ids[0]); for (o in ids.drop(1)) { val k = readList("favs_$o").map { it.key }.toSet(); out = out.filter { it.key in k } }
+            return out
+        }
         return readList("favs_$p")
     }
     private fun favs() = favsOf(profile())
     private fun isFav(it: Item) = favs().any { f -> f.key == it.key }
     private fun isFavOf(p: String, it: Item) = favsOf(p).any { f -> f.key == it.key }
     private fun toggleFav(it: Item) {
-        if (profile() == "together") { if (isFav(it)) { removeFavFrom("mr", it); removeFavFrom("mrs", it) } else { addFavTo("mr", it); addFavTo("mrs", it) }; return }
+        if (isTogether()) { val ids = stdIds(); if (isFav(it)) ids.forEach { p -> removeFavFrom(p, it) } else ids.forEach { p -> addFavTo(p, it) }; return }
         val l = favs().toMutableList(); if (!l.removeAll { f -> f.key == it.key }) l.add(0, it); writeList("favs_" + profile(), l)
     }
     private fun addFavTo(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.none { f -> f.key == it.key }) { l.add(0, it); writeList("favs_$p", l) } }
     private fun removeFavFrom(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.removeAll { f -> f.key == it.key }) writeList("favs_$p", l) }
-    private fun recentKey() = when (profile()) { "kids" -> "recent_kids"; "mrs" -> "recent_mrs"; "together" -> "recent_together"; else -> "recent" }   // each profile keeps its own history ("mr" keeps the original key)
+    private fun recentKeyOf(p: String) = if (p == "mr") "recent" else "recent_$p"
+    private fun recentKey() = recentKeyOf(profile())   // each profile keeps its own history ("mr" keeps the original key)
     private fun recents() = readList(recentKey())
     private fun addRecent(it: Item) { val l = recents().toMutableList(); l.removeAll { r -> r.key == it.key }; l.add(0, it); writeList(recentKey(), l.take(60)) }
     private fun savedPos(it: Item): Long = prefs.getLong("pos_" + it.key, 0L)
@@ -767,9 +875,12 @@ class MainActivity : Activity() {
     private fun itemMenu(it: Item) {
         val opts = ArrayList<String>(); val acts = ArrayList<() -> Unit>()
         opts += if (isFav(it)) "Remove from ${profName()}'s list" else "Add to ${profName()}'s list"; acts += { toggleFav(it); refreshPage() }
-        if (profile() == "kids") { android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show(); return }
-        if (isFavOf("mr", it) && isFavOf("mrs", it)) { opts += "Remove from both lists"; acts += { removeFavFrom("mr", it); removeFavFrom("mrs", it); refreshPage() } }
-        else { opts += "Add to both lists (Together)"; acts += { addFavTo("mr", it); addFavTo("mrs", it); refreshPage() } }
+        if (isKids()) { android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show(); return }
+        val sids = stdIds()
+        if (sids.size >= 2 && profs().any { p -> p.type == "together" }) {
+            if (sids.all { p -> isFavOf(p, it) }) { opts += "Remove from all lists"; acts += { sids.forEach { p -> removeFavFrom(p, it) }; refreshPage() } }
+            else { opts += "Add to all lists (Together)"; acts += { sids.forEach { p -> addFavTo(p, it) }; refreshPage() } }
+        }
         if (it.kind == "live") { opts += "▣ Watch in a small corner screen"; acts += { startPip(it) } }
         if (pip != null) { opts += "▣ Corner screen options…"; acts += { pipMenu() } }
         val kind = hideKind(it); val pre = groupPrefix(it.group)
@@ -779,7 +890,7 @@ class MainActivity : Activity() {
         android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
     }
     private fun groupMenu(kind: String, g: String) {
-        if (profile() == "kids") return
+        if (isKids()) return
         val pre = groupPrefix(g); val opts = ArrayList<String>(); val acts = ArrayList<() -> Unit>()
         opts += if (isFavCat(kind, g)) "★ Remove “$g” from favourite categories" else "★ Make “$g” a favourite category"
         acts += { toggleFavCat(kind, g); catFor[kind] = null; liveCat = 0; refreshPage() }
@@ -842,7 +953,7 @@ class MainActivity : Activity() {
         if (cont.isNotEmpty()) col.addView(rowView("Continue watching", cont))
         becauseRows.forEach { (t, l) -> col.addView(rowView("Because you watched  " + Ratings.cleanTitle(t), l)) }
         val fv = favs()
-        if (profile() != "kids") {
+        if (!isKids()) {
             val fch = fv.filter { it.kind == "live" }; val ftl = fv.filter { it.kind != "live" }
             if (fch.isNotEmpty()) col.addView(rowView("${profName()}'s channels", fch))
             if (ftl.isNotEmpty()) col.addView(rowView("${profName()}'s list", ftl))
@@ -1037,16 +1148,14 @@ class MainActivity : Activity() {
     }
 
     private fun listPage(): View {
-        if (profile() == "kids") return kidsListPage()
-        val mr = favsOf("mr"); val mrs = favsOf("mrs")
-        val mrsKeys = mrs.map { it.key }.toSet()
-        val both = mr.filter { it.key in mrsKeys }
+        if (isKids()) return kidsListPage()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(18), dp(24), 0) }
         root.addView(eyebrow("WATCHLIST"))
         root.addView(mkText("What shall we watch tonight?", 26f, CREAM, true).apply { setPadding(0, dp(6), 0, 0) })
         root.addView(mkItalic("You are adding as ${profName()}  ·  change who is watching with the profile button in the top bar  ·  hold OK on any title for more", 14f, GRAY).apply { setPadding(0, dp(2), 0, dp(10)) })
         val cols = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; clipChildren = false }
         val grids = ArrayList<RecyclerView>()
+        val spanN = if (profs().count { it.type != "kids" } >= 4) 1 else 2
         fun column(title: String, sub: String, items: List<Item>, accent: Int, empty: String) {
             val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(dp(8), 0, dp(8), 0) }
             c.addView(mkText("$title  ·  ${items.size}", 14f, accent, true).apply { letterSpacing = 0.2f })
@@ -1055,7 +1164,7 @@ class MainActivity : Activity() {
             if (items.isEmpty()) c.addView(mkItalic(empty, 15f, MUTED).apply { setPadding(0, dp(14), dp(10), 0) })
             else {
                 val g = RecyclerView(this).apply {
-                    layoutManager = GridLayoutManager(this@MainActivity, 2)
+                    layoutManager = GridLayoutManager(this@MainActivity, spanN)
                     adapter = PosterAdapter(this@MainActivity, items, { l, p -> openAny(l, p) }, { itemMenu(it) })
                     clipChildren = false; clipToPadding = false; setPadding(0, dp(10), 0, dp(40)); itemAnimator = null
                 }
@@ -1063,9 +1172,13 @@ class MainActivity : Activity() {
             }
             cols.addView(c, LinearLayout.LayoutParams(0, -1, 1f))
         }
-        column("MR'S LIST", "saved by him", mr, GOLD, "Nothing yet.")
-        column("TOGETHER", "on both lists", both, ROSE, "Titles you both saved appear here. Hold OK on a title and choose “Add to both lists”.")
-        column("MRS'S LIST", "saved by her", mrs, GOLD, "Nothing yet.")
+        val stds = profs().filter { it.type == "std" }.take(3); val tog = profs().firstOrNull { it.type == "together" }
+        val order = ArrayList<Prof>(); order.addAll(stds.take(1)); if (tog != null && stds.size >= 2) order.add(tog); order.addAll(stds.drop(1))
+        if (order.isEmpty()) order.add(profs().first { it.id == profile() })
+        for (p in order) {
+            if (p.type == "together") column("TOGETHER", "on every list", favsOf(p.id), ROSE, "Titles everyone saved appear here. Hold OK on a title and choose “Add to all lists”.")
+            else column(p.name.uppercase() + "'S LIST", "saved by ${p.name}", favsOf(p.id), GOLD, "Nothing yet.")
+        }
         root.addView(cols, LinearLayout.LayoutParams(-1, 0, 1f))
         root.post { grids.firstOrNull { g -> g.getChildAt(0) != null }?.getChildAt(0)?.requestFocus() }
         return root
@@ -1397,7 +1510,7 @@ class MainActivity : Activity() {
             if (firstRow == null) firstRow = r
         }
         head("YOU")
-        row("Who is watching", "Now: ${profName()}.  Press to choose Mr, Mrs, Together or Kids") { showProfilePicker(false) }
+        row("Profiles", "Now: ${profName()}.  Press to switch, add, rename or delete profiles") { showProfilePicker(false) }
         head("PRAYER TIMES  ·  BAHRAIN")
         row("Calculation method", "${Prayer.methodName(prefs)}  - press to change (Gulf Region is the usual one for Bahrain). Times come from Aladhan and can differ by a minute or two from the official timetable") {
             val i = Prayer.METHODS.indexOfFirst { it.first == prefs.getInt("ptMethod", 8) }
@@ -1413,7 +1526,7 @@ class MainActivity : Activity() {
             android.app.AlertDialog.Builder(this).setTitle("Log out from this host?")
                 .setMessage("The server, username, password and downloaded lists will be removed from this TV. Your 91 TV licence stays. You can add a provider again afterwards.")
                 .setPositiveButton("Log out") { _, _ ->
-                    prefs.edit().remove("server").remove("user").remove("pass").remove("m3u").remove("recent").remove("recent_mrs").remove("recent_kids").remove("recent_together").apply()
+                    prefs.edit().remove("server").remove("user").remove("pass").remove("m3u").remove("recent").apply(); profs().forEach { p -> prefs.edit().remove(recentKeyOf(p.id)).apply() }
                     Cache.clear(this); xt = null; setData(emptyList(), emptyList(), emptyList())
                     Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show(); setupView()
                 }
@@ -1965,7 +2078,7 @@ class MainActivity : Activity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_SEARCH && playerRoot == null && shell != null && profile() != "kids") { searchDialog(); return true }
+        if (keyCode == KeyEvent.KEYCODE_SEARCH && playerRoot == null && shell != null && !isKids()) { searchDialog(); return true }
         if (pip != null && playerRoot == null && keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) { pipMenu(); return true }
         if (playerRoot != null && zapList.getOrNull(zapIndex)?.kind == "live") {
             when (keyCode) {
