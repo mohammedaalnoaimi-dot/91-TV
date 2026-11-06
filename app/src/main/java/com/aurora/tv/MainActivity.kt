@@ -284,11 +284,11 @@ class MainActivity : Activity() {
         val cur = profile(); var first: View? = null; var curView: View? = null
         val anims = ArrayList<android.animation.Animator>()
         defs.forEachIndexed { i, (key, name, sub) ->
-            val item = FrameLayout(this).apply { isFocusable = true; isClickable = true; clipChildren = false; clipToPadding = false; setPadding(dp(24), dp(18), dp(24), dp(22)) }
+            val item = FrameLayout(this).apply { isFocusable = true; isClickable = true; clipChildren = false; clipToPadding = false; setPadding(dp(2), dp(18), dp(2), dp(22)) }
             val spot = ImageView(this).apply { alpha = 0f; setImageResource(R.drawable.glow_rose); scaleType = ImageView.ScaleType.FIT_XY }
-            item.addView(spot, FrameLayout.LayoutParams(dp(300), dp(300), Gravity.CENTER))   // round halo, same size behind every name
+            item.addView(spot, FrameLayout.LayoutParams(dp(260), dp(260), Gravity.CENTER).apply { topMargin = -dp(18) })   // centred on the name, not on the whole block   // round halo, same size behind every name
             val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-            val nm = mkText(name, 28f, CREAM, true).apply { maxLines = 1 }.also { it.setSingleLine() }.apply { letterSpacing = 0.1f; gravity = Gravity.CENTER; typeface = fDisplay() }
+            val nm = mkText(name, 24f, CREAM, true).apply { maxLines = 1 }.also { it.setSingleLine() }.apply { letterSpacing = 0.05f; includeFontPadding = false; gravity = Gravity.CENTER; typeface = fDisplay() }
             val sb = mkText(sub, 13f, GRAY).apply { gravity = Gravity.CENTER; maxLines = 1; setPadding(0, dp(4), 0, 0) }
             val line = View(this).apply { setBackgroundColor(GOLD); scaleX = 0f }
             box.alpha = 0.42f   // fade the text only: fading the whole item put the glow in an offscreen layer cropped to a square
