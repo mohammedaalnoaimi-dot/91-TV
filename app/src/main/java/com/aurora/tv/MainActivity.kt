@@ -557,12 +557,26 @@ class MainActivity : Activity() {
     private val YEAR = Regex("\\((\\d{4})\\)")
     private fun yearOf(n: String) = YEAR.find(n)?.groupValues?.get(1)?.toIntOrNull() ?: 0
     /** Shows the provider's rating straight away, then IMDb / Rotten Tomatoes from OMDb when a key is set in Settings. */
+    /** Quality badges (4K, DV, HDR10+, HDR, ATMOS) read from the title / category the provider sends; after a title has been played the real stream details replace the guess. */
+    fun qualityTags(item: Item): String {
+        if (item.kind == "live") return ""
+        prefs.getString("q_" + item.key, null)?.let { return it }
+        val s = (item.name + " " + item.group).lowercase()
+        fun has(vararg w: String) = w.any { s.contains(it) }
+        val out = ArrayList<String>()
+        if (has("8k")) out.add("8K") else if (has("4k", "uhd", "2160")) out.add("4K")
+        if (has("dolby vision", "dovi", " dv ", ".dv.", "-dv", "dv-", "[dv", "(dv", " dv\u0029")) out.add("DV")
+        if (has("hdr10+", "hdr10plus")) out.add("HDR10+") else if (has("hdr")) out.add("HDR")
+        if (has("atmos")) out.add("ATMOS")
+        return out.joinToString(" · ")
+    }
+    private fun withQuality(item: Item, r: String): String { val q = qualityTags(item); return if (q.isEmpty()) r else if (r.isBlank()) q else "$r   ·   $q" }
     private fun loadRatings(item: Item, year: String, cb: (String) -> Unit) {
         if (item.kind == "live") return
-        cb(if (item.rating > 0f && item.rating <= 10f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else "")
+        cb(withQuality(item, if (item.rating > 0f && item.rating <= 10f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else ""))
         val key = prefs.getString("omdb", "") ?: ""
         if (key.isBlank()) return
-        Thread { val r = Ratings.lookup(prefs, key, item.name, year, item.kind); if (r != null) ui.post { cb(r) } }.start()
+        Thread { val r = Ratings.lookup(prefs, key, item.name, year, item.kind); if (r != null) ui.post { cb(withQuality(item, r)) } }.start()
     }
     private val rateExec = Executors.newSingleThreadExecutor()
     private val rateMemo = HashMap<String, String>()
@@ -571,10 +585,10 @@ class MainActivity : Activity() {
         if (item.kind == "live") return
         val prov = if (item.rating > 0f && item.rating <= 10f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else ""
         val key = prefs.getString("omdb", "") ?: ""
-        if (key.isBlank()) { cb(prov); return }
-        rateMemo[item.key]?.let { cb(it); return }
-        cb(prov)
-        rateExec.execute { val r = Ratings.lookup(prefs, key, item.name, Ratings.yearOf(item.name), item.kind); if (r != null) ui.post { rateMemo[item.key] = r; cb(r) } }
+        if (key.isBlank()) { cb(withQuality(item, prov)); return }
+        rateMemo[item.key]?.let { cb(withQuality(item, it)); return }
+        cb(withQuality(item, prov))
+        rateExec.execute { val r = Ratings.lookup(prefs, key, item.name, Ratings.yearOf(item.name), item.kind); if (r != null) ui.post { rateMemo[item.key] = r; cb(withQuality(item, r)) } }
     }
     private fun smartTitle(w: String) = when (w) { "@recent" -> "Recently added"; "@top" -> "Top rated"; "@new" -> "New releases"; "@hollywood" -> "Hollywood / English"; else -> w }
     /** Ready-made lists built from what the provider sends: recently added, top rated, new releases, Hollywood. */
@@ -1685,6 +1699,21 @@ class MainActivity : Activity() {
                     }
                 }
                 if (hdr && !prefs.getBoolean("notunnel", false)) setTunnel(p, true)
+                playing?.let { cur ->
+                    if (cur.kind != "live") {
+                        val v = tracks.groups.firstOrNull { it.type == C.TRACK_TYPE_VIDEO }?.getTrackFormat(0)
+                        val a = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }.map { it.getTrackFormat(0) }
+                        val tg = ArrayList<String>()
+                        if (v != null) {
+                            if (v.height >= 4000) tg.add("8K") else if (v.height >= 1500 || v.width >= 3000) tg.add("4K")
+                            val tr = v.colorInfo?.colorTransfer
+                            if (v.sampleMimeType == "video/dolby-vision") tg.add("DV")
+                            if (tr == C.COLOR_TRANSFER_ST2084 || (v.codecs ?: "").let { c -> c.startsWith("hvc1.2") || c.startsWith("hev1.2") }) tg.add("HDR") else if (tr == C.COLOR_TRANSFER_HLG) tg.add("HLG")
+                        }
+                        if (a.any { f -> f.sampleMimeType == "audio/eac3-joc" || (f.codecs ?: "").contains("joc") }) tg.add("ATMOS")
+                        if (tg.isNotEmpty()) prefs.edit().putString("q_" + cur.key, tg.joinToString(" · ")).apply()
+                    }
+                }
             }
             override fun onPlaybackStateChanged(state: Int) {
                 if (state != Player.STATE_ENDED || player !== p) return
