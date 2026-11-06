@@ -1025,7 +1025,6 @@ class MainActivity : Activity() {
         hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#F0070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         Img.load(item.logo, bgImg, dp(900))
         val back = mkButton("←  Back", false) { onBackPressed() }
-        hero.addView(back, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(32), dp(22), 0, 0) })
         val info = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
         info.addView(eyebrow(if (item.kind == "series") "SERIES" else "MOVIE"))
         info.addView(mkText(item.name, 34f, CREAM, true).apply { maxLines = 2; setPadding(0, dp(6), 0, 0) })
@@ -1046,6 +1045,7 @@ class MainActivity : Activity() {
         btnRow.addView(trailerBtn, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
         info.addView(btnRow)
         hero.addView(info, FrameLayout.LayoutParams(-1, -1, Gravity.BOTTOM or Gravity.START).apply { gravity = Gravity.BOTTOM })
+        col.addView(back, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(32), dp(14), 0, dp(8)) })   // own row above the banner, so it can never sit on the title
         col.addView(hero, LinearLayout.LayoutParams(-1, dp(420)))
         val seasonsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(32), dp(10), dp(32), dp(40)) }
         col.addView(seasonsBox)
