@@ -787,25 +787,42 @@ class MainActivity : Activity() {
     private fun recentSearches(): List<String> = (prefs.getString("searches", "") ?: "").split('\u0001').filter { it.isNotBlank() }
     private fun addSearch(q: String) { val l = recentSearches().toMutableList(); l.removeAll { it.equals(q, true) }; l.add(0, q); prefs.edit().putString("searches", l.take(8).joinToString("\u0001")).apply() }
     private fun runSearch(q: String) { query = q.trim(); if (query.isNotBlank()) { addSearch(query); section = "search"; markSection(); pageStack.clear(); showPage { searchView() } } }
+    /** Styled like the rest of the app: black panel, gold hairline, Cinzel title, rose input outline. */
     fun searchDialog() {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(8)) }
-        val et = EditText(this).apply { hint = "Type a channel, movie or series…"; setSingleLine(); setText(query); textSize = 22f; imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH }
-        box.addView(et)
-        var dlg: android.app.AlertDialog? = null
+        val dlg = android.app.Dialog(this)
+        dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(30), dp(24), dp(30), dp(22)); background = rbg(PANEL, Color.parseColor("#59D7B88A"), 16, 1) }
+        panel.addView(mkText("SEARCH", 16f, GOLD, true).apply { letterSpacing = 0.24f; typeface = fDisplay(); setPadding(0, 0, 0, dp(12)) })
+        val et = EditText(this).apply {
+            hint = "Type a channel, movie or series…"; setSingleLine(); setText(query); textSize = 22f; typeface = fBody()
+            setTextColor(CREAM); setHintTextColor(MUTED); setPadding(dp(16), dp(12), dp(16), dp(12))
+            background = rbg(Color.parseColor("#0AFFFFFF"), RED, 10, 2); imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+        }
+        panel.addView(et, LinearLayout.LayoutParams(-1, -2))
         val rs = recentSearches()
         if (rs.isNotEmpty()) {
-            box.addView(mkText("RECENT SEARCHES", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(0, dp(16), 0, dp(6)) })
-            for (r in rs) box.addView(mkText("↺   $r", 18f, CREAM).apply {
-                isFocusable = true; setPadding(dp(10), dp(9), dp(10), dp(9))
-                setOnFocusChangeListener { v, f -> v.setBackgroundColor(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT) }
-                setOnClickListener { dlg?.dismiss(); runSearch(r) }
+            panel.addView(mkText("RECENT SEARCHES", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(0, dp(18), 0, dp(6)) })
+            for (r in rs.take(6)) panel.addView(mkText("↺   $r", 18f, CREAM).apply {
+                isFocusable = true; setPadding(dp(12), dp(9), dp(12), dp(9)); background = rbg(Color.TRANSPARENT, Color.TRANSPARENT, 8, 2)
+                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.TRANSPARENT, 8, 2) }
+                setOnClickListener { dlg.dismiss(); runSearch(r) }
             })
         }
-        dlg = android.app.AlertDialog.Builder(this).setTitle("Search").setView(ScrollView(this).apply { addView(box) })
-            .setPositiveButton("Search") { _, _ -> runSearch(et.text.toString()) }
-            .setNeutralButton(if (rs.isNotEmpty()) "Clear recent" else null) { _, _ -> prefs.edit().remove("searches").apply() }
-            .setNegativeButton("Cancel", null).create()
+        fun btn(label: String, filled: Boolean, onClick: () -> Unit) = TextView(this).apply {
+            text = label; textSize = 14f; typeface = fDisplay(); letterSpacing = 0.14f; isFocusable = true; setPadding(dp(22), dp(11), dp(22), dp(11))
+            setTextColor(if (filled) Color.parseColor("#1A1208") else CREAM)
+            fun paint(f: Boolean) { background = rbg(if (filled) CREAM else Color.TRANSPARENT, if (f) RED else if (filled) CREAM else Color.parseColor("#4DEBDDC4"), 10, if (f) 3 else 1) }
+            paint(false); setOnFocusChangeListener { _, f -> paint(f) }; setOnClickListener { onClick() }
+        }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL; setPadding(0, dp(20), 0, 0) }
+        if (rs.isNotEmpty()) { row.addView(mkText("Clear recent", 13f, MUTED).apply { isFocusable = true; setPadding(dp(10), dp(8), dp(10), dp(8)); setOnFocusChangeListener { v, f -> (v as TextView).setTextColor(if (f) CREAM else MUTED) }; setOnClickListener { prefs.edit().remove("searches").apply(); dlg.dismiss(); searchDialog() } }, LinearLayout.LayoutParams(0, -2, 1f)) }
+        else row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        row.addView(btn("CANCEL", false) { dlg.dismiss() }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(12) })
+        row.addView(btn("SEARCH", true) { dlg.dismiss(); runSearch(et.text.toString()) })
+        panel.addView(row)
         et.setOnEditorActionListener { _, _, _ -> dlg.dismiss(); runSearch(et.text.toString()); true }
+        dlg.setContentView(ScrollView(this).apply { addView(panel) })
+        dlg.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)); setLayout(dp(680), android.view.WindowManager.LayoutParams.WRAP_CONTENT); setDimAmount(0.78f); setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE) }
         dlg.show()
     }
 
