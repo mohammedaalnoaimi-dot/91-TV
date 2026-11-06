@@ -697,7 +697,7 @@ class MainActivity : Activity() {
     }
     private fun addFavTo(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.none { f -> f.key == it.key }) { l.add(0, it); writeList("favs_$p", l) } }
     private fun removeFavFrom(p: String, it: Item) { val l = favsOf(p).toMutableList(); if (l.removeAll { f -> f.key == it.key }) writeList("favs_$p", l) }
-    private fun recentKey() = if (profile() == "kids") "recent_kids" else "recent"
+    private fun recentKey() = when (profile()) { "kids" -> "recent_kids"; "mrs" -> "recent_mrs"; "together" -> "recent_together"; else -> "recent" }   // each profile keeps its own history ("mr" keeps the original key)
     private fun recents() = readList(recentKey())
     private fun addRecent(it: Item) { val l = recents().toMutableList(); l.removeAll { r -> r.key == it.key }; l.add(0, it); writeList(recentKey(), l.take(60)) }
     private fun savedPos(it: Item): Long = prefs.getLong("pos_" + it.key, 0L)
@@ -768,7 +768,13 @@ class MainActivity : Activity() {
         val cont = recents().filter { (it.kind == "movie" || it.kind == "episode") && savedPos(it) > 10_000 }
         if (cont.isNotEmpty()) col.addView(rowView("Continue watching", cont))
         becauseRows.forEach { (t, l) -> col.addView(rowView("Because you watched  " + Ratings.cleanTitle(t), l)) }
-        val fv = favs(); if (fv.isNotEmpty()) col.addView(rowView("${profName()}'s list", fv))
+        val fv = favs()
+        if (profile() != "kids") {
+            val fch = fv.filter { it.kind == "live" }; val ftl = fv.filter { it.kind != "live" }
+            if (fch.isNotEmpty()) col.addView(rowView("${profName()}'s channels", fch))
+            if (ftl.isNotEmpty()) col.addView(rowView("${profName()}'s list", ftl))
+            val rl = recents().filter { it.kind == "live" }.take(20); if (rl.isNotEmpty()) col.addView(rowView("${profName()} watched live", rl))
+        } else if (fv.isNotEmpty()) col.addView(rowView("${profName()}'s list", fv))
         fun cached(k: String, w: String) = smart["$k|$w"] ?: emptyList()
         cached("movie", "@recent").let { if (it.isNotEmpty()) col.addView(rowView("Recently added movies", it.take(24))) }
         cached("movie", "@top").let { if (it.isNotEmpty()) col.addView(rowView("Top rated movies", it.take(24))) }
@@ -1334,7 +1340,7 @@ class MainActivity : Activity() {
             android.app.AlertDialog.Builder(this).setTitle("Log out from this host?")
                 .setMessage("The server, username, password and downloaded lists will be removed from this TV. Your 91 TV licence stays. You can add a provider again afterwards.")
                 .setPositiveButton("Log out") { _, _ ->
-                    prefs.edit().remove("server").remove("user").remove("pass").remove("m3u").remove("recent").apply()
+                    prefs.edit().remove("server").remove("user").remove("pass").remove("m3u").remove("recent").remove("recent_mrs").remove("recent_kids").remove("recent_together").apply()
                     Cache.clear(this); xt = null; setData(emptyList(), emptyList(), emptyList())
                     Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show(); setupView()
                 }
@@ -1372,7 +1378,7 @@ class MainActivity : Activity() {
             }
         }
         head("OTHER")
-        row("Clear watch history", "Continue watching and recently watched") { prefs.edit().remove("recent").apply(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
+        row("Clear watch history", "Continue watching and recently watched (this profile)") { prefs.edit().remove(recentKey()).apply(); becauseSig = ""; Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
         row("Check for updates", "You have version ${curVersionName()}  - press to look for a newer one") { checkUpdate() }
         row("About", "91 TV ${curVersionName()} · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
