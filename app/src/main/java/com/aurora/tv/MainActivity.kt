@@ -1359,7 +1359,10 @@ class MainActivity : Activity() {
         val cap = AudioCapabilities.getCapabilities(this)
         val tvAtmos = cap.supportsEncoding(C.ENCODING_E_AC3_JOC)
         row("Audio output", (if (prefs.getBoolean("pcm", false)) "Stereo PCM (safe mode, no Dolby)" else "Dolby passthrough (Atmos / Dolby Digital+ sent to your TV or soundbar)") + "\nYour TV reports: Atmos " + (if (tvAtmos) "YES" else "NO") + ", Dolby Digital+ " + (if (cap.supportsEncoding(C.ENCODING_E_AC3)) "YES" else "NO") + "  - press to switch") { prefs.edit().putBoolean("pcm", !prefs.getBoolean("pcm", false)).apply(); refreshPage() }
-        row("HDR / Dolby Vision mode", (if (prefs.getBoolean("notunnel", false)) "Normal (try this if HDR looks wrong)" else "Tunnelled (used automatically for Dolby Vision, HDR10 and HLG, fixes washed-out picture on many TVs)") + "  - press to switch") { prefs.edit().putBoolean("notunnel", !prefs.getBoolean("notunnel", false)).apply(); refreshPage() }
+        val hm0 = prefs.getInt("hdrmode", if (prefs.getBoolean("notunnel", false)) 1 else 0)
+        row("HDR / Dolby Vision mode", when (hm0) { 1 -> "Normal (try this if HDR looks wrong)"; 2 -> "Bright SDR (HDR is converted to normal picture - use this if HDR is too dark)"; else -> "Tunnelled (used automatically for Dolby Vision, HDR10 and HLG, fixes washed-out picture on many TVs)" } + "  - press to switch") {
+            val n = (hm0 + 1) % 3; prefs.edit().putInt("hdrmode", n).putBoolean("notunnel", n != 0).apply(); refreshPage()
+        }
         row("Check Dolby Atmos", "See what your TV and soundbar can receive") { atmosCheck() }
         head("SCREENSAVER")
         row("Remote click sound", (if (prefs.getBoolean("noclick", false)) "OFF" else "ON - soft click when moving between tiles") + "  - press to switch") { prefs.edit().putBoolean("noclick", !prefs.getBoolean("noclick", false)).apply(); refreshPage() }
@@ -1666,7 +1669,7 @@ class MainActivity : Activity() {
         root.addView(nextBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(110)) })
         ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500)
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
-        if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
+        if (android.os.Build.VERSION.SDK_INT >= 26 && prefs.getInt("hdrmode", 0) != 2) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
         playerView = pv; playerRoot = root; setContentView(root); pv.isFocusable = true; pv.requestFocus()
         val p = newPlayer(); player = p; pv.player = p
         // Netflix-style buttons: +/-10 seconds (the stock buttons use 5 / 15 s)
