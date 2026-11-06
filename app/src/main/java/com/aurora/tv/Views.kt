@@ -152,3 +152,22 @@ object Click {
         try { track?.let { it.stop(); it.reloadStaticData(); it.play() } } catch (e: Throwable) { }
     }
 }
+
+/** Small outlined quality tag (4K, DV, HDR ...) drawn inline in a TextView. */
+class BadgeSpan(private val color: Int, private val density: Float) : android.text.style.ReplacementSpan() {
+    private fun pad() = 5f * density
+    private fun gap() = 5f * density
+    override fun getSize(paint: Paint, text: CharSequence, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int {
+        val p = Paint(paint).apply { textSize = paint.textSize * 0.86f }
+        return (p.measureText(text, start, end) + pad() * 2 + gap()).toInt()
+    }
+    override fun draw(canvas: Canvas, text: CharSequence, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: Paint) {
+        val p = Paint(paint).apply { textSize = paint.textSize * 0.86f; this.color = this@BadgeSpan.color; isAntiAlias = true }
+        val w = p.measureText(text, start, end)
+        val fm = p.fontMetrics
+        val t = y + fm.ascent - 2f * density; val b = y + fm.descent + 2f * density
+        val box = Paint().apply { isAntiAlias = true; style = Paint.Style.STROKE; strokeWidth = 1.2f * density; this.color = this@BadgeSpan.color; alpha = 190 }
+        canvas.drawRoundRect(x + 0.6f * density, t, x + w + pad() * 2 - 0.6f * density, b, 3f * density, 3f * density, box)
+        canvas.drawText(text, start, end, x + pad(), y.toFloat(), p)
+    }
+}

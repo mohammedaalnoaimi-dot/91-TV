@@ -570,8 +570,18 @@ class MainActivity : Activity() {
         if (has("atmos")) out.add("ATMOS")
         return out.joinToString(" · ")
     }
-    private fun withQuality(item: Item, r: String): String { val q = qualityTags(item); return if (q.isEmpty()) r else if (r.isBlank()) q else "$r   ·   $q" }
-    private fun loadRatings(item: Item, year: String, cb: (String) -> Unit) {
+    private fun withQuality(item: Item, r: String): CharSequence {
+        val q = qualityTags(item); if (q.isEmpty()) return r
+        val sb = android.text.SpannableStringBuilder(r)
+        if (r.isNotBlank()) sb.append("  ")
+        val d = resources.displayMetrics.density
+        for (tag in q.split(" · ")) {
+            val col = when (tag) { "DV" -> Color.parseColor("#F1A3B0"); else -> GOLD }
+            val st = sb.length; sb.append(tag); sb.setSpan(BadgeSpan(col, d), st, sb.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        return sb
+    }
+    private fun loadRatings(item: Item, year: String, cb: (CharSequence) -> Unit) {
         if (item.kind == "live") return
         cb(withQuality(item, if (item.rating > 0f && item.rating <= 10f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else ""))
         val key = prefs.getString("omdb", "") ?: ""
@@ -581,7 +591,7 @@ class MainActivity : Activity() {
     private val rateExec = Executors.newSingleThreadExecutor()
     private val rateMemo = HashMap<String, String>()
     /** Rating line under a poster: provider score at once, IMDb / Rotten Tomatoes when an OMDb key is set (looked up one by one, then remembered). */
-    fun cardRating(item: Item, cb: (String) -> Unit) {
+    fun cardRating(item: Item, cb: (CharSequence) -> Unit) {
         if (item.kind == "live") return
         val prov = if (item.rating > 0f && item.rating <= 10f) String.format(java.util.Locale.US, "★ %.1f", item.rating) else ""
         val key = prefs.getString("omdb", "") ?: ""
