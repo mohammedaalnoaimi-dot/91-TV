@@ -384,7 +384,7 @@ class MainActivity : Activity() {
                 if (cl != null && cl.isNotEmpty()) {
                     val mv = Cache.load(this, "movie") ?: emptyList(); val sr = Cache.load(this, "series") ?: emptyList()
                     ui.post { setData(cl, mv, sr); enterApp() }
-                    if (Cache.ageHours(this, "live") >= 6) refreshInBackground(server, m3uUrl)
+                    if (Cache.ageHours(this, "live") >= 6 || mv.isEmpty() || sr.isEmpty()) refreshInBackground(server, m3uUrl)   // empty movies/series cache = download them again now
                 } else ui.post { startLoading(true) }
             }.start()
             return
@@ -398,10 +398,11 @@ class MainActivity : Activity() {
                     ui.post { bigMessage("91 TV\n\nLoading channels… (first time only)") }
                     val l = x.live(); Cache.save(this, "live", l)
                     ui.post { setData(l, null, null); enterApp() }; shown = true
-                    val m = try { x.movies() } catch (e: Throwable) { emptyList() }; Cache.save(this, "movie", m)
-                    ui.post { setData(null, m, null) }
-                    val se = try { x.series() } catch (e: Throwable) { emptyList() }; Cache.save(this, "series", se)
-                    ui.post { setData(null, null, se); if (playerRoot == null && shell != null) refreshPage() }
+                    // a failed or empty download is never saved over the cache (that is what produced "TV Series · 0")
+                    val m = tryTwice { x.movies() }; if (!m.isNullOrEmpty()) Cache.save(this, "movie", m)
+                    ui.post { setData(null, m ?: emptyList(), null) }
+                    val se = tryTwice { x.series() }; if (!se.isNullOrEmpty()) Cache.save(this, "series", se)
+                    ui.post { setData(null, null, se ?: emptyList()); if (playerRoot == null && shell != null) refreshPage() }
                 } else {
                     val all = M3u.parse(Http.get(m3uUrl))
                     val l = all.filter { it.kind == "live" }; val m = all.filter { it.kind == "movie" }; val se = all.filter { it.kind == "episode" }
@@ -414,15 +415,17 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    private fun <T> tryTwice(f: () -> T): T? { for (i in 0..1) { try { return f() } catch (e: Throwable) { try { Thread.sleep(1500) } catch (_: Throwable) {} } }; return null }
+
     private fun refreshInBackground(server: String, m3uUrl: String) {
         Thread {
             try {
                 if (server.isNotBlank()) {
                     val x = xt ?: return@Thread
                     val l = x.live(); Cache.save(this, "live", l)
-                    val m = try { x.movies() } catch (e: Throwable) { null }; if (m != null) Cache.save(this, "movie", m)
-                    val se = try { x.series() } catch (e: Throwable) { null }; if (se != null) Cache.save(this, "series", se)
-                    ui.post { setData(l, m, se) }
+                    val m = tryTwice { x.movies() }?.takeIf { it.isNotEmpty() }; if (m != null) Cache.save(this, "movie", m)
+                    val se = tryTwice { x.series() }?.takeIf { it.isNotEmpty() }; if (se != null) Cache.save(this, "series", se)
+                    ui.post { setData(l, m, se); if (playerRoot == null && shell != null) refreshPage() }
                 } else {
                     val all = M3u.parse(Http.get(m3uUrl))
                     val l = all.filter { it.kind == "live" }; val m = all.filter { it.kind == "movie" }; val se = all.filter { it.kind == "episode" }
