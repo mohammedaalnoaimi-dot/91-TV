@@ -631,7 +631,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showPage(builder: () -> View) { currentPage = { releasePreview(); panel = null; show(builder()) }; currentPage!!() }
+    private fun showPage(builder: () -> View) { currentPage = { releasePreview(); panel = null; searchType = null; searchDel = null; show(builder()) }; currentPage!!() }
     private fun pushPage(builder: () -> View) { currentPage?.let { pageStack.addLast(it) }; showPage(builder) }
     private fun show(v: View) { content.removeAllViews(); content.addView(v, FrameLayout.LayoutParams(-1, -1)) }
     private fun refreshPage() { currentPage?.invoke() }
@@ -908,44 +908,92 @@ class MainActivity : Activity() {
 
     private fun recentSearches(): List<String> = (prefs.getString("searches", "") ?: "").split('\u0001').filter { it.isNotBlank() }
     private fun addSearch(q: String) { val l = recentSearches().toMutableList(); l.removeAll { it.equals(q, true) }; l.add(0, q); prefs.edit().putString("searches", l.take(8).joinToString("\u0001")).apply() }
-    private fun runSearch(q: String) { query = q.trim(); if (query.isNotBlank()) { addSearch(query); section = "search"; markSection(); pageStack.clear(); showPage { searchView() } } }
-    /** Styled like the rest of the app: black panel, gold hairline, Cinzel title, rose input outline. */
-    fun searchDialog() {
-        val dlg = android.app.Dialog(this)
-        dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(30), dp(24), dp(30), dp(22)); background = rbg(PANEL, Color.parseColor("#59D7B88A"), 16, 1) }
-        panel.addView(mkText("SEARCH", 16f, GOLD, true).apply { letterSpacing = 0.24f; typeface = fDisplay(); setPadding(0, 0, 0, dp(12)) })
-        val et = EditText(this).apply {
-            hint = "Type a channel, movie or series…"; setSingleLine(); setText(query); textSize = 22f; typeface = fBody()
-            setTextColor(CREAM); setHintTextColor(MUTED); setPadding(dp(16), dp(12), dp(16), dp(12))
-            background = rbg(Color.parseColor("#0AFFFFFF"), RED, 10, 2); imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+    private var searchType: ((String) -> Unit)? = null
+    private var searchDel: (() -> Unit)? = null
+    /** Netflix-style search: on-screen keyboard and suggestions on the left, live poster results on the right. */
+    fun searchDialog() { query = ""; section = "search"; markSection(); pageStack.clear(); showPage { searchScreen() } }
+
+    private fun searchItems(q: String): List<Item> {
+        val toks = q.lowercase().split(' ', '-', '.', '_').filter { it.isNotBlank() }
+        val first = toks.firstOrNull() ?: q.lowercase()
+        fun score(it: Item): Int {
+            val n = it.name.lowercase()
+            val k = when (it.kind) { "movie" -> 0; "series" -> 1; else -> 2 }
+            val w = if (n.startsWith(first)) 0 else if (n.contains(" $first")) 1 else 2
+            return w * 3 + k
         }
-        panel.addView(et, LinearLayout.LayoutParams(-1, -2))
-        val rs = recentSearches()
-        if (rs.isNotEmpty()) {
-            panel.addView(mkText("RECENT SEARCHES", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(0, dp(18), 0, dp(6)) })
-            for (r in rs.take(6)) panel.addView(mkText("↺   $r", 18f, CREAM).apply {
-                isFocusable = true; setPadding(dp(12), dp(9), dp(12), dp(9)); background = rbg(Color.TRANSPARENT, Color.TRANSPARENT, 8, 2)
+        return (visible("movie", movies) + visible("series", series) + visible("live", live))
+            .filter { x -> val n = x.name.lowercase(); toks.all { t -> n.contains(t) } }
+            .sortedWith(compareBy({ score(it) }, { -it.rating }))
+            .take(300)
+    }
+
+    private fun searchScreen(): View {
+        var typed = ""
+        val root = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setBackgroundColor(BG); setPadding(dp(32), dp(12), dp(10), 0); clipChildren = false }
+        val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val qv = TextView(this).apply { textSize = 22f; typeface = fBody(); maxLines = 1; setPadding(dp(14), dp(8), dp(14), dp(8)); background = rbg(Color.parseColor("#0AFFFFFF"), RED, 10, 2) }
+        val head = mkText("", 22f, CREAM, true).apply { setPadding(dp(4), dp(4), 0, dp(4)); maxLines = 1 }
+        val results = PosterAdapter(this, emptyList(), { l, p -> if (typed.isNotBlank()) addSearch(typed.trim()); openAny(l, p) }, { itemMenu(it) })
+        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(400)) / (dp(tileW()) + dp(14)))
+        val grid = RecyclerView(this).apply {
+            layoutManager = GridLayoutManager(this@MainActivity, span); adapter = results
+            clipChildren = false; clipToPadding = false; setPadding(0, dp(6), 0, dp(40)); itemAnimator = null
+        }
+        val sugBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val popular by lazy { visible("movie", movies).sortedByDescending { it.rating }.take(24) }
+        fun showText() {
+            qv.text = if (typed.isEmpty()) "⌕   Search movies, series, channels" else "⌕   $typed▏"
+            qv.setTextColor(if (typed.isEmpty()) MUTED else CREAM)
+        }
+        lateinit var refresh: () -> Unit
+        val refreshRun = Runnable { refresh() }
+        fun changed() { showText(); ui.removeCallbacks(refreshRun); ui.postDelayed(refreshRun, 180) }
+        refresh = {
+            val q = typed.trim()
+            val res = if (q.isEmpty()) emptyList() else searchItems(q)
+            val sugs = if (q.isEmpty()) recentSearches().take(5) else res.map { Ratings.cleanTitle(it.name) }.filter { it.isNotBlank() }.distinct().take(5)
+            sugBox.removeAllViews()
+            if (sugs.isNotEmpty()) sugBox.addView(mkText(if (q.isEmpty()) "RECENT SEARCHES" else "SUGGESTIONS", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(dp(4), dp(10), 0, dp(4)) })
+            for (s in sugs) sugBox.addView(mkText(s, 18f, CREAM).apply {
+                maxLines = 1; isFocusable = true; setPadding(dp(12), dp(7), dp(12), dp(7)); background = rbg(Color.TRANSPARENT, Color.TRANSPARENT, 8, 2)
                 setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.TRANSPARENT, 8, 2) }
-                setOnClickListener { dlg.dismiss(); runSearch(r) }
+                setOnClickListener { typed = s; changed() }
             })
+            head.text = if (q.isEmpty()) "POPULAR" else "“$q”   ·   ${res.size}"
+            results.items = if (q.isEmpty()) popular else if (res.isEmpty()) emptyList() else res.take(150)
+            results.notifyDataSetChanged()
         }
-        fun btn(label: String, filled: Boolean, onClick: () -> Unit) = TextView(this).apply {
-            text = label; textSize = 14f; typeface = fDisplay(); letterSpacing = 0.14f; isFocusable = true; setPadding(dp(22), dp(11), dp(22), dp(11))
-            setTextColor(if (filled) Color.parseColor("#1A1208") else CREAM)
-            fun paint(f: Boolean) { background = rbg(if (filled) CREAM else Color.TRANSPARENT, if (f) RED else if (filled) CREAM else Color.parseColor("#4DEBDDC4"), 10, if (f) 3 else 1) }
-            paint(false); setOnFocusChangeListener { _, f -> paint(f) }; setOnClickListener { onClick() }
+        fun add(c: String) { if (typed.length < 40) { typed += c; changed() } }
+        fun del() { if (typed.isNotEmpty()) { typed = typed.dropLast(1); changed() } }
+        fun key(label: String, w: Int, onClick: () -> Unit, onLong: (() -> Unit)? = null) = TextView(this).apply {
+            this.text = label; textSize = 20f; typeface = fMedium(); setTextColor(CREAM); gravity = Gravity.CENTER; isFocusable = true; isClickable = true
+            background = rbg(Color.parseColor("#1AFFFFFF"), Color.TRANSPARENT, 8, 1)
+            setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#40C9475C") else Color.parseColor("#1AFFFFFF"), if (f) RED else Color.TRANSPARENT, 8, if (f) 3 else 1) }
+            setOnClickListener { onClick() }
+            if (onLong != null) setOnLongClickListener { onLong(); true }
+            layoutParams = LinearLayout.LayoutParams(w, dp(40)).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) }
         }
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL; setPadding(0, dp(20), 0, 0) }
-        if (rs.isNotEmpty()) { row.addView(mkText("Clear recent", 13f, MUTED).apply { isFocusable = true; setPadding(dp(10), dp(8), dp(10), dp(8)); setOnFocusChangeListener { v, f -> (v as TextView).setTextColor(if (f) CREAM else MUTED) }; setOnClickListener { prefs.edit().remove("searches").apply(); dlg.dismiss(); searchDialog() } }, LinearLayout.LayoutParams(0, -2, 1f)) }
-        else row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        row.addView(btn("CANCEL", false) { dlg.dismiss() }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(12) })
-        row.addView(btn("SEARCH", true) { dlg.dismiss(); runSearch(et.text.toString()) })
-        panel.addView(row)
-        et.setOnEditorActionListener { _, _, _ -> dlg.dismiss(); runSearch(et.text.toString()); true }
-        dlg.setContentView(ScrollView(this).apply { addView(panel) })
-        dlg.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)); setLayout(dp(680), android.view.WindowManager.LayoutParams.WRAP_CONTENT); setDimAmount(0.78f); setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE) }
-        dlg.show()
+        val kw = dp(46)
+        left.addView(qv, LinearLayout.LayoutParams(dp(300), -2).apply { bottomMargin = dp(8) })
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        top.addView(key("SPACE", kw * 3 + dp(8), { add(" ") })); top.addView(key("⌫  DEL", kw * 3 + dp(8), { del() }, { typed = ""; changed() }))
+        left.addView(top)
+        val chars = ('a'..'z').map { it.toString() } + ('0'..'9').map { it.toString() }
+        for (r in chars.chunked(6)) {
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (c in r) row.addView(key(c, kw, { add(c) }))
+            left.addView(row)
+        }
+        left.addView(sugBox)
+        root.addView(ScrollView(this).apply { isFillViewport = true; clipChildren = false; addView(left) }, LinearLayout.LayoutParams(dp(316), -1))
+        val right = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), 0, 0, 0) }
+        right.addView(head); right.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(right, LinearLayout.LayoutParams(0, -1, 1f))
+        searchType = { c -> add(c) }; searchDel = { del() }
+        showText(); refresh()
+        left.post { (left.getChildAt(2) as? LinearLayout)?.getChildAt(0)?.requestFocus() }
+        return root
     }
 
     // =====================================================================================
@@ -1193,23 +1241,6 @@ class MainActivity : Activity() {
         root.addView(cols, LinearLayout.LayoutParams(-1, 0, 1f))
         root.post { grids.firstOrNull { g -> g.getChildAt(0) != null }?.getChildAt(0)?.requestFocus() }
         return root
-    }
-
-    private fun searchView(): View {
-        val q = query
-        val toks = q.lowercase().split(' ', '-', '.', '_').filter { it.isNotBlank() }
-        val first = toks.firstOrNull() ?: q.lowercase()
-        fun score(it: Item): Int {
-            val n = it.name.lowercase()
-            val k = when (it.kind) { "movie" -> 0; "series" -> 1; else -> 2 }
-            val w = if (n.startsWith(first)) 0 else if (n.contains(" $first")) 1 else 2
-            return w * 3 + k
-        }
-        val all = (visible("movie", movies) + visible("series", series) + visible("live", live))
-            .filter { x -> val n = x.name.lowercase(); toks.all { t -> n.contains(t) } }
-            .sortedWith(compareBy({ score(it) }, { -it.rating }))
-            .take(300)
-        return plainGrid("SEARCH", "“$q”   ·   ${all.size}", all, "Nothing matches “$q”.")
     }
 
     private fun detailView(item: Item): View {
@@ -2133,6 +2164,13 @@ class MainActivity : Activity() {
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
         if (saver != null) { stopSaver(); bumpIdle(); return true }
         bumpIdle()
+        if (playerRoot == null && searchType != null && e.action == KeyEvent.ACTION_DOWN) {
+            val kc = e.keyCode
+            if (kc in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z) { searchType?.invoke(('a' + (kc - KeyEvent.KEYCODE_A)).toString()); return true }
+            if (kc in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9) { searchType?.invoke(('0' + (kc - KeyEvent.KEYCODE_0)).toString()); return true }
+            if (kc == KeyEvent.KEYCODE_SPACE) { searchType?.invoke(" "); return true }
+            if (kc == KeyEvent.KEYCODE_DEL) { searchDel?.invoke(); return true }
+        }
         if (playerRoot == null && e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0) { if (fastScroll(e)) return true }
         if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
             val hidden = playerView?.isControllerFullyVisible == false
