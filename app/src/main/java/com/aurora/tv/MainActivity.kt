@@ -536,28 +536,28 @@ class MainActivity : Activity() {
     private fun buildShell() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG) }
         // ---- header
-        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(36), dp(14), dp(36), dp(2)) }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(40), dp(16), dp(40), dp(4)) }
         val leftBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        hdrNext = mkText("", 13f, CREAM, true).apply { letterSpacing = 0.14f }
-        hdrNextSub = mkItalic("", 14f, GRAY)
+        hdrNext = mkText("", 15f, CREAM, true).apply { letterSpacing = 0.16f }
+        hdrNextSub = mkItalic("", 16f, GRAY)
         leftBox.addView(hdrNext); leftBox.addView(hdrNextSub)
         head.addView(leftBox, LinearLayout.LayoutParams(0, -2, 1f))
         val brandBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         val brand = android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
-        brandBox.addView(brand, LinearLayout.LayoutParams(dp(190), dp(29)))
+        brandBox.addView(brand, LinearLayout.LayoutParams(dp(250), dp(38)))
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
         if (!isKids()) {
             val sp = TextView(this).apply {
-                text = "⌕"; textSize = 17f; setTextColor(CREAM); gravity = Gravity.CENTER; isFocusable = true
+                text = "⌕"; textSize = 20f; setTextColor(CREAM); gravity = Gravity.CENTER; isFocusable = true
                 background = rbg(Color.parseColor("#14FFFFFF"), Color.parseColor("#59EBDDC4"), 20, 1)
                 setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.parseColor("#59EBDDC4"), 20, if (f) 2 else 1); v.animate().scaleX(if (f) 1.15f else 1f).scaleY(if (f) 1.15f else 1f).setDuration(120).start() }
                 setOnClickListener { searchDialog() }
             }
-            head.addView(sp, LinearLayout.LayoutParams(dp(34), dp(34)).apply { leftMargin = dp(22) })
+            head.addView(sp, LinearLayout.LayoutParams(dp(40), dp(40)).apply { leftMargin = dp(24) })
         }
         val rightBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
-        hdrClock = mkText("", 26f, CREAM).apply { gravity = Gravity.END }
-        hdrDate = mkText("", 13f, GRAY).apply { gravity = Gravity.END }
+        hdrClock = mkText("", 30f, CREAM).apply { gravity = Gravity.END }
+        hdrDate = mkText("", 15f, GRAY).apply { gravity = Gravity.END; letterSpacing = 0.12f }
         rightBox.addView(hdrClock); rightBox.addView(hdrDate)
         head.addView(rightBox, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(head, LinearLayout.LayoutParams(-1, -2))
@@ -569,10 +569,10 @@ class MainActivity : Activity() {
             "list" to "MY LIST", "prayer" to "PRAYER", "settings" to "SETTINGS", "profile" to profName().uppercase())
         for ((k, label) in entries) {
             val ni = NavItem(this, label).apply { setOnClickListener { if (k == "profile") showProfilePicker(false) else if (k == "search") searchDialog() else if (k == "multi") { releasePreview(); startActivity(android.content.Intent(this@MainActivity, MultiActivity::class.java)) } else nav(k) } }
-            navItems[k] = ni; navRow.addView(ni, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(6), 0, dp(6), 0) })
+            navItems[k] = ni; navRow.addView(ni, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(4), 0, dp(4), 0) })
         }
         root.addView(navRow, LinearLayout.LayoutParams(-1, -2))
-        root.addView(View(this).apply { setBackgroundColor(Color.parseColor("#1FEBDDC4")) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(36), 0, dp(36), 0) })
+        root.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, Color.parseColor("#80D7B88A"), Color.TRANSPARENT)) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(40), 0, dp(40), 0) })
         content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         shell = root; setContentView(root)

@@ -116,17 +116,22 @@ class NavItem(ctx: Context, label: String) : TextView(ctx) {
     var sel = false
         set(v) { field = v; refresh() }
     init {
-        text = label; textSize = 13f; typeface = ctx.fDisplay(); letterSpacing = 0.16f; isFocusable = true; isClickable = true
-        setPadding(ctx.dp(14), ctx.dp(10), ctx.dp(14), ctx.dp(12)); gravity = Gravity.CENTER
+        text = label; textSize = 15f; typeface = ctx.fDisplay(); letterSpacing = 0.2f; isFocusable = true; isClickable = true
+        setPadding(ctx.dp(18), ctx.dp(10), ctx.dp(18), ctx.dp(13)); gravity = Gravity.CENTER
         setOnFocusChangeListener { _, _ -> refresh() }
         refresh()
     }
-    private fun refresh() { setTextColor(if (sel || isFocused) CREAM else GRAY); invalidate() }
+    private fun refresh() {
+        setTextColor(if (sel || isFocused) CREAM else GRAY)
+        background = if (isFocused) context.rbg(Color.parseColor("#1AEBDDC4"), Color.parseColor("#40EBDDC4"), 22, 1) else null
+        invalidate()
+    }
     override fun onDraw(c: Canvas) {
         super.onDraw(c)
         if (sel || isFocused) {
             val h = if (isFocused) 3f else 2f
-            c.drawRect(paddingLeft.toFloat(), height - h - 2f, width - paddingRight.toFloat(), height - 2f, line)
+            line.shader = android.graphics.LinearGradient(paddingLeft.toFloat(), 0f, width - paddingRight.toFloat(), 0f, intArrayOf(ROSE, GOLD), null, android.graphics.Shader.TileMode.CLAMP)
+            c.drawRect(paddingLeft.toFloat(), height - h - 3f, width - paddingRight.toFloat(), height - 3f, line)
         }
     }
 }
