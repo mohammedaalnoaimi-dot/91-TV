@@ -1132,8 +1132,8 @@ class MainActivity : Activity() {
     /** One pool of poster cards shared by every home row, so scrolling down does not inflate hundreds of new cards. */
     private val posterPool = RecyclerView.RecycledViewPool().apply { setMaxRecycledViews(0, 40) }
 
-    private fun rowView(titleText: String, items: List<Item>): View {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(dp(32), dp(14), 0, dp(6)) }
+    private fun rowView(titleText: String, items: List<Item>, padStart: Int = 32): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(dp(padStart), dp(10), 0, dp(4)) }
         box.addView(mkText(titleText.uppercase(), 15f, GOLD, true).apply { letterSpacing = 0.26f; setPadding(dp(4), 0, 0, dp(2)) })
         val rv = RecyclerView(this).apply {
             layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false).apply { initialPrefetchItemCount = 6 }
@@ -1148,34 +1148,70 @@ class MainActivity : Activity() {
     // =====================================================================================
     // MOVIES / SERIES / MY LIST / SEARCH grids
     // =====================================================================================
+    /** Movies / TV series: categories with counts on the left, poster rows of the focused category (and the ones after it) on the right. */
     private fun gridPage(kind: String): View {
         val base = visible(kind, if (kind == "movie") movies else series)
-        val counts = base.groupingBy { it.group }.eachCount()
+        val byGroup = base.groupBy { it.group }
         val specials = listOf("@recent", "@top", "@new", "@hollywood").filter { kind == "movie" || it != "@hollywood" }.filter { smartList(kind, it).isNotEmpty() }
-        val groups = specials + sortGroups(kind, counts.keys)
+        val groups = specials + sortGroups(kind, byGroup.keys)
         var sel = catFor[kind]; if (sel != null && sel !in groups) sel = null; catFor[kind] = sel
-        fun shown(): List<Item> { val c = catFor[kind]; return if (c == null) base else if (c.startsWith("@")) smartList(kind, c) else base.filter { it.group == c } }
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(32), dp(22), dp(10), 0) }
-        root.addView(eyebrow(if (kind == "movie") "MOVIES" else "TV SERIES"))
-        val heading = mkText("", 30f, CREAM, true)
-        root.addView(heading)
-        val grid = RecyclerView(this)
-        val cards = PosterAdapter(this, shown(), { l, p -> openAny(l, p) }, { itemMenu(it) })
-        fun upd() { heading.text = (if (kind == "movie") "Movies" else "TV Series") + "   ·   ${shown().size}" }
-        upd()
-        val labels = listOf("All  (${base.size})") + groups.map { if (it.startsWith("@")) "★ ${smartTitle(it)}  (${smartList(kind, it).size})" else (if (isFavCat(kind, it)) "★ " else "") + "$it  (${counts[it]})" }
-        val chips = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
-            adapter = ChipAdapter(this@MainActivity, labels, if (catFor[kind] == null) 0 else groups.indexOf(catFor[kind]) + 1, false,
-                { i -> catFor[kind] = if (i == 0) null else groups[i - 1]; cards.items = shown(); cards.notifyDataSetChanged(); grid.scrollToPosition(0); upd() },
-                { i -> if (i > 0 && !groups[i - 1].startsWith("@")) groupMenu(kind, groups[i - 1]) })
-            clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(6))
+        fun itemsOf(g: String): List<Item> = if (g.startsWith("@")) smartList(kind, g) else byGroup[g] ?: emptyList()
+        fun titleOf(g: String) = if (g.startsWith("@")) "★ " + smartTitle(g) else (if (isFavCat(kind, g)) "★ " else "") + g
+        val entries: List<String?> = listOf<String?>(null) + groups
+        var selIdx = if (catFor[kind] == null) 0 else groups.indexOf(catFor[kind]) + 1
+        val root = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setBackgroundColor(BG); setPadding(dp(32), dp(14), 0, 0); clipChildren = false }
+        val right = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false; setPadding(0, 0, 0, dp(40)) }
+        fun fillRight() {
+            right.removeAllViews()
+            val firstG = if (selIdx == 0) 0 else selIdx - 1
+            for (g in groups.drop(firstG).take(8)) { val l = itemsOf(g); if (l.isNotEmpty()) right.addView(rowView(titleOf(g) + "   ·   ${l.size}", l, 16)) }
         }
-        root.addView(chips, LinearLayout.LayoutParams(-1, -2))
-        val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(60)) / (dp(tileW()) + dp(14)))
-        grid.apply { layoutManager = GridLayoutManager(this@MainActivity, span); adapter = cards; clipChildren = false; clipToPadding = false; setPadding(0, dp(8), 0, dp(40)); itemAnimator = null }
-        root.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
-        grid.post { (grid.getChildAt(0) ?: chips.getChildAt(0))?.requestFocus() }
+        val fillRun = Runnable { fillRight() }
+        lateinit var lv: RecyclerView
+        fun select(pos: Int) {
+            if (pos == selIdx) return
+            val old = selIdx; selIdx = pos; catFor[kind] = entries[pos]
+            ui.removeCallbacks(fillRun); ui.postDelayed(fillRun, 220)
+            lv.post { lv.adapter?.notifyItemChanged(old); lv.adapter?.notifyItemChanged(pos) }
+        }
+        lv = RecyclerView(this).apply {
+            layoutManager = LinearLayoutManager(this@MainActivity); itemAnimator = null; clipToPadding = false; setPadding(0, dp(4), dp(8), dp(40))
+            adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                override fun getItemCount() = entries.size
+                override fun onCreateViewHolder(p: ViewGroup, t: Int): RecyclerView.ViewHolder {
+                    val row = LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isFocusable = true; isClickable = true
+                        setPadding(dp(16), dp(10), dp(16), dp(10))
+                        addView(TextView(this@MainActivity).apply { textSize = 18f; typeface = fMedium(); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
+                        addView(TextView(this@MainActivity).apply { textSize = 16f; typeface = fBody(); setPadding(dp(12), 0, 0, 0) })
+                        layoutParams = RecyclerView.LayoutParams(-1, -2)
+                    }
+                    return object : RecyclerView.ViewHolder(row) {}
+                }
+                override fun onBindViewHolder(h: RecyclerView.ViewHolder, pos: Int) {
+                    val row = h.itemView as LinearLayout; val name = row.getChildAt(0) as TextView; val cnt = row.getChildAt(1) as TextView
+                    val e = entries[pos]
+                    name.text = if (e == null) "All" else titleOf(e); cnt.text = (if (e == null) base.size else itemsOf(e).size).toString()
+                    fun paint(f: Boolean) {
+                        row.background = rbg(if (f) CREAM else if (pos == selIdx) Color.parseColor("#26EBDDC4") else Color.TRANSPARENT, Color.TRANSPARENT, 10, 0)
+                        val c = if (f) Color.parseColor("#1A1208") else CREAM
+                        name.setTextColor(c); cnt.setTextColor(if (f) Color.parseColor("#5A4A36") else MUTED)
+                    }
+                    paint(row.hasFocus())
+                    row.setOnFocusChangeListener { _, f -> paint(f); if (f) select(pos) }
+                    row.setOnClickListener { select(pos); right.getChildAt(0)?.let { it.requestFocus() } }
+                    row.setOnLongClickListener { if (e != null && !e.startsWith("@")) groupMenu(kind, e); true }
+                }
+            }
+        }
+        val leftBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        leftBox.addView(eyebrow(if (kind == "movie") "MOVIES  ·  ${base.size}" else "TV SERIES  ·  ${base.size}"))
+        leftBox.addView(lv, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(leftBox, LinearLayout.LayoutParams(dp(330), -1))
+        root.addView(ScrollView(this).apply { isFillViewport = true; clipChildren = false; isVerticalScrollBarEnabled = false; addView(right) }, LinearLayout.LayoutParams(0, -1, 1f))
+        fillRight()
+        lv.scrollToPosition(selIdx)
+        lv.post { lv.findViewHolderForAdapterPosition(selIdx)?.itemView?.requestFocus() }
         return root
     }
 
