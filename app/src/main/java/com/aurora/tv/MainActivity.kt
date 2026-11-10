@@ -1809,7 +1809,12 @@ class MainActivity : Activity() {
         p.prepare(); p.playWhenReady = true
     }
 
-    private var nextBtn: TextView? = null
+    private var nextCard: LinearLayout? = null
+    private var nextNum: TextView? = null
+    private var nextName: TextView? = null
+    private var nextLbl: TextView? = null
+    private var nextCancelledKey = ""
+    private var nextCountdown = false
     private var skipBtn: TextView? = null
     private var lastSkipAt = 0L
     private fun seriesKeyOf(it: Item) = "intro_" + it.name.replace(Regex("(?i)\\s*[-–]?\\s*s\\d+\\s*e\\d+.*"), "").trim().lowercase().take(60).ifBlank { it.group.lowercase() }
@@ -1842,20 +1847,38 @@ class MainActivity : Activity() {
         ui.removeCallbacks(nextRun); savePosition(); prefs.edit().remove("pos_" + zapList[zapIndex].key).apply()
         zapIndex++; startCurrent(); updateNextBtn()
     }
-    /** "Next episode" button: visible with the controls, and automatically for the last 90 seconds of an episode. */
+    /** "Up next" pill: shown for the last 25 s with a countdown (plays by itself), or with the controls. Clickable, and it takes focus so OK works too. */
     private fun updateNextBtn() {
-        val b = nextBtn ?: return
+        val card = nextCard ?: return
         val p = player; val d = p?.duration ?: -1L
-        val ending = d > 0 && p != null && d - p.currentPosition < 90_000L
+        val left = if (d > 0 && p != null) d - p.currentPosition else Long.MAX_VALUE
+        val ending = left < 25_000L
         val ctl = playerView?.isControllerFullyVisible == true
+        val cur = zapList.getOrNull(zapIndex)
         val sk = skipBtn
-        if (sk != null) { if (skipVisible()) { sk.text = if (lastSkipAt > 0L) "SKIP A BIT MORE  ▶      (press ▲)" else "SKIP INTRO  ▶      (press ▲)"; sk.visibility = View.VISIBLE } else sk.visibility = View.GONE }
+        if (sk != null) {
+            if (skipVisible()) {
+                sk.text = if (lastSkipAt > 0L) "SKIP A BIT MORE  ▶" else "SKIP INTRO  ▶"
+                val was = sk.visibility == View.VISIBLE
+                sk.visibility = View.VISIBLE; if (!was && !ctl) sk.requestFocus()
+            } else { if (sk.hasFocus()) playerView?.requestFocus(); sk.visibility = View.GONE }
+        }
         val skipShown = sk?.visibility == View.VISIBLE
-        if (hasNextEp() && (ending || (ctl && !skipShown))) {
+        val cancelled = cur != null && nextCancelledKey == cur.key
+        if (hasNextEp() && !cancelled && (ending || (ctl && !skipShown))) {
             val n = zapList[zapIndex + 1].name
-            b.text = "NEXT EPISODE  ▶    " + (if (n.length > 38) n.take(36) + "…" else n) + "      (press ▲)"; b.visibility = View.VISIBLE
-        } else b.visibility = View.GONE
-        if (playerRoot != null && zapList.getOrNull(zapIndex)?.kind == "episode") { ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500) }
+            nextName?.text = if (n.length > 34) n.take(32) + "…" else n
+            nextCountdown = ending
+            nextNum?.text = if (ending) ((left + 999) / 1000).coerceIn(0L, 25L).toString() else "▶"
+            nextLbl?.text = if (ending) "UP NEXT  ·  OK play now  ·  BACK stay" else "UP NEXT  ·  OK or ▲ to play"
+            val was = card.visibility == View.VISIBLE
+            card.visibility = View.VISIBLE
+            if (ending && !was) card.requestFocus()
+        } else {
+            if (card.hasFocus()) playerView?.requestFocus()
+            card.visibility = View.GONE; nextCountdown = false
+        }
+        if (playerRoot != null && cur?.kind == "episode") { ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, if (nextCountdown) 500L else 1500L) }
     }
     private val nextBtnTick = Runnable { updateNextBtn() }
     private var chainNext = false
@@ -1877,14 +1900,23 @@ class MainActivity : Activity() {
         root.addView(pv, FrameLayout.LayoutParams(-1, -1))
         titleView = TextView(this).apply { textSize = 24f; setTextColor(CREAM); setBackgroundColor(Color.argb(190, 0, 0, 0)); setPadding(dp(24), dp(14), dp(24), dp(14)); visibility = View.GONE }
         root.addView(titleView, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START))
-        nextBtn = TextView(this).apply {
-            textSize = 20f; setTextColor(Color.BLACK); typeface = fMedium(); background = rbg(GOLD, Color.TRANSPARENT, 12, 0); setPadding(dp(26), dp(14), dp(26), dp(14)); visibility = View.GONE
-            isFocusable = false; setOnClickListener { goNextEpisode() }
+        val pillBg = Color.parseColor("#EE0E080A")
+        nextNum = TextView(this).apply { textSize = 22f; setTextColor(CREAM); typeface = fMedium(); gravity = Gravity.CENTER; background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(PANEL); setStroke(dp(3), ROSE) } }
+        nextName = TextView(this).apply { textSize = 20f; setTextColor(CREAM); typeface = fMedium(); maxLines = 1 }
+        nextLbl = TextView(this).apply { textSize = 13f; setTextColor(GOLD); letterSpacing = 0.1f }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(nextLbl); addView(nextName) }
+        nextCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(10), dp(10), dp(30), dp(10)); visibility = View.GONE
+            background = rbg(pillBg, GOLD, 40, 1)
+            isFocusable = true; isClickable = true; setOnClickListener { goNextEpisode() }
+            setOnFocusChangeListener { v, f -> v.background = rbg(pillBg, if (f) CREAM else GOLD, 40, if (f) 3 else 1) }
+            addView(nextNum, LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(16) }); addView(col)
         }
-        root.addView(nextBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(110)) })
+        root.addView(nextCard, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(110)) })
         skipBtn = TextView(this).apply {
             textSize = 20f; setTextColor(Color.WHITE); typeface = fMedium(); background = rbg(Color.parseColor("#CC18110F"), CREAM, 12, 2); setPadding(dp(26), dp(14), dp(26), dp(14)); visibility = View.GONE
-            isFocusable = false; setOnClickListener { doSkipIntro() }
+            isFocusable = true; isClickable = true; setOnClickListener { doSkipIntro() }
+            setOnFocusChangeListener { v, f -> v.background = rbg(Color.parseColor("#CC18110F"), if (f) GOLD else CREAM, 12, if (f) 3 else 2) }
         }
         root.addView(skipBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(190)) })
         ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500)
@@ -1925,9 +1957,8 @@ class MainActivity : Activity() {
                 val cur = zapList.getOrNull(zapIndex) ?: return
                 if (cur.kind == "live") return
                 prefs.edit().remove("pos_" + cur.key).apply()
-                if (chainNext && zapIndex + 1 < zapList.size) {
-                    showTitle("Next episode in 4 seconds:  " + zapList[zapIndex + 1].name + "      (BACK to stop)", 5000)
-                    ui.removeCallbacks(nextRun); ui.postDelayed(nextRun, 4000)
+                if ((chainNext || cur.kind == "episode") && zapIndex + 1 < zapList.size && nextCancelledKey != cur.key) {
+                    ui.removeCallbacks(nextRun); ui.postDelayed(nextRun, 300)
                 } else ui.postDelayed({ if (playerRoot != null && player === p) leavePlayer() }, 1500)
             }
             override fun onRenderedFirstFrame() {
@@ -2052,7 +2083,7 @@ class MainActivity : Activity() {
     }
 
     private fun leavePlayer() {
-        ui.removeCallbacks(nextRun); ui.removeCallbacks(nextBtnTick); nextBtn = null; skipBtn = null; ui.removeCallbacks(numRun); numBuf = ""
+        ui.removeCallbacks(nextRun); ui.removeCallbacks(nextBtnTick); nextCard = null; nextNum = null; nextName = null; nextLbl = null; skipBtn = null; ui.removeCallbacks(numRun); numBuf = ""
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
         request4k(false)
@@ -2082,7 +2113,14 @@ class MainActivity : Activity() {
         if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
             val hidden = playerView?.isControllerFullyVisible == false
             if (skipBtn?.visibility == View.VISIBLE && (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT)) { doSkipIntro(); return true }
-            if (nextBtn?.visibility == View.VISIBLE && hasNextEp() && (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || e.keyCode == KeyEvent.KEYCODE_CHANNEL_UP)) { goNextEpisode(); return true }
+            val onBtn = nextCard?.hasFocus() == true || skipBtn?.hasFocus() == true
+            if (onBtn && (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) playerView?.requestFocus()
+            if (nextCard?.visibility == View.VISIBLE && nextCountdown) {
+                val cur = zapList.getOrNull(zapIndex)
+                if (cur != null && (e.keyCode == KeyEvent.KEYCODE_BACK || e.keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) { nextCancelledKey = cur.key; nextCard?.visibility = View.GONE; nextCountdown = false; playerView?.requestFocus(); return true }
+                if (e.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || e.keyCode == KeyEvent.KEYCODE_ENTER) { goNextEpisode(); return true }
+            }
+            if (nextCard?.visibility == View.VISIBLE && hasNextEp() && (e.keyCode == KeyEvent.KEYCODE_DPAD_UP || e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || e.keyCode == KeyEvent.KEYCODE_CHANNEL_UP)) { goNextEpisode(); return true }
             if (hasNextEp() && (e.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || e.keyCode == KeyEvent.KEYCODE_CHANNEL_UP)) { goNextEpisode(); return true }
             if (e.keyCode == KeyEvent.KEYCODE_MENU || e.keyCode == KeyEvent.KEYCODE_INFO || (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && hidden)) { audioDialog(); return true }
         }
