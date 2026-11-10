@@ -1813,7 +1813,19 @@ class MainActivity : Activity() {
     private var skipBtn: TextView? = null
     private var lastSkipAt = 0L
     private fun seriesKeyOf(it: Item) = "intro_" + it.name.replace(Regex("(?i)\\s*[-–]?\\s*s\\d+\\s*e\\d+.*"), "").trim().lowercase().take(60).ifBlank { it.group.lowercase() }
-    private fun skipVisible(): Boolean { val c = zapList.getOrNull(zapIndex) ?: return false; val p = player ?: return false; return c.kind == "episode" && p.currentPosition < 240_000L && p.currentPosition > 3_000L }
+    private var skipEpKey = ""
+    private var skipFirstAt = 0L
+    /** The button shows for 12 s when the intro window opens, then goes away for this episode. After a press it offers "skip more" for 8 s and then goes away. */
+    private fun skipVisible(): Boolean {
+        val c = zapList.getOrNull(zapIndex) ?: return false; val p = player ?: return false
+        if (c.kind != "episode") return false
+        val now = System.currentTimeMillis()
+        if (skipEpKey != c.key) { skipEpKey = c.key; skipFirstAt = 0L; lastSkipAt = 0L }
+        if (lastSkipAt > 0L) return now - lastSkipAt < 8_000L
+        if (p.currentPosition < 3_000L || p.currentPosition > 200_000L) return false
+        if (skipFirstAt == 0L) skipFirstAt = now
+        return now - skipFirstAt < 12_000L
+    }
     /** Skip intro: the provider sends no intro timings, so the first press jumps to the remembered end of this series' intro (or +85 s). Pressing again within 10 s adds 30 s and the app remembers it for the next episodes. */
     private fun doSkipIntro() {
         val c = zapList.getOrNull(zapIndex) ?: return; val p = player ?: return
@@ -1837,7 +1849,7 @@ class MainActivity : Activity() {
         val ending = d > 0 && p != null && d - p.currentPosition < 90_000L
         val ctl = playerView?.isControllerFullyVisible == true
         val sk = skipBtn
-        if (sk != null) { if (skipVisible()) { sk.text = "SKIP INTRO  ▶      (press ▲)"; sk.visibility = View.VISIBLE } else sk.visibility = View.GONE }
+        if (sk != null) { if (skipVisible()) { sk.text = if (lastSkipAt > 0L) "SKIP A BIT MORE  ▶      (press ▲)" else "SKIP INTRO  ▶      (press ▲)"; sk.visibility = View.VISIBLE } else sk.visibility = View.GONE }
         val skipShown = sk?.visibility == View.VISIBLE
         if (hasNextEp() && (ending || (ctl && !skipShown))) {
             val n = zapList[zapIndex + 1].name
