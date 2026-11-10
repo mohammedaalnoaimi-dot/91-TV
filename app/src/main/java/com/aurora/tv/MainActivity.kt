@@ -631,7 +631,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showPage(builder: () -> View) { currentPage = { releasePreview(); panel = null; searchType = null; searchDel = null; show(builder()) }; currentPage!!() }
+    private fun showPage(builder: () -> View) { currentPage = { releasePreview(); panel = null; searchType = null; searchDel = null; catOpenFn = null; catCloseFn = null; show(builder()) }; currentPage!!() }
     private fun pushPage(builder: () -> View) { currentPage?.let { pageStack.addLast(it) }; showPage(builder) }
     private fun show(v: View) { content.removeAllViews(); content.addView(v, FrameLayout.LayoutParams(-1, -1)) }
     private fun refreshPage() { currentPage?.invoke() }
@@ -639,6 +639,7 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (playerRoot != null) { leavePlayer(); return }
+        if (catCloseFn?.invoke() == true) return
         if (pickerOpen && shell != null) { pickerOpen = false; setContentView(shell); return }
         if (shell == null) { finish(); return }
         if (pageStack.isNotEmpty()) { currentPage = pageStack.removeLast(); currentPage!!(); return }
@@ -1149,6 +1150,8 @@ class MainActivity : Activity() {
     // MOVIES / SERIES / MY LIST / SEARCH grids
     // =====================================================================================
     /** Movies / TV series: categories with counts on the left, poster rows of the focused category (and the ones after it) on the right. */
+    private var catOpenFn: (() -> Unit)? = null
+    private var catCloseFn: (() -> Boolean)? = null
     private fun gridPage(kind: String): View {
         val base = visible(kind, if (kind == "movie") movies else series)
         val byGroup = base.groupBy { it.group }
@@ -1175,7 +1178,7 @@ class MainActivity : Activity() {
             lv.post { lv.adapter?.notifyItemChanged(old); lv.adapter?.notifyItemChanged(pos) }
         }
         lv = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@MainActivity); itemAnimator = null; clipToPadding = false; setPadding(0, dp(4), dp(8), dp(40))
+            tag = "cats"; layoutManager = LinearLayoutManager(this@MainActivity); itemAnimator = null; clipToPadding = false; setPadding(0, dp(4), dp(8), dp(40))
             adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 override fun getItemCount() = entries.size
                 override fun onCreateViewHolder(p: ViewGroup, t: Int): RecyclerView.ViewHolder {
@@ -1199,7 +1202,7 @@ class MainActivity : Activity() {
                     }
                     paint(row.hasFocus())
                     row.setOnFocusChangeListener { _, f -> paint(f); if (f) select(pos) }
-                    row.setOnClickListener { select(pos); right.getChildAt(0)?.let { it.requestFocus() } }
+                    row.setOnClickListener { select(pos); ui.removeCallbacks(fillRun); fillRight(); catCloseFn?.invoke() }
                     row.setOnLongClickListener { if (e != null && !e.startsWith("@")) groupMenu(kind, e); true }
                 }
             }
@@ -1207,11 +1210,19 @@ class MainActivity : Activity() {
         val leftBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         leftBox.addView(eyebrow(if (kind == "movie") "MOVIES  ·  ${base.size}" else "TV SERIES  ·  ${base.size}"))
         leftBox.addView(lv, LinearLayout.LayoutParams(-1, 0, 1f))
+        leftBox.visibility = View.GONE
         root.addView(leftBox, LinearLayout.LayoutParams(dp(330), -1))
         root.addView(ScrollView(this).apply { isFillViewport = true; clipChildren = false; isVerticalScrollBarEnabled = false; addView(right) }, LinearLayout.LayoutParams(0, -1, 1f))
         fillRight()
-        lv.scrollToPosition(selIdx)
-        lv.post { lv.findViewHolderForAdapterPosition(selIdx)?.itemView?.requestFocus() }
+        // press ◀ on the first poster of a row to slide the category list in; OK picks one, ▶ or BACK closes it
+        catOpenFn = {
+            leftBox.visibility = View.VISIBLE; lv.scrollToPosition(selIdx)
+            lv.post { lv.findViewHolderForAdapterPosition(selIdx)?.itemView?.requestFocus() }
+        }
+        catCloseFn = {
+            if (leftBox.visibility == View.VISIBLE) { leftBox.visibility = View.GONE; ui.removeCallbacks(fillRun); fillRight(); right.post { right.getChildAt(0)?.requestFocus() }; true } else false
+        }
+        right.post { right.getChildAt(0)?.requestFocus() }
         return root
     }
 
@@ -2206,6 +2217,11 @@ class MainActivity : Activity() {
             if (kc in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9) { searchType?.invoke(('0' + (kc - KeyEvent.KEYCODE_0)).toString()); return true }
             if (kc == KeyEvent.KEYCODE_SPACE) { searchType?.invoke(" "); return true }
             if (kc == KeyEvent.KEYCODE_DEL) { searchDel?.invoke(); return true }
+        }
+        if (playerRoot == null && catOpenFn != null && e.action == KeyEvent.ACTION_DOWN) {
+            val f = currentFocus
+            if (e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && f?.parent is RecyclerView && (f.parent as RecyclerView).layoutManager is LinearLayoutManager && (f.parent as RecyclerView).parent is LinearLayout && (f.parent as RecyclerView).tag == "cats") { catCloseFn?.invoke(); return true }
+            if (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) { val rv = f?.parent as? RecyclerView; if (rv != null && rv.tag != "cats" && (rv.adapter is PosterAdapter) && rv.getChildAdapterPosition(f) == 0) { catOpenFn?.invoke(); return true } }
         }
         if (playerRoot == null && e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0) { if (fastScroll(e)) return true }
         if (playerRoot != null && e.action == KeyEvent.ACTION_DOWN && zapList.getOrNull(zapIndex)?.kind != "live") {
