@@ -35,18 +35,29 @@ def build(which: str, items: list, kind: str = "movie") -> list:
     return []
 
 
+def _ln(it) -> str:
+    """Lower-case title, cached on the item so a search does not re-lower-case 100k names every time."""
+    d = it.__dict__; n = d.get("_ln")
+    if n is None: n = d["_ln"] = (it.name or "").lower()
+    return n
+
+
 def rank(items: list, q: str, cap: int = 300) -> list:
     """Every word must match; titles that start with the first word come first, then word-start matches, then the rest; better rated first."""
     toks = [t for t in re.split(r"[\s\-._]+", q.lower()) if t]
     if not toks: return []
-    first = toks[0]; out = []
+    first = toks[0]; sp = " " + first; rest = toks[1:]; hits = []
     for it in items:
-        n = (it.name or "").lower()
-        if all(t in n for t in toks):
-            w = 0 if n.startswith(first) else 1 if (" " + first) in n else 2
-            out.append((w, -score(it), it))
-    out.sort(key=lambda x: (x[0], x[1]))
-    return [x[2] for x in out[:cap]]
+        n = _ln(it)
+        if first in n and all(t in n for t in rest):
+            hits.append((0 if n.startswith(first) else 1 if sp in n else 2, it))
+    out: list = []
+    for w in (0, 1, 2):                     # sort only the buckets that are needed to fill the list
+        b = [it for ww, it in hits if ww == w]
+        if len(b) > 1: b.sort(key=score, reverse=True)
+        out.extend(b)
+        if len(out) >= cap: break
+    return out[:cap]
 
 
 def because(recents: list, pool: list, rows: int = 3, per: int = 30) -> list:
