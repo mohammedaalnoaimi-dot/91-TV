@@ -914,19 +914,42 @@ class MainActivity : Activity() {
     /** Netflix-style search: on-screen keyboard and suggestions on the left, live poster results on the right. */
     fun searchDialog() { query = ""; section = "search"; markSection(); pageStack.clear(); showPage { searchScreen() } }
 
-    private fun searchItems(q: String): List<Item> {
+    // ---- search engine: one lowercase-name index, narrowing from the previous letter, all off the UI thread
+    private var sIdxSig = ""
+    private var sIdxItems: List<Item> = emptyList()
+    private var sIdxNames: Array<String> = emptyArray()
+    private val searchPool = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private fun ensureSearchIndex() {
+        val sig = "${movies.size}|${series.size}|${live.size}|${isKids()}|${hidden().size}"
+        if (sig == sIdxSig) return
+        val all = visible("movie", movies) + visible("series", series) + visible("live", live)
+        sIdxNames = Array(all.size) { all[it].name.lowercase() }; sIdxItems = all; sIdxSig = sig
+    }
+    /** Returns every match (as indices, so the next letter only has to look at these) and the best [limit] of them as items. */
+    private fun searchCore(q: String, prev: IntArray?, limit: Int): Pair<IntArray, List<Item>> {
         val toks = q.lowercase().split(' ', '-', '.', '_').filter { it.isNotBlank() }
         val first = toks.firstOrNull() ?: q.lowercase()
-        fun score(it: Item): Int {
-            val n = it.name.lowercase()
-            val k = when (it.kind) { "movie" -> 0; "series" -> 1; else -> 2 }
+        val names = sIdxNames; val items = sIdxItems
+        val buf = IntArray(prev?.size ?: names.size); var cnt = 0
+        fun ok(n: String): Boolean { for (t in toks) if (!n.contains(t)) return false; return true }
+        if (prev != null) { for (i in prev) if (ok(names[i])) buf[cnt++] = i } else { for (i in names.indices) if (ok(names[i])) buf[cnt++] = i }
+        val matches = buf.copyOf(cnt)
+        val bucket = ByteArray(cnt)
+        for (j in 0 until cnt) {
+            val i = matches[j]; val n = names[i]
+            val k = when (items[i].kind) { "movie" -> 0; "series" -> 1; else -> 2 }
             val w = if (n.startsWith(first)) 0 else if (n.contains(" $first")) 1 else 2
-            return w * 3 + k
+            bucket[j] = (w * 3 + k).toByte()
         }
-        return (visible("movie", movies) + visible("series", series) + visible("live", live))
-            .filter { x -> val n = x.name.lowercase(); toks.all { t -> n.contains(t) } }
-            .sortedWith(compareBy({ score(it) }, { -it.rating }))
-            .take(300)
+        val out = ArrayList<Item>(limit)
+        for (b in 0..8) {
+            if (out.size >= limit) break
+            val part = ArrayList<Item>()
+            for (j in 0 until cnt) if (bucket[j].toInt() == b) part.add(items[matches[j]])
+            if (part.size > 1) part.sortByDescending { it.rating }
+            for (x in part) { out.add(x); if (out.size >= limit) break }
+        }
+        return Pair(matches, out)
     }
 
     private fun searchScreen(): View {
@@ -949,11 +972,10 @@ class MainActivity : Activity() {
         }
         lateinit var refresh: () -> Unit
         val refreshRun = Runnable { refresh() }
-        fun changed() { showText(); ui.removeCallbacks(refreshRun); ui.postDelayed(refreshRun, 180) }
-        refresh = {
-            val q = typed.trim()
-            val res = if (q.isEmpty()) emptyList() else searchItems(q)
-            val sugs = if (q.isEmpty()) recentSearches().take(5) else res.map { Ratings.cleanTitle(it.name) }.filter { it.isNotBlank() }.distinct().take(5)
+        fun changed() { showText(); ui.removeCallbacks(refreshRun); ui.postDelayed(refreshRun, 150) }
+        var seq = 0; var lastQ = ""; var lastMatches: IntArray? = null   // lastQ / lastMatches are only touched on the search thread
+        fun showResults(q: String, found: List<Item>, total: Int) {
+            val sugs = if (q.isEmpty()) recentSearches().take(5) else found.map { Ratings.cleanTitle(it.name) }.filter { it.isNotBlank() }.distinct().take(5)
             sugBox.removeAllViews()
             if (sugs.isNotEmpty()) sugBox.addView(mkText(if (q.isEmpty()) "RECENT SEARCHES" else "SUGGESTIONS", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(dp(4), dp(10), 0, dp(4)) })
             for (s in sugs) sugBox.addView(mkText(s, 18f, CREAM).apply {
@@ -961,9 +983,24 @@ class MainActivity : Activity() {
                 setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.TRANSPARENT, 8, 2) }
                 setOnClickListener { typed = s; changed() }
             })
-            head.text = if (q.isEmpty()) "POPULAR" else "“$q”   ·   ${res.size}"
-            results.items = if (q.isEmpty()) popular else if (res.isEmpty()) emptyList() else res.take(150)
+            head.text = if (q.isEmpty()) "POPULAR" else "“$q”   ·   $total"
+            results.items = if (q.isEmpty()) popular else found
             results.notifyDataSetChanged()
+        }
+        refresh = {
+            val q = typed.trim(); val my = ++seq
+            if (q.isEmpty()) { searchPool.execute { lastQ = ""; lastMatches = null }; showResults("", emptyList(), 0) }
+            else searchPool.execute {
+                if (my == seq) {
+                    try {
+                        ensureSearchIndex()
+                        val prev = if (lastQ.isNotEmpty() && q.startsWith(lastQ)) lastMatches else null
+                        val (m, top) = searchCore(q, prev, 150)
+                        lastQ = q; lastMatches = m
+                        ui.post { if (my == seq && searchType != null) showResults(q, top, m.size) }
+                    } catch (e: Throwable) { }
+                }
+            }
         }
         fun add(c: String) { if (typed.length < 40) { typed += c; changed() } }
         fun del() { if (typed.isNotEmpty()) { typed = typed.dropLast(1); changed() } }
