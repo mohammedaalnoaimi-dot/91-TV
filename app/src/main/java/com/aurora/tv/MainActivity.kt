@@ -956,7 +956,11 @@ class MainActivity : Activity() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false }
         warmSmart()
         col.addView(heroView(), LinearLayout.LayoutParams(-1, dp(340)))
-        val cont = recents().filter { (it.kind == "movie" || it.kind == "episode") && savedPos(it) > 10_000 }
+        // one tile per series: the most recently watched episode only
+        val seenSeries = HashSet<String>()
+        val cont = recents().filter { (it.kind == "movie" || it.kind == "episode") && savedPos(it) > 10_000 }.filter { r ->
+            r.kind != "episode" || seenSeries.add(sidOf(r).ifEmpty { r.name.replace(Regex("^E\\d+\\s+"), "").trim().lowercase() })
+        }
         if (cont.isNotEmpty()) col.addView(rowView("Continue watching", cont))
         becauseRows.forEach { (t, l) -> col.addView(rowView("Because you watched  " + Ratings.cleanTitle(t), l)) }
         val fv = favs()
