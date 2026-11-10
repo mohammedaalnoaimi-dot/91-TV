@@ -867,7 +867,14 @@ class MainActivity : Activity() {
     private fun openAny(list: List<Item>, pos: Int) {
         val it = list[pos]
         when (it.kind) {
-            "live", "episode" -> play(list, pos)
+            "live" -> play(list, pos)
+            "episode" -> {
+                // played from "Continue watching": rebuild the whole series so "next episode" follows the season, not the row
+                val sid = sidOf(it); val saved = if (sid.isNotEmpty()) prefs.getString("serlist_$sid", null) else null
+                val l = try { if (saved != null) { val a = org.json.JSONArray(saved); (0 until a.length()).map { i -> Item.fromJson(a.getJSONObject(i)) } } else emptyList() } catch (e: Exception) { emptyList() }
+                val i = l.indexOfFirst { e -> e.key == it.key }
+                if (i >= 0) play(l, i, true) else play(list, pos)
+            }
             else -> pushPage { detailView(it) }
         }
     }
@@ -1261,9 +1268,9 @@ class MainActivity : Activity() {
                 else {
                     val d = x.seriesData(item.id)
                     ui.post {
-                        fill(d.info); buildSeasons(seasonsBox, d)
+                        fill(d.info); buildSeasons(seasonsBox, d, item.id)
                         val first = d.seasons.values.firstOrNull()
-                        playBtn.setOnClickListener { val resume = d.seasons.values.flatten().lastOrNull { savedPos(it) > 10_000 }; val l = d.seasons.values.flatten(); if (l.isNotEmpty()) play(l, if (resume != null) l.indexOf(resume) else 0, true) }
+                        playBtn.setOnClickListener { val resume = d.seasons.values.flatten().lastOrNull { savedPos(it) > 10_000 }; val l = d.seasons.values.flatten(); if (l.isNotEmpty()) playSeries(item.id, d, resume ?: l[0]) }
                         if (first == null) plot.text = plot.text.toString() + "\n(No episodes listed.)"
                     }
                 }
@@ -1273,7 +1280,7 @@ class MainActivity : Activity() {
         return scroll
     }
 
-    private fun buildSeasons(box: LinearLayout, d: SeriesData) {
+    private fun buildSeasons(box: LinearLayout, d: SeriesData, sid: String) {
         box.removeAllViews()
         val keys = d.seasons.keys.toList(); if (keys.isEmpty()) return
         var sel = 0
@@ -1286,7 +1293,7 @@ class MainActivity : Activity() {
                     orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isFocusable = true; setPadding(dp(16), dp(10), dp(16), dp(10))
                     background = rbg(Color.parseColor("#14FFFFFF"), Color.TRANSPARENT, 10, 2)
                     setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
-                    setOnClickListener { play(eps, i, true) }
+                    setOnClickListener { playSeries(sid, d, e) }
                 }
                 val thumb = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = rbg(CARD, Color.TRANSPARENT, 6); clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
                 Img.load(e.logo, thumb, dp(160)); row.addView(thumb, LinearLayout.LayoutParams(dp(150), dp(84)).apply { rightMargin = dp(16) })
@@ -1841,7 +1848,20 @@ class MainActivity : Activity() {
         showTitle("Intro skipped   (press ▲ again within 10 s to skip a bit more)", 3500)
         updateNextBtn()
     }
-    private fun hasNextEp(): Boolean { val c = zapList.getOrNull(zapIndex) ?: return false; return c.kind == "episode" && zapIndex + 1 < zapList.size }
+    private fun sidOf(it: Item): String = prefs.getString("sid_" + it.key, "") ?: ""
+    /** Remembers which series these episodes belong to, so the next episode can be found again from "Continue watching". */
+    private fun playSeries(sid: String, d: SeriesData, ep: Item) {
+        val l = d.seasons.values.flatten(); val i = l.indexOfFirst { e -> e.key == ep.key }; if (i < 0) return
+        val a = org.json.JSONArray(); val ed = prefs.edit()
+        for (e in l) { a.put(e.toJson()); ed.putString("sid_" + e.key, sid) }
+        ed.putString("serlist_$sid", a.toString()).apply()
+        play(l, i, true)
+    }
+    private fun hasNextEp(): Boolean {
+        val c = zapList.getOrNull(zapIndex) ?: return false; val n = zapList.getOrNull(zapIndex + 1) ?: return false
+        if (c.kind != "episode" || n.kind != "episode") return false
+        val s = sidOf(c); return s.isNotEmpty() && s == sidOf(n)
+    }
     private fun goNextEpisode() {
         if (!hasNextEp()) return
         ui.removeCallbacks(nextRun); savePosition(); prefs.edit().remove("pos_" + zapList[zapIndex].key).apply()
@@ -1957,7 +1977,7 @@ class MainActivity : Activity() {
                 val cur = zapList.getOrNull(zapIndex) ?: return
                 if (cur.kind == "live") return
                 prefs.edit().remove("pos_" + cur.key).apply()
-                if ((chainNext || cur.kind == "episode") && zapIndex + 1 < zapList.size && nextCancelledKey != cur.key) {
+                if (hasNextEp() && nextCancelledKey != cur.key) {
                     ui.removeCallbacks(nextRun); ui.postDelayed(nextRun, 300)
                 } else ui.postDelayed({ if (playerRoot != null && player === p) leavePlayer() }, 1500)
             }
