@@ -150,6 +150,18 @@ export default {
           t.devs.splice(i, 1); await env.PAIR.put("tk:" + tok, JSON.stringify(t)); return json({ deactivated: true });
         }
       }
+      if (path === "/report" && req.method === "POST") {
+        const b = await readForm(req); const T = (v, n) => String(v || "").slice(0, n);
+        const key = T(b.key, 64) || "(no code)", app = T(b.app, 20), dev = T(b.device, 80), an = T(b.android, 20), plan = T(b.plan, 40), trace = T(b.trace, 4000);
+        const id = "r:" + new Date().toISOString() + ":" + newSecret().slice(0, 6);
+        await env.PAIR.put(id, JSON.stringify({ key, plan, app, dev, an, trace }), { expirationTtl: 60 * 86400 });
+        const text = "Crash report from 91 TV\n\nCustomer code: " + key + (plan ? "  (" + plan + ")" : "") + "\nApp: " + app + "\nDevice: " + dev + "  Android " + an + "\n\n" + trace;
+        if (env.RESEND_KEY) {
+          await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + env.RESEND_KEY, "Content-Type": "application/json" },
+            body: JSON.stringify({ from: "91 TV Reports <onboarding@resend.dev>", to: [env.SUPPORT_EMAIL || "ninetyonetv.support@gmail.com"], subject: "91 TV crash report - " + key + " - v" + app, text }) }).catch(() => {});
+        }
+        return json({ ok: true });
+      }
       return json({ error: "not_found" }, 404);
     } catch (e) { return json({ error: "server" }, 500); }
   },

@@ -211,11 +211,44 @@ class MainActivity : Activity() {
     private fun showCrash(text: String) {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG); setPadding(dp(60), dp(30), dp(60), dp(20)) }
         col.addView(mkText("91 TV closed unexpectedly last time", 26f, RED, true))
-        col.addView(mkText("Take a photo of this screen and send it, then press Continue.", 16f, GRAY).apply { setPadding(0, dp(6), 0, dp(10)) })
+        col.addView(mkText("Send the report to 91 TV support so we can fix it. It goes with your activation code so we know who you are.", 16f, GRAY).apply { setPadding(0, dp(6), 0, dp(10)) })
         val sv = ScrollView(this); sv.addView(mkText(text, 13f, CREAM).apply { typeface = Typeface.MONOSPACE })
         col.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f))
-        col.addView(mkButton("Continue", true) { begin() }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(12) })
+        val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        var sending = false
+        lateinit var sendBtn: TextView
+        sendBtn = mkButton("Send report to support", true) {
+            if (!sending) {
+                sending = true; sendBtn.text = "Sending…"
+                Thread {
+                    val ok = sendCrashReport(text)
+                    ui.post { sending = false; sendBtn.text = if (ok) "Report sent. Thank you!" else "Could not send. Try again"; if (ok) sendBtn.isEnabled = false }
+                }.start()
+            }
+        }
+        btns.addView(sendBtn, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(16) })
+        btns.addView(mkButton("Continue", false) { begin() })
+        col.addView(btns, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(12) })
         setContentView(col)
+        sendBtn.requestFocus()
+    }
+
+    /** Posts the crash text to the support server, which files it (and emails it to support) with the customer's code. */
+    private fun sendCrashReport(trace: String): Boolean {
+        return try {
+            val o = org.json.JSONObject()
+            o.put("key", prefs.getString("lic_key", "") ?: "")
+            o.put("plan", prefs.getString("lic_plan", "") ?: "")
+            o.put("app", try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Throwable) { "" })
+            o.put("device", android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL)
+            o.put("android", android.os.Build.VERSION.RELEASE)
+            o.put("trace", trace.take(4000))
+            val c = java.net.URL(Lic.PAIR_API + "/report").openConnection() as java.net.HttpURLConnection
+            c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 10000; c.readTimeout = 15000
+            c.setRequestProperty("Content-Type", "application/json")
+            c.outputStream.use { it.write(o.toString().toByteArray()) }
+            c.responseCode in 200..299
+        } catch (_: Throwable) { false }
     }
 
     // =====================================================================================
