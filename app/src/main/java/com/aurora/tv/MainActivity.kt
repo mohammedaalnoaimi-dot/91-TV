@@ -115,7 +115,7 @@ class MainActivity : Activity() {
             old?.uncaughtException(t, e)
         }
         val crash = prefs.getString("crash", "") ?: ""
-        if (crash.isNotBlank()) { prefs.edit().remove("crash").apply(); showCrash(crash) } else begin()
+        if (crash.isNotBlank()) { prefs.edit().remove("crash").apply(); showCrash(crash) } else if (!playIntro()) begin()
     }
 
     private fun activationView(msg: String = prefs.getString("lic_msg", "") ?: "") {
@@ -247,31 +247,29 @@ class MainActivity : Activity() {
     private var pickerOpen = false
 
     /** After the channels are ready: ask who is watching (once per start), then open the app. */
-    private var introDone = false
     private var introView: android.widget.VideoView? = null
     private fun finishIntro() {
         val v = introView ?: return
         introView = null
         try { v.stopPlayback() } catch (_: Throwable) {}
-        enterApp()
+        begin()
+    }
+    private fun playIntro(): Boolean {
+        try {
+            val v = android.widget.VideoView(this)
+            introView = v
+            val box = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+            box.addView(v, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
+            setContentView(box)
+            v.setVideoURI(android.net.Uri.parse("android.resource://" + packageName + "/" + R.raw.intro))
+            v.setOnCompletionListener { finishIntro() }
+            v.setOnErrorListener { _, _, _ -> finishIntro(); true }
+            v.start()
+            ui.postDelayed({ finishIntro() }, 11_000)
+            return true
+        } catch (_: Throwable) { introView = null; return false }
     }
     private fun enterApp() {
-        if (!introDone) {
-            introDone = true
-            try {
-                val v = android.widget.VideoView(this)
-                introView = v
-                val box = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
-                box.addView(v, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
-                setContentView(box)
-                v.setVideoURI(android.net.Uri.parse("android.resource://" + packageName + "/" + R.raw.intro))
-                v.setOnCompletionListener { finishIntro() }
-                v.setOnErrorListener { _, _, _ -> finishIntro(); true }
-                v.start()
-                ui.postDelayed({ finishIntro() }, 11_000)
-                return
-            } catch (_: Throwable) { introView = null }
-        }
         if (profileChosen) { buildShell(); nav(startSection()); return }
         showProfilePicker(true)
     }
