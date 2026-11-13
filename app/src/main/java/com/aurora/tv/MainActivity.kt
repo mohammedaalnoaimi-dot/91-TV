@@ -247,7 +247,31 @@ class MainActivity : Activity() {
     private var pickerOpen = false
 
     /** After the channels are ready: ask who is watching (once per start), then open the app. */
+    private var introDone = false
+    private var introView: android.widget.VideoView? = null
+    private fun finishIntro() {
+        val v = introView ?: return
+        introView = null
+        try { v.stopPlayback() } catch (_: Throwable) {}
+        enterApp()
+    }
     private fun enterApp() {
+        if (!introDone) {
+            introDone = true
+            try {
+                val v = android.widget.VideoView(this)
+                introView = v
+                val box = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+                box.addView(v, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
+                setContentView(box)
+                v.setVideoURI(android.net.Uri.parse("android.resource://" + packageName + "/" + R.raw.intro))
+                v.setOnCompletionListener { finishIntro() }
+                v.setOnErrorListener { _, _, _ -> finishIntro(); true }
+                v.start()
+                ui.postDelayed({ finishIntro() }, 11_000)
+                return
+            } catch (_: Throwable) { introView = null }
+        }
         if (profileChosen) { buildShell(); nav(startSection()); return }
         showProfilePicker(true)
     }
@@ -2246,6 +2270,7 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
+        if (introView != null) { if (e.action == KeyEvent.ACTION_UP) finishIntro(); return true }
         if (saver != null) { stopSaver(); bumpIdle(); return true }
         bumpIdle()
         if (playerRoot == null && searchType != null && e.action == KeyEvent.ACTION_DOWN) {
