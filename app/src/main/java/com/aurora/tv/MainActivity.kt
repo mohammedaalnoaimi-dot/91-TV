@@ -303,6 +303,7 @@ class MainActivity : Activity() {
         } catch (_: Throwable) { introView = null; return false }
     }
     private fun enterApp() {
+        if (!autoChecked) { autoChecked = true; ui.postDelayed({ autoUpdate() }, 5000) }
         if (profileChosen) { buildShell(); nav(startSection()); return }
         showProfilePicker(true)
     }
@@ -1680,6 +1681,55 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    private var autoChecked = false
+    /** Automatic update: once per launch, quietly download a newer version and install it (no prompt on Android 12+ after the first time). */
+    private fun autoUpdate() {
+        if (!prefs.getBoolean("autoUpd", true)) return
+        if (android.os.Build.VERSION.SDK_INT < 26 || !packageManager.canRequestPackageInstalls()) return
+        Thread {
+            try {
+                val t = Http.get(VERSION_URL)
+                val code = Regex("versionCode\\s*=\\s*(\\d+)").find(t)!!.groupValues[1].toInt()
+                if (code <= curVersionCode()) return@Thread
+                val f = java.io.File(cacheDir, "update.apk")
+                val c = Http.open(APK_URL)
+                try { c.inputStream.use { i -> f.outputStream().use { o -> i.copyTo(o) } } } finally { c.disconnect() }
+                val info = packageManager.getPackageArchiveInfo(f.absolutePath, 0)
+                val got = info?.let { if (android.os.Build.VERSION.SDK_INT >= 28) it.longVersionCode.toInt() else it.versionCode } ?: 0
+                if (got < code || got <= curVersionCode()) return@Thread
+                ui.post { if (playerRoot == null) silentInstall(f, got) }
+            } catch (_: Throwable) {}
+        }.start()
+    }
+
+    private fun silentInstall(f: java.io.File, code: Int) {
+        try {
+            val action = "$packageName.INSTALL_RESULT"
+            val rcv = object : android.content.BroadcastReceiver() {
+                override fun onReceive(ctx: Context, i: android.content.Intent) {
+                    val st = i.getIntExtra(android.content.pm.PackageInstaller.EXTRA_STATUS, -1)
+                    if (st == android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                        if (prefs.getInt("autoAsked", 0) == code) return   // already asked once for this version: do not nag
+                        prefs.edit().putInt("autoAsked", code).apply()
+                        @Suppress("DEPRECATION") val ask = i.getParcelableExtra<android.content.Intent>(android.content.Intent.EXTRA_INTENT)
+                        if (ask != null && playerRoot == null) try { startActivity(ask.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) {}
+                    }
+                }
+            }
+            val flt = android.content.IntentFilter(action)
+            if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(rcv, flt, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(rcv, flt)
+            val pi = packageManager.packageInstaller
+            val p = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+            if (android.os.Build.VERSION.SDK_INT >= 31) p.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+            val id = pi.createSession(p)
+            pi.openSession(id).use { se ->
+                se.openWrite("91tv", 0, f.length()).use { o -> f.inputStream().use { it.copyTo(o) }; se.fsync(o) }
+                val pend = android.app.PendingIntent.getBroadcast(this, id, android.content.Intent(action).setPackage(packageName), android.app.PendingIntent.FLAG_MUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+                se.commit(pend.intentSender)
+            }
+        } catch (_: Throwable) {}
+    }
+
     private fun installUpdate(minCode: Int) {
         if (android.os.Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
             android.app.AlertDialog.Builder(this).setTitle("Allow installs")
@@ -1783,6 +1833,7 @@ class MainActivity : Activity() {
         }
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched (this profile)") { prefs.edit().remove(recentKey()).apply(); becauseSig = ""; Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
+        row("Automatic updates", (if (prefs.getBoolean("autoUpd", true)) "ON" else "OFF") + "  - when you open the app, a newer version is downloaded and installed by itself  - press to switch") { prefs.edit().putBoolean("autoUpd", !prefs.getBoolean("autoUpd", true)).apply(); refreshPage() }
         row("Check for updates", "You have version ${curVersionName()}  - press to look for a newer one") { checkUpdate() }
         row("About", "91 TV ${curVersionName()} · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
