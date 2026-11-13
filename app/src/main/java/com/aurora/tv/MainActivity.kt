@@ -656,7 +656,35 @@ class MainActivity : Activity() {
     private fun showPage(builder: () -> View) { currentPage = { releasePreview(); panel = null; searchType = null; searchDel = null; catOpenFn = null; catCloseFn = null; show(builder()) }; currentPage!!() }
     private fun pushPage(builder: () -> View) { currentPage?.let { pageStack.addLast(it) }; showPage(builder) }
     private fun show(v: View) { content.removeAllViews(); content.addView(v, FrameLayout.LayoutParams(-1, -1)) }
-    private fun refreshPage() { currentPage?.invoke() }
+    private fun firstScroll(v: View): ScrollView? {
+        if (v is ScrollView) return v
+        if (v is ViewGroup) for (i in 0 until v.childCount) firstScroll(v.getChildAt(i))?.let { return it }
+        return null
+    }
+    // rebuild the page but stay where the person was (same scroll, same spot focused)
+    private fun refreshPage() {
+        val pg = currentPage ?: return
+        val sv = try { firstScroll(content) } catch (_: Throwable) { null }
+        val sy = sv?.scrollY ?: 0
+        val f = content.findFocus()
+        val loc = IntArray(2)
+        var cx = -1; var cy = -1
+        if (f != null) { f.getLocationOnScreen(loc); cx = loc[0] + f.width / 2; cy = loc[1] + f.height / 2 }
+        pg()
+        if (sy <= 0 && f == null) return
+        val restore = Runnable {
+            try {
+                firstScroll(content)?.scrollTo(0, sy)
+                if (cx >= 0) {
+                    val l = ArrayList<View>(); content.addFocusables(l, View.FOCUS_DOWN)
+                    val r = IntArray(2)
+                    l.firstOrNull { v -> v.getLocationOnScreen(r); cx in r[0]..(r[0] + v.width) && cy in r[1]..(r[1] + v.height) }?.requestFocus()
+                    firstScroll(content)?.scrollTo(0, sy)
+                }
+            } catch (_: Throwable) {}
+        }
+        ui.postDelayed(restore, 120); ui.postDelayed(restore, 350)
+    }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
@@ -1261,7 +1289,12 @@ class MainActivity : Activity() {
                     }
                     paint(row.hasFocus())
                     row.setOnFocusChangeListener { _, f -> paint(f); if (f) select(pos) }
-                    row.setOnClickListener { select(pos); ui.removeCallbacks(fillRun); fillRight(); catCloseFn?.invoke() }
+                    row.setOnClickListener {
+                        ui.removeCallbacks(fillRun); catCloseFn = null; catOpenFn = null
+                        val lbl = if (kind == "movie") "MOVIES" else "TV SERIES"
+                        if (e == null) pushPage { plainGrid(lbl, "All", base, "Nothing here yet.") }
+                        else pushPage { plainGrid(lbl, titleOf(e), itemsOf(e), "Nothing in this category.") }
+                    }
                     row.setOnLongClickListener { if (e != null && !e.startsWith("@")) groupMenu(kind, e); true }
                 }
             }
