@@ -432,7 +432,7 @@ class MainActivity : Activity() {
     /** Loading screen: sharp wordmark that fades in, a soft rose glow that breathes, a tagline and a sweeping progress line. */
     private fun splash(msg: String = "") {
         val root = FrameLayout(this).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor("#1c0d11"), BG, Color.parseColor("#0d0809")))
+            setBackgroundColor(Color.BLACK)
         }
         val glow = View(this).apply {
             background = GradientDrawable().apply {
@@ -457,6 +457,7 @@ class MainActivity : Activity() {
         val note = TextView(this).apply { text = if (msg.isBlank()) "Loading channels" else msg; textSize = 15f; setTextColor(Color.parseColor("#8f806c")); gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0) }
         col.addView(note)
         root.addView(col, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        glow.visibility = View.GONE; logo.visibility = View.GONE; tag.visibility = View.GONE
         setContentView(root)
         val anims = ArrayList<android.animation.Animator>()
         fun go(a: android.animation.Animator) { anims.add(a); a.start() }
