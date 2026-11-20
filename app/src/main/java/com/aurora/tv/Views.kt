@@ -1,5 +1,7 @@
 package com.aurora.tv
 
+import android.view.ViewOutlineProvider
+import android.graphics.drawable.LayerDrawable
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -66,13 +68,16 @@ fun Context.mkButton(label: String, primary: Boolean, onClick: () -> Unit): Text
     val fill = if (primary) CREAM else Color.parseColor("#8C140A0C")
     val ink = if (primary) Color.parseColor("#160B0D") else CREAM
     val edge = if (primary) CREAM else Color.parseColor("#7A6250")
+    val surf = Surface(this, fill, 3, true, if (primary) Color.WHITE else CREAM, 2f)
     return TextView(this).apply {
         text = label.uppercase(); textSize = 14f; setTextColor(ink); typeface = fDisplay(); letterSpacing = 0.14f; gravity = Gravity.CENTER
         setPadding(dp(22), dp(13), dp(22), dp(13)); isFocusable = true; isClickable = true
-        background = rbg(fill, edge, 2, 1)
+        background = LayerDrawable(arrayOf(surf, rbg(Color.TRANSPARENT, edge, 3, 1)))
+        outlineProvider = ViewOutlineProvider.BACKGROUND
         setOnFocusChangeListener { v, f ->
-            v.background = rbg(if (f && !primary) Color.parseColor("#33EBDDC4") else fill, if (f) Color.WHITE else edge, 2, if (f) 3 else 1)
-            v.animate().scaleX(if (f) 1.05f else 1f).scaleY(if (f) 1.05f else 1f).setDuration(110).start()
+            surf.setColor(if (f && !primary) Color.parseColor("#33EBDDC4") else fill); surf.setFocused(f)
+            v.animate().scaleX(if (f) 1.04f else 1f).scaleY(if (f) 1.04f else 1f).setDuration(130).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+            if (primary) v.lift(f)
         }
         setOnClickListener { onClick() }
     }
@@ -178,4 +183,85 @@ class BadgeSpan(private val color: Int, private val density: Float) : android.te
         canvas.drawRoundRect(x + 0.6f * density, t, x + w + pad() * 2 - 0.6f * density, b, 3f * density, 3f * density, box)
         canvas.drawText(text, start, end, x + pad(), y.toFloat(), p)
     }
+}
+
+
+/**
+ * Premium surface: a rounded body with a faint top-lit sheen, a hairline edge that catches light on top,
+ * and a soft focus ring that fades in and out. No blur filters or bitmaps (cheap on TV GPUs); all paints are reused.
+ * fill=false draws only the edge and focus layer, so it can sit as a foreground over a poster image.
+ */
+class Surface(private val ctx: Context, color: Int, private val radiusDp: Int = 8, private val fill: Boolean = true,
+              private val ringColor: Int = CREAM, private val ringDp: Float = 2f) : android.graphics.drawable.Drawable() {
+    private var body = color
+    private val rect = android.graphics.RectF()
+    private val pBody = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val pSheen = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val pEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val pRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val pGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val d = ctx.resources.displayMetrics.density
+    private var shaderH = -1
+    var focus = 0f
+        private set
+    private var anim: android.animation.ValueAnimator? = null
+
+    fun setColor(c: Int) { if (c != body) { body = c; invalidateSelf() } }
+    fun setFocused(f: Boolean, animate: Boolean = true) {
+        anim?.cancel()
+        val to = if (f) 1f else 0f
+        if (!animate) { focus = to; invalidateSelf(); return }
+        anim = android.animation.ValueAnimator.ofFloat(focus, to).apply {
+            duration = if (f) 150L else 120L; interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { focus = it.animatedValue as Float; invalidateSelf() }; start()
+        }
+    }
+    override fun onBoundsChange(b: android.graphics.Rect) {
+        if (b.height() != shaderH) {
+            shaderH = b.height(); val h = b.height().toFloat()
+            pSheen.shader = LinearGradient(0f, 0f, 0f, h, intArrayOf(Color.argb(20, 255, 240, 220), Color.TRANSPARENT, Color.argb(34, 0, 0, 0)), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+            pEdge.shader = LinearGradient(0f, 0f, 0f, h, intArrayOf(Color.argb(60, 255, 240, 220), Color.argb(14, 255, 240, 220), Color.argb(26, 255, 240, 220)), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
+        }
+    }
+    override fun draw(c: Canvas) {
+        val r = radiusDp * d
+        rect.set(bounds)
+        if (fill) {
+            pBody.color = body; c.drawRoundRect(rect, r, r, pBody)
+            c.drawRoundRect(rect, r, r, pSheen)
+        }
+        val hw = maxOf(1f, d * 0.75f); pEdge.strokeWidth = hw
+        rect.inset(hw / 2, hw / 2); c.drawRoundRect(rect, r, r, pEdge)
+        if (focus > 0.01f) {
+            val w = ringDp * d
+            pGlow.strokeWidth = w * 3f; pGlow.color = Color.argb((46 * focus).toInt(), 201, 71, 92)
+            rect.set(bounds); rect.inset(w * 1.5f, w * 1.5f); c.drawRoundRect(rect, r, r, pGlow)
+            pRing.strokeWidth = w; pRing.color = Color.argb((255 * focus).toInt(), Color.red(ringColor), Color.green(ringColor), Color.blue(ringColor))
+            rect.set(bounds); rect.inset(w / 2, w / 2); c.drawRoundRect(rect, r, r, pRing)
+        }
+    }
+    override fun getOutline(o: android.graphics.Outline) { o.setRoundRect(bounds, radiusDp * d) }
+    override fun setAlpha(a: Int) {}
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Suppress("OVERRIDE_DEPRECATION") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+}
+
+/** Gentle raise-on-focus using the GPU's own shadow (a faint rose-warm spot shadow on API 28+). */
+fun View.lift(on: Boolean, fast: Boolean = false) {
+    if (android.os.Build.VERSION.SDK_INT >= 28) { outlineSpotShadowColor = Color.argb(200, 201, 71, 92); outlineAmbientShadowColor = Color.argb(90, 0, 0, 0) }
+    val z = resources.displayMetrics.density * if (on) 12f else 0f
+    if (fast) { animate().cancel(); translationZ = z } else animate().translationZ(z).setDuration(150).start()
+}
+
+/** Very faint warm light from the upper left on the main background. Drawn once, dithered. */
+class AmbientBg : android.graphics.drawable.Drawable() {
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { isDither = true }
+    override fun onBoundsChange(b: android.graphics.Rect) {
+        p.shader = android.graphics.RadialGradient(b.width() * 0.18f, -b.height() * 0.05f, b.width() * 0.85f,
+            intArrayOf(Color.parseColor("#150D0F"), Color.parseColor("#0A0708"), BG), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
+    }
+    override fun draw(c: Canvas) { c.drawRect(bounds.left.toFloat(), bounds.top.toFloat(), bounds.right.toFloat(), bounds.bottom.toFloat(), p) }
+    override fun setAlpha(a: Int) {}
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Suppress("OVERRIDE_DEPRECATION") override fun getOpacity() = android.graphics.PixelFormat.OPAQUE
 }

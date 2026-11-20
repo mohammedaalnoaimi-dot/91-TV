@@ -591,7 +591,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildShell() {
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG) }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = AmbientBg() }
         // ---- header
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(40), dp(16), dp(40), dp(4)) }
         val leftBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -1766,8 +1766,8 @@ class MainActivity : Activity() {
         fun head(t: String) { root.addView(mkText(t, 11f, GOLD, true).apply { letterSpacing = 0.34f; setPadding(dp(4), dp(14), 0, dp(6)) }) }
         fun row(label: String, sub: String, act: () -> Unit) {
             val r = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL; isFocusable = true; setPadding(dp(20), dp(11), dp(20), dp(11)); background = rbg(Color.parseColor("#14EBDDC4"), Color.TRANSPARENT, 2, 2)
-                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#14EBDDC4"), if (f) CREAM else Color.TRANSPARENT, 2, 2) }
+                orientation = LinearLayout.VERTICAL; isFocusable = true; setPadding(dp(20), dp(11), dp(20), dp(11)); val sf = Surface(this@MainActivity, Color.parseColor("#14EBDDC4"), 3, true, CREAM, 1.5f); background = sf
+                setOnFocusChangeListener { _, f -> sf.setColor(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#14EBDDC4")); sf.setFocused(f) }
                 setOnClickListener { act() }
             }
             r.addView(mkText(label, 17f, CREAM, true)); r.addView(mkText(sub, 14f, GRAY))

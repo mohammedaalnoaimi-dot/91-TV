@@ -9,8 +9,8 @@ android {
         applicationId = "com.aurora.tv"
         minSdk = 21
         targetSdk = 34
-        versionCode = 96
-        versionName = "0.9.60"
+        versionCode = 97
+        versionName = "0.9.61"
     }
     signingConfigs {
         getByName("debug") {

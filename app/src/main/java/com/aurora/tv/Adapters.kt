@@ -47,16 +47,21 @@ class PosterAdapter(
     private val a: MainActivity, var items: List<Item>,
     private val onPick: (List<Item>, Int) -> Unit, private val onLong: (Item) -> Unit
 ) : RecyclerView.Adapter<PosterAdapter.VH>() {
-    class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val rate: TextView, val bg: GradientDrawable, val prog: Bar) : RecyclerView.ViewHolder(cell)
+    class VH(val cell: LinearLayout, val img: ImageView, val ini: TextView, val label: TextView, val rate: TextView, val bg: Surface, val prog: Bar) : RecyclerView.ViewHolder(cell)
     override fun getItemCount() = items.size
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val kids = a.isKids(); val w = a.tileW(); val hgt = w * 3 / 2
-        val bg = a.rbg(CARD, if (kids) Color.parseColor("#55FFC93C") else Color.TRANSPARENT, if (kids) 18 else 3, 3)
+        val bg = Surface(a, CARD, if (kids) 18 else 3)
+        val edge = Surface(a, 0, if (kids) 18 else 3, false, if (kids) Color.parseColor("#FFC93C") else CREAM, if (kids) 4f else 2.5f)
         val cell = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL; isFocusable = true
             layoutParams = RecyclerView.LayoutParams(a.dp(w), -2).apply { setMargins(a.dp(7), a.dp(7), a.dp(7), a.dp(7)) }
         }
-        val box = FrameLayout(a).apply { background = bg; clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
+        val box = FrameLayout(a).apply {
+            background = bg; clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND
+            foreground = if (kids) android.graphics.drawable.LayerDrawable(arrayOf(edge, a.rbg(Color.TRANSPARENT, Color.parseColor("#55FFC93C"), 18, 3))) else edge
+            elevation = a.dp(2).toFloat()
+        }
         val ini = TextView(a).apply { setTextColor(Color.parseColor("#CCFFFFFF")); textSize = 15f; gravity = Gravity.CENTER; setPadding(a.dp(10), 0, a.dp(10), 0); maxLines = 4 }
         box.addView(ini, FrameLayout.LayoutParams(-1, -1))
         val img = ImageView(a); box.addView(img, FrameLayout.LayoutParams(-1, -1))
@@ -70,8 +75,8 @@ class PosterAdapter(
             val fast = System.currentTimeMillis() < a.holdUntil
             if (f) a.tick()
             val z = if (kids) 1.12f else 1.06f
-            if (fast) { v.animate().cancel(); v.scaleX = if (f) z else 1f; v.scaleY = if (f) z else 1f } else v.animate().scaleX(if (f) z else 1f).scaleY(if (f) z else 1f).setDuration(100).start()
-            bg.setStroke(a.dp(if (kids) 5 else 3), if (f) (if (kids) Color.parseColor("#FFC93C") else CREAM) else (if (kids) Color.parseColor("#55FFC93C") else Color.TRANSPARENT))
+            if (fast) { v.animate().cancel(); v.scaleX = if (f) z else 1f; v.scaleY = if (f) z else 1f } else v.animate().scaleX(if (f) z else 1f).scaleY(if (f) z else 1f).setDuration(120).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+            edge.setFocused(f, !fast); box.lift(f, fast)
         }
         return VH(cell, img, ini, label, rate, bg, prog)
     }
@@ -119,8 +124,7 @@ class ChannelAdapter(
         val bar = Bar(a)
         col.addView(name); col.addView(sub); col.addView(bar, LinearLayout.LayoutParams(-1, a.dp(3)).apply { topMargin = a.dp(5) })
         row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-        row.setOnFocusChangeListener { v, f -> v.background = a.rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#12FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
-        row.background = a.rbg(Color.parseColor("#12FFFFFF"), Color.TRANSPARENT, 10, 2)
+        row.background = Surface(a, Color.parseColor("#12FFFFFF"), 10, true, RED, 1.5f)
         return VH(row, num, tile, img, ini, name, sub, bar)
     }
     override fun onBindViewHolder(h: VH, position: Int) {
@@ -143,7 +147,7 @@ class ChannelAdapter(
         // guide data for rows that stay on screen (short delay so fast scrolling doesn't queue hundreds of requests)
         h.row.postDelayed({ if (h.row.tag == it.key) a.epgFor(it, true) { list -> show(list) } }, 350)
         h.row.setOnFocusChangeListener { v, f ->
-            v.background = a.rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#12FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2)
+            (v.background as? Surface)?.let { s -> s.setColor(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#12FFFFFF")); s.setFocused(f) }
             if (f) onFocus(it)
         }
         h.row.setOnClickListener { onOpen(items, h.adapterPosition) }
