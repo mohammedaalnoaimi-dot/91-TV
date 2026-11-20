@@ -485,7 +485,7 @@ class MainActivity : Activity() {
         }
         col.addView(tag)
         val track = FrameLayout(this).apply { background = GradientDrawable().apply { setColor(Color.parseColor("#2a2220")); cornerRadius = dp(2).toFloat() } }
-        val bar = View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, GOLD, Color.TRANSPARENT)).apply { cornerRadius = dp(2).toFloat() } }
+        val bar = View(this).apply { background = dgrad(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, GOLD, Color.TRANSPARENT)).apply { cornerRadius = dp(2).toFloat() } }
         track.addView(bar, FrameLayout.LayoutParams(dp(90), dp(3)))
         col.addView(track, LinearLayout.LayoutParams(dp(280), dp(3)).apply { topMargin = dp(46) })
         val note = TextView(this).apply { text = if (msg.isBlank()) "Loading channels" else msg; textSize = 15f; setTextColor(Color.parseColor("#8f806c")); gravity = Gravity.CENTER; setPadding(0, dp(16), 0, 0) }
@@ -629,7 +629,7 @@ class MainActivity : Activity() {
             navItems[k] = ni; navRow.addView(ni, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(4), 0, dp(4), 0) })
         }
         root.addView(navRow, LinearLayout.LayoutParams(-1, -2))
-        root.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, Color.parseColor("#80D7B88A"), Color.TRANSPARENT)) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(40), 0, dp(40), 0) })
+        root.addView(View(this).apply { background = dgrad(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, Color.parseColor("#80D7B88A"), Color.TRANSPARENT)) }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(40), 0, dp(40), 0) })
         content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         shell = root; setContentView(root)
@@ -1182,8 +1182,8 @@ class MainActivity : Activity() {
         val hero = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#120C0D")); clipChildren = true }
         val bgImg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0.85f }
         hero.addView(bgImg, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#99070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = dgrad(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#99070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = dgrad(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         hero.addView(View(this).apply { setBackgroundColor(BG) }, FrameLayout.LayoutParams(-1, dp(4), Gravity.BOTTOM))   // hides the thin line the zoom left at the bottom edge
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
         val label = mkText("MOVIE", 11f, GOLD, true).apply { letterSpacing = 0.34f }
@@ -1423,8 +1423,8 @@ class MainActivity : Activity() {
         val hero = FrameLayout(this)
         val bgImg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0.9f }
         hero.addView(bgImg, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#B3070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
-        hero.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#F0070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = dgrad(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(BG, Color.parseColor("#B3070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
+        hero.addView(View(this).apply { background = dgrad(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#F0070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, -1))
         Img.load(item.logo, bgImg, dp(900))
         val back = mkButton("←  Back", false) { onBackPressed() }
         val info = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(40), 0, dp(40), dp(28)) }
@@ -1960,7 +1960,7 @@ class MainActivity : Activity() {
         val f = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); alpha = 0f }
         val bg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0f }
         f.addView(bg, FrameLayout.LayoutParams(-1, -1))
-        f.addView(View(this).apply { background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, dp(220), Gravity.BOTTOM))
+        f.addView(View(this).apply { background = dgrad(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, dp(220), Gravity.BOTTOM))
         val brand = ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_START }
         f.addView(brand, FrameLayout.LayoutParams(dp(190), dp(29), Gravity.TOP or Gravity.START).apply { setMargins(dp(40), dp(30), 0, 0) })
         val t = mkText("", 24f, CREAM, true).apply { gravity = Gravity.CENTER }

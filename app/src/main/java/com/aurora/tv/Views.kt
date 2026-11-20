@@ -38,7 +38,10 @@ fun Context.fItalic(): Typeface = Fonts.get(this, "garamond_italic.ttf", Typefac
 fun Context.dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
 fun Context.rbg(color: Int, stroke: Int = Color.TRANSPARENT, radius: Int = 10, strokeW: Int = 3): GradientDrawable =
-    GradientDrawable().apply { cornerRadius = dp(radius).toFloat(); setColor(color); setStroke(dp(strokeW), stroke) }
+    GradientDrawable().apply { cornerRadius = dp(radius).toFloat(); setColor(color); setStroke(dp(strokeW), stroke); setDither(true) }
+
+/** Gradient with dithering on, so dark fades stay smooth on OLED / 4K panels instead of showing bands. */
+fun dgrad(o: GradientDrawable.Orientation, c: IntArray): GradientDrawable = GradientDrawable(o, c).apply { setDither(true) }
 
 /** bold = true gives the Cinzel display face, otherwise Jost. */
 fun Context.mkText(t: String, sp: Float = 16f, color: Int = CREAM, bold: Boolean = false): TextView =
