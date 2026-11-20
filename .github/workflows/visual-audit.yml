@@ -29,6 +29,7 @@ jobs:
           ls -la *.apk
       - name: Mock provider + test clip
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
           pip install pillow numpy -q
           mkdir -p /tmp/media
           ffmpeg -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=30 -f lavfi -i sine=frequency=440 -t 25 -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart /tmp/media/test.mp4
@@ -54,7 +55,7 @@ jobs:
         if: always()
         run: |
           mkdir -p /tmp/res && cp -r out /tmp/res/ 2>/dev/null || true
-          cd /tmp/res && for f in $(find out -name '*.mp4'); do ffmpeg -loglevel error -y -i $f -vf scale=960:-2 -crf 30 -an ${f%.mp4}_small.mp4 && rm $f; done
+          cd /tmp/res && mkdir -p out && for f in $(find out -name '*.mp4'); do ffmpeg -loglevel error -y -i $f -vf scale=960:-2 -crf 30 -an ${f%.mp4}_small.mp4 && rm $f; done
           git init -q -b audit-results && git config user.email ci@example.com && git config user.name ci
           cp /tmp/mock.log . 2>/dev/null || true
           git add -A && git commit -qm "audit results ${{ github.run_id }}"
