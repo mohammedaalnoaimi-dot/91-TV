@@ -121,6 +121,7 @@ class NightView(ctx: Context) : View(ctx) {
 /** Top menu entry: Cinzel caps, rose underline while selected or focused. */
 class NavItem(ctx: Context, label: String) : TextView(ctx) {
     private val line = Paint().apply { color = ROSE }
+    private val pill = Surface(ctx, Color.TRANSPARENT, 22, true, Color.parseColor("#66EBDDC4"), 1f, false)
     var sel = false
         set(v) { field = v; refresh() }
     init {
@@ -131,7 +132,7 @@ class NavItem(ctx: Context, label: String) : TextView(ctx) {
     }
     private fun refresh() {
         setTextColor(if (sel || isFocused) CREAM else GRAY)
-        background = if (isFocused) context.rbg(Color.parseColor("#1AEBDDC4"), Color.parseColor("#40EBDDC4"), 22, 1) else null
+        background = pill; pill.setColor(if (isFocused) Color.parseColor("#1AEBDDC4") else Color.TRANSPARENT); pill.setFocused(isFocused)
         invalidate()
     }
     override fun onDraw(c: Canvas) {
@@ -192,7 +193,7 @@ class BadgeSpan(private val color: Int, private val density: Float) : android.te
  * fill=false draws only the edge and focus layer, so it can sit as a foreground over a poster image.
  */
 class Surface(private val ctx: Context, color: Int, private val radiusDp: Int = 8, private val fill: Boolean = true,
-              private val ringColor: Int = CREAM, private val ringDp: Float = 2f) : android.graphics.drawable.Drawable() {
+              private val ringColor: Int = CREAM, private val ringDp: Float = 2f, private val edge: Boolean = true) : android.graphics.drawable.Drawable() {
     private var body = color
     private val rect = android.graphics.RectF()
     private val pBody = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -228,15 +229,15 @@ class Surface(private val ctx: Context, color: Int, private val radiusDp: Int = 
         rect.set(bounds)
         if (fill) {
             pBody.color = body; c.drawRoundRect(rect, r, r, pBody)
-            c.drawRoundRect(rect, r, r, pSheen)
+            if (Color.alpha(body) > 110) c.drawRoundRect(rect, r, r, pSheen)   // sheen only on solid surfaces, never on see-through ones (keeps text clean)
         }
-        val hw = maxOf(1f, d * 0.75f); pEdge.strokeWidth = hw
-        rect.inset(hw / 2, hw / 2); c.drawRoundRect(rect, r, r, pEdge)
+        if (edge) { val hw = maxOf(1f, d * 0.75f); pEdge.strokeWidth = hw
+            rect.inset(hw / 2, hw / 2); c.drawRoundRect(rect, r, r, pEdge) }
         if (focus > 0.01f) {
             val w = ringDp * d
             pGlow.strokeWidth = w * 3f; pGlow.color = Color.argb((46 * focus).toInt(), 201, 71, 92)
             rect.set(bounds); rect.inset(w * 1.5f, w * 1.5f); c.drawRoundRect(rect, r, r, pGlow)
-            pRing.strokeWidth = w; pRing.color = Color.argb((255 * focus).toInt(), Color.red(ringColor), Color.green(ringColor), Color.blue(ringColor))
+            pRing.strokeWidth = w; pRing.color = Color.argb((Color.alpha(ringColor) * focus).toInt(), Color.red(ringColor), Color.green(ringColor), Color.blue(ringColor))
             rect.set(bounds); rect.inset(w / 2, w / 2); c.drawRoundRect(rect, r, r, pRing)
         }
     }
@@ -264,4 +265,19 @@ class AmbientBg : android.graphics.drawable.Drawable() {
     override fun setAlpha(a: Int) {}
     override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
     @Suppress("OVERRIDE_DEPRECATION") override fun getOpacity() = android.graphics.PixelFormat.OPAQUE
+}
+
+
+/** Sets a Surface as this view's background and drives its focus ring. rest = optional always-visible outline. */
+fun View.premium(base: Int, focusFill: Int = base, radius: Int = 8, rest: Int = Color.TRANSPARENT, ring: Int = RED, ringDp: Float = 1.5f,
+                 edge: Boolean = true, extra: ((Boolean) -> Unit)? = null) {
+    val s = Surface(context, base, radius, true, ring, ringDp, edge)
+    background = if (rest != Color.TRANSPARENT) LayerDrawable(arrayOf(context.rbg(Color.TRANSPARENT, rest, radius, 1), s)) else s
+    setOnFocusChangeListener { _, f -> s.setColor(if (f) focusFill else base); s.setFocused(f); extra?.invoke(f) }
+}
+
+/** Panel / popup / dialog body: solid surface with sheen + hairline edge, plus an optional always-visible outline. */
+fun Context.panelBg(color: Int, radius: Int, rest: Int = Color.TRANSPARENT): android.graphics.drawable.Drawable {
+    val s = Surface(this, color, radius)
+    return if (rest != Color.TRANSPARENT) LayerDrawable(arrayOf(rbg(Color.TRANSPARENT, rest, radius, 1), s)) else s
 }

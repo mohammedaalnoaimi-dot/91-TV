@@ -384,7 +384,7 @@ class MainActivity : Activity() {
     private val quickNames = listOf("Dad", "Mum", "Me", "Guest", "Grandpa", "Grandma", "Son", "Daughter")
     private fun appDialog(build: (LinearLayout, android.app.Dialog) -> Unit): android.app.Dialog {
         val dlg = android.app.Dialog(this); dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(30), dp(24), dp(30), dp(22)); background = rbg(PANEL, Color.parseColor("#59D7B88A"), 16, 1) }
+        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(30), dp(24), dp(30), dp(22)); background = panelBg(PANEL, 16, Color.parseColor("#59D7B88A")) }
         build(panel, dlg)
         dlg.setContentView(ScrollView(this).apply { addView(panel) })
         dlg.window?.apply { setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)); setLayout(dp(640), android.view.WindowManager.LayoutParams.WRAP_CONTENT); setDimAmount(0.78f) }
@@ -392,12 +392,12 @@ class MainActivity : Activity() {
     }
     private fun dlgButton(label: String, filled: Boolean, onClick: () -> Unit) = TextView(this).apply {
         text = label; textSize = 14f; typeface = fDisplay(); letterSpacing = 0.14f; isFocusable = true; setPadding(dp(22), dp(11), dp(22), dp(11)); setTextColor(if (filled) Color.parseColor("#1A1208") else CREAM)
-        fun paint(f: Boolean) { background = rbg(if (filled) CREAM else Color.TRANSPARENT, if (f) RED else if (filled) CREAM else Color.parseColor("#4DEBDDC4"), 10, if (f) 3 else 1) }
-        paint(false); setOnFocusChangeListener { _, f -> paint(f) }; setOnClickListener { onClick() }
+        premium(if (filled) CREAM else Color.TRANSPARENT, if (filled) CREAM else Color.parseColor("#1AEBDDC4"), 10, if (filled) Color.TRANSPARENT else Color.parseColor("#4DEBDDC4"), if (filled) Color.WHITE else RED, 2f, filled)
+        setOnClickListener { onClick() }
     }
     private fun choiceRow(label: String, onClick: () -> Unit) = mkText(label, 19f, CREAM).apply {
-        isFocusable = true; setPadding(dp(14), dp(13), dp(14), dp(13)); background = rbg(Color.TRANSPARENT, Color.TRANSPARENT, 8, 2)
-        setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.TRANSPARENT, 8, 2) }; setOnClickListener { onClick() }
+        isFocusable = true; setPadding(dp(14), dp(13), dp(14), dp(13)); premium(Color.TRANSPARENT, Color.parseColor("#33C9475C"), 8, edge = false)
+        setOnClickListener { onClick() }
     }
     private fun nameDialog(title: String, initial: String, onDone: (String) -> Unit) {
         appDialog { panel, dlg ->
@@ -414,8 +414,8 @@ class MainActivity : Activity() {
             quickNames.forEachIndexed { i, n ->
                 if (i % 4 == 0) { line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }; wrap.addView(line) }
                 line!!.addView(mkText(n, 17f, CREAM).apply {
-                    isFocusable = true; setPadding(dp(14), dp(8), dp(14), dp(8)); background = rbg(Color.TRANSPARENT, Color.parseColor("#40EBDDC4"), 18, 1)
-                    setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.parseColor("#40EBDDC4"), 18, if (f) 2 else 1) }
+                    isFocusable = true; setPadding(dp(14), dp(8), dp(14), dp(8))
+                    premium(Color.TRANSPARENT, Color.parseColor("#33C9475C"), 18, Color.parseColor("#40EBDDC4"), RED, 1.5f, false)
                     setOnClickListener { et.setText(n); et.setSelection(n.length) }
                 }, LinearLayout.LayoutParams(-2, -2).apply { setMargins(0, 0, dp(8), dp(8)) })
             }
@@ -606,8 +606,7 @@ class MainActivity : Activity() {
         if (!isKids()) {
             val sp = TextView(this).apply {
                 text = "⌕"; textSize = 20f; setTextColor(CREAM); gravity = Gravity.CENTER; isFocusable = true
-                background = rbg(Color.parseColor("#14FFFFFF"), Color.parseColor("#59EBDDC4"), 20, 1)
-                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.parseColor("#59EBDDC4"), 20, if (f) 2 else 1); v.animate().scaleX(if (f) 1.15f else 1f).scaleY(if (f) 1.15f else 1f).setDuration(120).start() }
+                premium(Color.parseColor("#14FFFFFF"), Color.parseColor("#33C9475C"), 20, Color.parseColor("#59EBDDC4"), RED, 1.5f, true) { f -> animate().scaleX(if (f) 1.12f else 1f).scaleY(if (f) 1.12f else 1f).setDuration(130).setInterpolator(android.view.animation.DecelerateInterpolator()).start() }
                 setOnClickListener { searchDialog() }
             }
             head.addView(sp, LinearLayout.LayoutParams(dp(40), dp(40)).apply { leftMargin = dp(24) })
@@ -669,7 +668,7 @@ class MainActivity : Activity() {
         try { android.media.RingtoneManager.getRingtone(this, android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION))?.play() } catch (e: Throwable) { }
         if (playerRoot != null && titleView != null) { showTitle(msg, 9000); return }
         ui.removeCallbacks(dropBanner); dropBanner.run()
-        val t = mkText(msg, 20f, CREAM, true).apply { setPadding(dp(26), dp(14), dp(26), dp(14)); background = rbg(Color.parseColor("#F2120A0C"), ROSE, 3, 2); gravity = Gravity.CENTER }
+        val t = mkText(msg, 20f, CREAM, true).apply { setPadding(dp(26), dp(14), dp(26), dp(14)); background = panelBg(Color.parseColor("#F2120A0C"), 3, ROSE); gravity = Gravity.CENTER }
         (window.decorView as ViewGroup).addView(t, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(24) })
         banner = t; ui.postDelayed(dropBanner, 9000)
     }
@@ -968,7 +967,7 @@ class MainActivity : Activity() {
     private fun itemMenu(it: Item) {
         val opts = ArrayList<String>(); val acts = ArrayList<() -> Unit>()
         opts += if (isFav(it)) "Remove from ${profName()}'s list" else "Add to ${profName()}'s list"; acts += { toggleFav(it); refreshPage() }
-        if (isKids()) { android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show(); return }
+        if (isKids()) { android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show(); return }
         val sids = stdIds()
         if (sids.size >= 2 && profs().any { p -> p.type == "together" }) {
             if (sids.all { p -> isFavOf(p, it) }) { opts += "Remove from all lists"; acts += { sids.forEach { p -> removeFavFrom(p, it) }; refreshPage() } }
@@ -980,7 +979,7 @@ class MainActivity : Activity() {
         opts += if (isFavCat(kind, it.group)) "★ Remove “${it.group}” from favourite categories" else "★ Make “${it.group}” a favourite category"; acts += { toggleFavCat(kind, it.group); catFor[kind] = null; liveCat = 0; refreshPage() }
         opts += "Hide category “${it.group}”"; acts += { addHidden("$kind|${it.group}"); refreshPage() }
         if (pre.isNotEmpty()) { opts += "Hide every category starting with $pre"; acts += { addHidden("$kind|prefix:$pre"); refreshPage() } }
-        android.app.AlertDialog.Builder(this).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
+        android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle(it.name).setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
     }
     private fun groupMenu(kind: String, g: String) {
         if (isKids()) return
@@ -989,7 +988,7 @@ class MainActivity : Activity() {
         acts += { toggleFavCat(kind, g); catFor[kind] = null; liveCat = 0; refreshPage() }
         opts += "Hide “$g”"; acts += { addHidden("$kind|$g"); catFor[kind] = null; liveCat = 0; refreshPage() }
         if (pre.isNotEmpty()) { opts += "Hide every category starting with $pre"; acts += { addHidden("$kind|prefix:$pre"); catFor[kind] = null; liveCat = 0; refreshPage() } }
-        android.app.AlertDialog.Builder(this).setTitle("Category").setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
+        android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("Category").setItems(opts.toTypedArray()) { _, i -> acts[i]() }.show()
     }
 
     private fun recentSearches(): List<String> = (prefs.getString("searches", "") ?: "").split('\u0001').filter { it.isNotBlank() }
@@ -1041,7 +1040,7 @@ class MainActivity : Activity() {
         var typed = ""
         val root = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setBackgroundColor(BG); setPadding(dp(32), dp(12), dp(10), 0); clipChildren = false }
         val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val qv = TextView(this).apply { textSize = 22f; typeface = fBody(); maxLines = 1; setPadding(dp(14), dp(8), dp(14), dp(8)); background = rbg(Color.parseColor("#0AFFFFFF"), RED, 10, 2) }
+        val qv = TextView(this).apply { textSize = 22f; typeface = fBody(); maxLines = 1; setPadding(dp(14), dp(8), dp(14), dp(8)); background = panelBg(Color.parseColor("#0AFFFFFF"), 10, RED) }
         val head = mkText("", 22f, CREAM, true).apply { setPadding(dp(4), dp(4), 0, dp(4)); maxLines = 1 }
         val results = PosterAdapter(this, emptyList(), { l, p -> if (typed.isNotBlank()) addSearch(typed.trim()); openAny(l, p) }, { itemMenu(it) })
         val span = maxOf(1, (resources.displayMetrics.widthPixels - dp(400)) / (dp(tileW()) + dp(14)))
@@ -1064,8 +1063,8 @@ class MainActivity : Activity() {
             sugBox.removeAllViews()
             if (sugs.isNotEmpty()) sugBox.addView(mkText(if (q.isEmpty()) "RECENT SEARCHES" else "SUGGESTIONS", 12f, GOLD, true).apply { letterSpacing = 0.2f; setPadding(dp(4), dp(10), 0, dp(4)) })
             for (s in sugs) sugBox.addView(mkText(s, 18f, CREAM).apply {
-                maxLines = 1; isFocusable = true; setPadding(dp(12), dp(7), dp(12), dp(7)); background = rbg(Color.TRANSPARENT, Color.TRANSPARENT, 8, 2)
-                setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#33C9475C") else Color.TRANSPARENT, if (f) RED else Color.TRANSPARENT, 8, 2) }
+                maxLines = 1; isFocusable = true; setPadding(dp(12), dp(7), dp(12), dp(7))
+                premium(Color.TRANSPARENT, Color.parseColor("#33C9475C"), 8, edge = false)
                 setOnClickListener { typed = s; changed() }
             })
             head.text = if (q.isEmpty()) "POPULAR" else "“$q”   ·   $total"
@@ -1091,8 +1090,7 @@ class MainActivity : Activity() {
         fun del() { if (typed.isNotEmpty()) { typed = typed.dropLast(1); changed() } }
         fun key(label: String, w: Int, onClick: () -> Unit, onLong: (() -> Unit)? = null) = TextView(this).apply {
             this.text = label; textSize = 20f; typeface = fMedium(); setTextColor(CREAM); gravity = Gravity.CENTER; isFocusable = true; isClickable = true
-            background = rbg(Color.parseColor("#1AFFFFFF"), Color.TRANSPARENT, 8, 1)
-            setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#40C9475C") else Color.parseColor("#1AFFFFFF"), if (f) RED else Color.TRANSPARENT, 8, if (f) 3 else 1) }
+            premium(Color.parseColor("#1AFFFFFF"), Color.parseColor("#40C9475C"), 8, ring = RED, ringDp = 1.75f)
             setOnClickListener { onClick() }
             if (onLong != null) setOnLongClickListener { onLong(); true }
             layoutParams = LinearLayout.LayoutParams(w, dp(40)).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) }
@@ -1500,8 +1498,7 @@ class MainActivity : Activity() {
                 val done = savedPos(e) > 10_000
                 val row = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isFocusable = true; setPadding(dp(16), dp(10), dp(16), dp(10))
-                    background = rbg(Color.parseColor("#14FFFFFF"), Color.TRANSPARENT, 10, 2)
-                    setOnFocusChangeListener { v, f -> v.background = rbg(if (f) Color.parseColor("#26C9475C") else Color.parseColor("#14FFFFFF"), if (f) RED else Color.TRANSPARENT, 10, 2) }
+                    premium(Color.parseColor("#14FFFFFF"), Color.parseColor("#26C9475C"), 10)
                     setOnClickListener { playSeries(sid, d, e) }
                 }
                 val thumb = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = rbg(CARD, Color.TRANSPARENT, 6); clipToOutline = true; outlineProvider = ViewOutlineProvider.BACKGROUND }
@@ -1568,7 +1565,7 @@ class MainActivity : Activity() {
         root.addView(mid, LinearLayout.LayoutParams(0, -1, 1f))
 
         // column 3: preview panel
-        val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = rbg(Color.parseColor("#120C0D"), Color.parseColor("#22FFFFFF"), 16, 1) }
+        val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = panelBg(Color.parseColor("#120C0D"), 16, Color.parseColor("#22FFFFFF")) }
         val vBox = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         val pv = android.view.LayoutInflater.from(this).inflate(R.layout.preview_player, null) as PlayerView
         vBox.addView(pv, FrameLayout.LayoutParams(-1, -1))
@@ -1671,7 +1668,7 @@ class MainActivity : Activity() {
                 val name = Regex("versionName\\s*=\\s*\"([^\"]+)\"").find(t)!!.groupValues[1]
                 ui.post {
                     if (code > curVersionCode()) {
-                        android.app.AlertDialog.Builder(this).setTitle("Update available")
+                        android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("Update available")
                             .setMessage("Version $name is ready. You have ${curVersionName()}. Download and install it now?")
                             .setPositiveButton("Update") { _, _ -> installUpdate(code) }
                             .setNegativeButton("Later", null).show()
@@ -1732,7 +1729,7 @@ class MainActivity : Activity() {
 
     private fun installUpdate(minCode: Int) {
         if (android.os.Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
-            android.app.AlertDialog.Builder(this).setTitle("Allow installs")
+            android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("Allow installs")
                 .setMessage("Android needs your OK before 91 TV can install an update. Press Open settings, switch it on for 91 TV, then come back and press Check for updates again.")
                 .setPositiveButton("Open settings") { _, _ ->
                     try { startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:$packageName"))) }
@@ -1788,7 +1785,7 @@ class MainActivity : Activity() {
         head("LIBRARY")
         row("Provider", "Change server, login or M3U playlist") { setupView() }
         row("Log out from this host", "Signed in to: ${hostLabel()}  - removes the server, login and downloaded lists from this TV") {
-            android.app.AlertDialog.Builder(this).setTitle("Log out from this host?")
+            android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("Log out from this host?")
                 .setMessage("The server, username, password and downloaded lists will be removed from this TV. Your 91 TV licence stays. You can add a provider again afterwards.")
                 .setPositiveButton("Log out") { _, _ ->
                     prefs.edit().remove("server").remove("user").remove("pass").remove("m3u").remove("recent").apply(); profs().forEach { p -> prefs.edit().remove(recentKeyOf(p.id)).apply() }
@@ -1802,7 +1799,7 @@ class MainActivity : Activity() {
         head("RATINGS")
         row("IMDb and Rotten Tomatoes", (if ((prefs.getString("omdb", "") ?: "").isBlank()) "OFF - press OK and type your free OMDb key (omdbapi.com). Until then only the provider's score is shown" else "ON - key saved. Press OK to change it") ) {
             val et = EditText(this).apply { hint = "OMDb key, e.g. a1b2c3d4"; setSingleLine(); setText(prefs.getString("omdb", "")); textSize = 22f }
-            android.app.AlertDialog.Builder(this).setTitle("OMDb key").setView(et)
+            android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("OMDb key").setView(et)
                 .setPositiveButton("Save") { _, _ -> prefs.edit().putString("omdb", et.text.toString().trim()).apply(); refreshPage() }
                 .setNegativeButton("Cancel", null).show()
         }
@@ -1823,7 +1820,7 @@ class MainActivity : Activity() {
             head("LICENCE")
             if (!Lic.hasKey(prefs)) row("91 TV licence", "${Lic.summary(prefs)}  - press to enter a code or buy one at ninetyonetv.com") { activationView() }
             else row("91 TV licence", "${Lic.summary(prefs)}  - press to remove it from this TV, so the code can be used on another device") {
-                android.app.AlertDialog.Builder(this).setTitle("Remove licence from this TV?")
+                android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("Remove licence from this TV?")
                     .setMessage("91 TV will stop working here until a code is entered again.")
                     .setPositiveButton("Remove") { _, _ ->
                         Thread { val r = Lic.deactivate(prefs); ui.post { if (r == null) activationView("Licence removed from this TV.") else Toast.makeText(this, r, Toast.LENGTH_LONG).show() } }.start()
@@ -2016,7 +2013,7 @@ class MainActivity : Activity() {
             "App audio mode:  " + (if (prefs.getBoolean("pcm", false)) "Stereo PCM (no Dolby) - switch it in Settings" else "Dolby passthrough (correct for Atmos)") + "\n\n" +
             "To hear Atmos: the movie must have an Atmos track, your soundbar or TV must have Atmos on, and the app must be in passthrough. While a movie plays, press RIGHT: the info line says DOLBY ATMOS only when the track really is Atmos.\n\n" +
             "This list is what Android reports. I cannot hear your speakers, so only your soundbar can confirm Atmos is really playing."
-        android.app.AlertDialog.Builder(this).setTitle("Dolby Atmos check").setMessage(msg).setPositiveButton("OK", null).show()
+        android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("Dolby Atmos check").setMessage(msg).setPositiveButton("OK", null).show()
     }
 
     private fun audioDialog() {
@@ -2036,7 +2033,7 @@ class MainActivity : Activity() {
         val pipIdx = labels.size - 1
         val cornerIdx = if (live) labels.size - 2 else -1
         val extIdx = labels.size - (if (live) 3 else 2)
-        android.app.AlertDialog.Builder(this).setTitle("Audio / subtitles").setItems(labels.toTypedArray()) { _, i ->
+        android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle("Audio / subtitles").setItems(labels.toTypedArray()) { _, i ->
             if (i == pipIdx) {
                 if (!enterPip()) Toast.makeText(this, "This TV does not support a floating window", Toast.LENGTH_LONG).show()
             } else if (i == cornerIdx) {
@@ -2186,16 +2183,15 @@ class MainActivity : Activity() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(nextLbl); addView(nextName) }
         nextCard = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(10), dp(10), dp(30), dp(10)); visibility = View.GONE
-            background = rbg(pillBg, GOLD, 40, 1)
+            premium(pillBg, pillBg, 40, GOLD, CREAM, 2f, true)
             isFocusable = true; isClickable = true; setOnClickListener { goNextEpisode() }
-            setOnFocusChangeListener { v, f -> v.background = rbg(pillBg, if (f) CREAM else GOLD, 40, if (f) 3 else 1) }
             addView(nextNum, LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(16) }); addView(col)
         }
         root.addView(nextCard, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(110)) })
         skipBtn = TextView(this).apply {
-            textSize = 20f; setTextColor(Color.WHITE); typeface = fMedium(); background = rbg(Color.parseColor("#CC18110F"), CREAM, 12, 2); setPadding(dp(26), dp(14), dp(26), dp(14)); visibility = View.GONE
+            textSize = 20f; setTextColor(Color.WHITE); typeface = fMedium(); setPadding(dp(26), dp(14), dp(26), dp(14)); visibility = View.GONE
+            premium(Color.parseColor("#CC18110F"), Color.parseColor("#CC18110F"), 12, Color.parseColor("#99EBDDC4"), GOLD, 2f, true)
             isFocusable = true; isClickable = true; setOnClickListener { doSkipIntro() }
-            setOnFocusChangeListener { v, f -> v.background = rbg(Color.parseColor("#CC18110F"), if (f) GOLD else CREAM, 12, if (f) 3 else 2) }
         }
         root.addView(skipBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(190)) })
         ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500)
@@ -2352,7 +2348,7 @@ class MainActivity : Activity() {
     private fun pipMenu() {
         val cur = pipItem ?: return
         val opts = arrayOf("Make it full screen", "Sound: " + (if (pipSound) "ON  (press to mute)" else "OFF  (press to turn on)"), "Close the corner screen")
-        android.app.AlertDialog.Builder(this).setTitle(cur.name).setItems(opts) { _, i ->
+        android.app.AlertDialog.Builder(this, R.style.Dialog91).setTitle(cur.name).setItems(opts) { _, i ->
             when (i) {
                 0 -> { closePip(); play(listOf(cur), 0) }
                 1 -> { pipSound = !pipSound; pip?.volume = if (pipSound) 1f else 0f }
