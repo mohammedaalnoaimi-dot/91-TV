@@ -17,7 +17,7 @@ import android.widget.TextView
 // "Dark Luxury Theatre" palette (concept C3)
 val ROSE = Color.parseColor("#C9475C")
 val RED = ROSE                      // accent colour used all over the app
-val BG = Color.parseColor("#070506")
+val BG = Color.parseColor("#000000")   // true black: matches video black and lets TV local dimming switch zones off
 val PANEL = Color.parseColor("#0E080A")
 val CARD = Color.parseColor("#18110F")
 val GRAY = Color.parseColor("#a8977e")
@@ -113,7 +113,7 @@ class NightView(ctx: Context) : View(ctx) {
         val cx = w * 0.82f; val cy = h * 0.2f; val r = h * 0.07f
         p.color = Color.parseColor("#EFE2C4"); c.drawCircle(cx, cy, r, p)
         p.color = Color.parseColor("#10142A"); c.drawCircle(cx + r * 0.45f, cy - r * 0.2f, r * 0.9f, p)
-        p.shader = LinearGradient(0f, 0f, w * 0.6f, 0f, Color.parseColor("#E6070506"), Color.TRANSPARENT, Shader.TileMode.CLAMP)
+        p.shader = LinearGradient(0f, 0f, w * 0.6f, 0f, Color.parseColor("#E6000000"), Color.TRANSPARENT, Shader.TileMode.CLAMP)
         c.drawRect(0f, 0f, w, h, p); p.shader = null
     }
 }

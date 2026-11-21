@@ -591,7 +591,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildShell() {
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = AmbientBg() }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(BG) }
         // ---- header
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(40), dp(16), dp(40), dp(4)) }
         val leftBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
