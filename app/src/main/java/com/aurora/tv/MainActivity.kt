@@ -600,7 +600,7 @@ class MainActivity : Activity() {
         leftBox.addView(hdrNext); leftBox.addView(hdrNextSub)
         head.addView(leftBox, LinearLayout.LayoutParams(0, -2, 1f))
         val brandBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        val brand = android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark); adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
+        val brand = android.widget.ImageView(this).apply { setImageResource(R.drawable.wordmark_m); adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
         brandBox.addView(brand, LinearLayout.LayoutParams(dp(250), dp(38)))
         head.addView(brandBox, LinearLayout.LayoutParams(-2, -2))
         if (!isKids()) {
@@ -1679,6 +1679,13 @@ class MainActivity : Activity() {
     }
 
     private var autoChecked = false
+    /** Read-only: what the TV reports about its screen (helps tell UI scaling / HDR-mode problems from design ones). */
+    private fun displayInfo(): String = try {
+        val d = windowManager.defaultDisplay; val m = android.util.DisplayMetrics(); d.getRealMetrics(m)
+        val mode = d.mode
+        val hdr = if (android.os.Build.VERSION.SDK_INT >= 24) (d.hdrCapabilities?.supportedHdrTypes ?: IntArray(0)).joinToString("/") { when (it) { 1 -> "DolbyVision"; 2 -> "HDR10"; 3 -> "HLG"; 4 -> "HDR10+"; else -> "t$it" } }.ifEmpty { "none" } else "n/a"
+        "UI ${m.widthPixels}x${m.heightPixels} @${m.densityDpi}dpi  |  panel mode ${mode.physicalWidth}x${mode.physicalHeight} @${"%.0f".format(mode.refreshRate)}Hz  |  HDR: $hdr  |  wide colour: ${if (android.os.Build.VERSION.SDK_INT >= 26) resources.configuration.isScreenWideColorGamut else "n/a"}"
+    } catch (_: Throwable) { "unavailable" }
     /** Automatic update: once per launch, quietly download a newer version and install it (no prompt on Android 12+ after the first time). */
     private fun autoUpdate() {
         if (!prefs.getBoolean("autoUpd", true)) return
@@ -1831,6 +1838,7 @@ class MainActivity : Activity() {
         head("OTHER")
         row("Clear watch history", "Continue watching and recently watched (this profile)") { prefs.edit().remove(recentKey()).apply(); becauseSig = ""; Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show() }
         row("Automatic updates", (if (prefs.getBoolean("autoUpd", true)) "ON" else "OFF") + "  - when you open the app, a newer version is downloaded and installed by itself  - press to switch") { prefs.edit().putBoolean("autoUpd", !prefs.getBoolean("autoUpd", true)).apply(); refreshPage() }
+        row("Display", displayInfo()) { }
         row("Check for updates", "You have version ${curVersionName()}  - press to look for a newer one") { checkUpdate() }
         row("About", "91 TV ${curVersionName()} · long-press OK on anything to add to My List or hide its category") { }
         root.post { firstRow?.requestFocus() }
@@ -1923,7 +1931,7 @@ class MainActivity : Activity() {
         val up = mkItalic("", 17f, GRAY).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) }
         box.addView(clock); box.addView(date); box.addView(next); box.addView(up)
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        brand.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER; alpha = 0.85f }, LinearLayout.LayoutParams(dp(150), dp(23)))
+        brand.addView(ImageView(this).apply { setImageResource(R.drawable.wordmark_m); scaleType = ImageView.ScaleType.FIT_CENTER; alpha = 0.85f }, LinearLayout.LayoutParams(dp(150), dp(23)))
         f.addView(box, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         f.addView(brand, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(34) })
         (window.decorView as ViewGroup).addView(f, ViewGroup.LayoutParams(-1, -1))
@@ -1958,7 +1966,7 @@ class MainActivity : Activity() {
         val bg = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; alpha = 0f }
         f.addView(bg, FrameLayout.LayoutParams(-1, -1))
         f.addView(View(this).apply { background = dgrad(GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(Color.parseColor("#E6070506"), Color.TRANSPARENT)) }, FrameLayout.LayoutParams(-1, dp(220), Gravity.BOTTOM))
-        val brand = ImageView(this).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_START }
+        val brand = ImageView(this).apply { setImageResource(R.drawable.wordmark_m); scaleType = ImageView.ScaleType.FIT_START }
         f.addView(brand, FrameLayout.LayoutParams(dp(190), dp(29), Gravity.TOP or Gravity.START).apply { setMargins(dp(40), dp(30), 0, 0) })
         val t = mkText("", 24f, CREAM, true).apply { gravity = Gravity.CENTER }
         f.addView(t, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { setMargins(dp(40), 0, dp(40), dp(36)) })
