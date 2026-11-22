@@ -86,8 +86,27 @@ def main() -> int:
             return 0
         if lic.recheck_due():
             import threading; threading.Thread(target=lic.refresh, daemon=True).start()
+        from . import report, updater
+
+        def on(k, d=True):
+            v = store.get(k); return d if v is None else v not in (False, 0, "0", "false", "False", "")
+        prev = report.previous_crash()
+        if prev:
+            from .ui.dialogs import CrashDialog
+            CrashDialog(prev, str(store.get("lic_key") or ""), str(store.get("lic_plan") or "")).exec()
+        report.mark_running()
+        if on("intro") and asset("intro.mp4").exists():
+            try:
+                from PySide6.QtCore import QEventLoop
+                from .ui.intro import IntroWindow
+                iw = IntroWindow(str(asset("intro.mp4"))); loop = QEventLoop(); iw.finished.connect(loop.quit); iw.play(); loop.exec(); iw.deleteLater()
+            except Exception:
+                log.exception("intro skipped")
         w = MainWindow(store); w.show()
         if theme.TENFOOT: w.showMaximized()
+        app.aboutToQuit.connect(updater.apply_on_exit); app.aboutToQuit.connect(report.mark_clean_exit)
+        if on("auto_update"):
+            import threading; threading.Thread(target=updater.check_and_download, daemon=True).start()
         log.info("UI ready")
         return app.exec()
     except Exception:

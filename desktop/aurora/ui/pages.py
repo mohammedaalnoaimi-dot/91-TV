@@ -202,7 +202,9 @@ class SettingsPage(QScrollArea):
         fa.addRow("Accent colour", self.accent); fa.addRow("Text & UI size", self.uiscale); lay.addLayout(fa)
         self.tenfoot = QCheckBox("10-foot mode: big cards and text, strong focus highlight, starts maximised (for a TV + controller)"); self.anim = QCheckBox("Animations (page fades, hover lift, zoom)")
         self.thumbs = QCheckBox("Scrub thumbnails on movies/episodes (opens a 2nd connection to your provider - leave off if your plan allows 1 stream)")
-        for c in (self.tenfoot, self.anim, self.thumbs): lay.addWidget(c)
+        self.intro = QCheckBox("Play the 91 TV intro when the app opens (press any key to skip)"); self.autoup = QCheckBox("Update automatically (downloads in the background and installs when you close 91 TV)")
+        self.disp = QLabel(""); self.disp.setObjectName("muted"); self.disp.setWordWrap(True)
+        for c in (self.tenfoot, self.anim, self.thumbs, self.intro, self.autoup, self.disp): lay.addWidget(c)
         row = QHBoxLayout(); self.b_restart = QPushButton("Restart 91 TV to apply colour / size"); row.addWidget(self.b_restart); row.addStretch(); lay.addLayout(row)
         lay.addWidget(self._h("Prayer times (Bahrain)"))
         fp = QFormLayout(); self.pt_method = QComboBox()
@@ -257,7 +259,7 @@ class SettingsPage(QScrollArea):
         lay.addStretch()
         self._load()
         for w in (self.hwdec, self.hdr, self.dev, self.quality, self.denoise, self.deint, self.accent, self.uiscale, self.motion, self.tone, self.timeshift): w.currentIndexChanged.connect(lambda _i: self._save())
-        for c in (self.p_ac3, self.p_eac3, self.p_dts, self.p_hd, self.excl, self.pv_on, self.pv_mute, self.tmdb_replace, self.auto_dead, self.pad, self.hdr_enh, self.tenfoot, self.anim, self.thumbs): c.toggled.connect(lambda _b: self._save())
+        for c in (self.p_ac3, self.p_eac3, self.p_dts, self.p_hd, self.excl, self.pv_on, self.pv_mute, self.tmdb_replace, self.auto_dead, self.pad, self.hdr_enh, self.tenfoot, self.anim, self.thumbs, self.intro, self.autoup): c.toggled.connect(lambda _b: self._save())
         self.peak.valueChanged.connect(lambda _v: self._save()); self.tmdb.editingFinished.connect(self._save)
         for e in (self.epg, self.lang_a, self.lang_s): e.editingFinished.connect(self._save)
         self.retries.valueChanged.connect(lambda _v: self._save())
@@ -283,6 +285,13 @@ class SettingsPage(QScrollArea):
         self.quality.setCurrentIndex(max(0, self.quality.findData(s.get("quality")))); self.denoise.setCurrentIndex(max(0, self.denoise.findData(s.get("denoise")))); self.deint.setCurrentIndex(max(0, self.deint.findData(s.get("deinterlace"))))
         self.hdr_enh.setChecked(bool(s.get("hdr_enhance"))); self.accent.setCurrentIndex(max(0, self.accent.findData(s.get("accent")))); self.uiscale.setCurrentIndex(max(0, self.uiscale.findData(int(s.get("ui_scale") or 100))))
         self.tenfoot.setChecked(bool(s.get("tenfoot"))); self.anim.setChecked(bool(s.get("animations"))); self.thumbs.setChecked(bool(s.get("scrub_thumbs")))
+        _on = lambda k: s.get(k) is None or s.get(k) not in (False, 0, "0", "false", "False", "")
+        self.intro.setChecked(_on("intro")); self.autoup.setChecked(_on("auto_update"))
+        try:
+            from PySide6.QtGui import QGuiApplication
+            sc = QGuiApplication.primaryScreen(); g = sc.geometry(); r = sc.devicePixelRatio()
+            self.disp.setText(f"Display: {int(g.width() * r)}x{int(g.height() * r)} px  |  {sc.refreshRate():.0f} Hz  |  scale {r:g}  |  {sc.name()}")
+        except Exception: pass
         self.pv_on.setChecked(bool(s.get("preview_enabled"))); self.pv_mute.setChecked(bool(s.get("preview_muted")))
         self.motion.setCurrentIndex(max(0, self.motion.findData(s.get("motion")))); self.tone.setCurrentIndex(max(0, self.tone.findData(s.get("tone_mapping"))))
         self.timeshift.setCurrentIndex(max(0, self.timeshift.findData(int(s.get("timeshift") or 0)))); self.peak.setValue(int(s.get("display_peak") or 0))
@@ -300,7 +309,7 @@ class SettingsPage(QScrollArea):
         for k, c in (("pass_ac3", self.p_ac3), ("pass_eac3", self.p_eac3), ("pass_dts", self.p_dts), ("pass_hd", self.p_hd), ("audio_exclusive", self.excl)):
             s.set(k, c.isChecked())
         s.set("quality", self.quality.currentData()); s.set("denoise", self.denoise.currentData()); s.set("deinterlace", self.deint.currentData()); s.set("hdr_enhance", self.hdr_enh.isChecked())
-        s.set("accent", self.accent.currentData()); s.set("ui_scale", self.uiscale.currentData()); s.set("tenfoot", self.tenfoot.isChecked()); s.set("animations", self.anim.isChecked()); s.set("scrub_thumbs", self.thumbs.isChecked())
+        s.set("accent", self.accent.currentData()); s.set("ui_scale", self.uiscale.currentData()); s.set("tenfoot", self.tenfoot.isChecked()); s.set("animations", self.anim.isChecked()); s.set("scrub_thumbs", self.thumbs.isChecked()); s.set("intro", self.intro.isChecked()); s.set("auto_update", self.autoup.isChecked())
         s.set("upscale", "high" if self.quality.currentData() == "max" else "off"); s.set("preview_enabled", self.pv_on.isChecked()); s.set("preview_muted", self.pv_mute.isChecked())
         s.set("motion", self.motion.currentData()); s.set("tone_mapping", self.tone.currentData()); s.set("timeshift", self.timeshift.currentData()); s.set("display_peak", self.peak.value())
         s.set_tmdb_key(self.tmdb.text()); s.set("tmdb_replace", self.tmdb_replace.isChecked()); s.set("auto_hide_dead", self.auto_dead.isChecked()); s.set("gamepad", self.pad.isChecked())

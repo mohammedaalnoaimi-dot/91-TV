@@ -1,4 +1,4 @@
-BG = "#070506"; PANEL = "#0e080a"; CARD = "#18110f"; TEXT = "#EBDDC4"; MUTED = "#a8977e"; GOLD = "#d7b88a"; SOFT = "#cdbb9e"; INK = "#160B0D"
+BG = "#000000"; PANEL = "#0e080a"; CARD = "#18110f"; TEXT = "#EBDDC4"; MUTED = "#a8977e"; GOLD = "#d7b88a"; SOFT = "#cdbb9e"; INK = "#160B0D"
 DISPLAY = "Cinzel"; BODY = "Jost"; ITALIC = "EB Garamond"
 ACCENTS = {"rose": (201, 71, 92), "red": (224, 38, 45), "blue": (46, 125, 255), "purple": (150, 92, 255), "teal": (20, 184, 166), "gold": (232, 164, 30)}
 TENFOOT = False

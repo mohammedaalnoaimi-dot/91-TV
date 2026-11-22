@@ -91,6 +91,7 @@ class MainWindow(QMainWindow):
         self.playlist = None; self.xt: XtreamClient | None = None
         self.all_live: list[Item] = []; self.all_movies: list[Item] = []; self.all_series: list[Item] = []; self.num_map: dict[str, Item] = {}
         self.live: list[Item] = []; self.movies: list[Item] = []; self.series: list[Item] = []
+        self._ep_play: dict = {}; self.series_ctx = None
         self.context_items: list[Item] = []; self.now_playing: Item | None = None; self.return_page = 0; self._full = False
         self.setWindowTitle("91 TV"); self.resize(1440, 860); self.setMinimumSize(960, 600)
         ic = asset("aurora.ico")
@@ -145,6 +146,7 @@ class MainWindow(QMainWindow):
         self.livep.play.connect(lambda it, ctx: self.open_item(it, ctx)); self.livep.context.connect(self.item_menu); self.livep.toggle_fav.connect(self.toggle_favorite)
         for p in (self.moviep, self.seriesp, self.listp):
             p.activated.connect(self.open_item); p.context.connect(self.item_menu)
+        self.playerp.next_requested.connect(self.play_next)
         self.playerp.profile_changed.connect(lambda d: self.now_playing and self.store.set_picture_profile(self.now_playing.key, d)); self.playerp.back.connect(self.leave_player); self.playerp.fullscreen.connect(self.toggle_fullscreen); self.playerp.prev_next.connect(self.zap)
         self.playerp.failed.connect(self.player_failed); self.playerp.position_changed.connect(lambda p: self.now_playing and store.save_position(self.profile_id, self.now_playing, p, getattr(self.playerp, "last_dur", 0.0)))
         s = self.settings
@@ -540,6 +542,7 @@ class MainWindow(QMainWindow):
             resume = next((r.url for r in self.store.recents(self.profile_id, "movie", limit=200) if r.url in urls), None)
             if self.stack.currentIndex() != self.P_DETAIL:
                 self.detail_return = self.stack.currentIndex()
+            self.series_ctx = (it, eps)
             self.detail.show_series(it, info, eps, resume, self.store.is_favorite(self.profile_id, it)); self.stack.setCurrentIndex(self.P_DETAIL)
 
         def fail(m):
@@ -552,6 +555,11 @@ class MainWindow(QMainWindow):
 
     def play_episode(self, ep, series: Item):
         from .detail_page import clean_title
+        nxt = None; ctx = getattr(self, "series_ctx", None)
+        if ctx and ctx[0].key == series.key:
+            urls = [e.url for e in ctx[1]]
+            if ep.url in urls and urls.index(ep.url) + 1 < len(urls): nxt = (ctx[1][urls.index(ep.url) + 1], series)
+        self._ep_play[ep.url] = nxt
         self.start(Item(f"{clean_title(series.name)} - S{ep.season:02d}E{ep.number:02d}  {ep.title}", "movie", ep.url, series.group, series.logo))
 
     def detail_fav(self, it: Item):
@@ -568,6 +576,8 @@ class MainWindow(QMainWindow):
     def _begin(self, it: Item):
         if self.now_playing and self.now_playing.kind == "live" and it.kind == "live" and self.now_playing.key != it.key: self.last_live = self.now_playing
         self.now_playing = it; self.store.add_recent(self.profile_id, it)
+        _n = self._ep_play.get(it.url, False)
+        self.playerp.set_episode(_n is not False, f"S{_n[0].season:02d}E{_n[0].number:02d}  {_n[0].title}" if _n else "")
         start = self.store.position(self.profile_id, it) if it.kind != "live" else 0.0
         self.playerp.open(it.name, it.url, it.kind == "live", start, self.sources.alternates(it) if it.kind == "live" else None, self.store.picture_profile(it.key))
         if it.kind == "live":
@@ -587,6 +597,11 @@ class MainWindow(QMainWindow):
             self.start_in_place(items[(keys.index(self.now_playing.key) + d) % len(items)])
 
     def start_in_place(self, it): self._begin(it)
+
+    def play_next(self):
+        """Up-next / auto-play: start the next episode of the series being watched."""
+        n = self._ep_play.get(self.now_playing.url) if self.now_playing else None
+        if n: self.play_episode(n[0], n[1])
 
     def leave_player_if(self):
         if self.in_player(): self.leave_player()

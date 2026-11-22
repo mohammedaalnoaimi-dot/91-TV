@@ -7,7 +7,7 @@ from PySide6.QtGui import QActionGroup
 from ..thumbs import ThumbWorker, BUCKET
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSlider, QComboBox, QFrame, QPlainTextEdit)
 from .. import player as pl
-from .overlays import ControlsHost, Banner, NumberOSD, CenterOSD
+from .overlays import ControlsHost, Banner, NumberOSD, CenterOSD, ActionPill
 from .glyphs import GlyphButton
 from . import theme
 
@@ -47,11 +47,16 @@ class PlayerPage(QWidget):
     prev_next = Signal(int)
     failed = Signal(str)
     position_changed = Signal(float)
+    next_requested = Signal()
 
     def __init__(self, get_settings):
         super().__init__()
         self.get_settings = get_settings; self.player: pl.Player | None = None; self._tracks_sig = None; self._seeking = False
         self._full = False; self._last_mouse = (0, 0); self._last_move = time.time()
+        self.series_mode = False; self.has_next = False; self.next_label = ""; self._skip_seen = None; self._skip_done = False; self._next_off = False
+        self.skip_pill = ActionPill(self); self.next_pill = ActionPill(self)
+        self.skip_pill.clicked.connect(self._do_skip); self.skip_pill.dismissed.connect(self._dismiss_skip)
+        self.next_pill.clicked.connect(self.next_requested.emit); self.next_pill.dismissed.connect(self._dismiss_next)
         self.setObjectName("playerpage"); self.setAttribute(Qt.WA_StyledBackground); self.setStyleSheet("QWidget#playerpage { background: #000; }")
         lay = QVBoxLayout(self); lay.setContentsMargins(0, 0, 0, 0); lay.setSpacing(0)
         self.top = QFrame(); self.top.setObjectName("controls"); self.top.setProperty("edge", "top"); t = QHBoxLayout(self.top); t.setContentsMargins(22, 14, 22, 26); t.setSpacing(12)
@@ -133,6 +138,7 @@ class PlayerPage(QWidget):
             return False
         self.profile = dict(profile or {}); self.player.apply_picture(self.profile); self._thumbs_for(url, live)
         self.title.setText(title); self.status.setText(""); self._tracks_sig = None
+        self._skip_seen = None; self._skip_done = False; self._next_off = False; self.skip_pill.hide_now(); self.next_pill.hide_now()
         self.seek.setVisible(not live); self.time.setVisible(not live)
         self.audio.clear(); self.subs.clear()
         self.player.play(url, live, start, alternates); self.b_play.setText("⏸")
@@ -196,6 +202,7 @@ class PlayerPage(QWidget):
         self.status.setText("Picture settings saved for this channel" if p else "Picture reset"); QTimer.singleShot(2500, lambda: self.status.text().startswith("Picture") and self.status.setText(""))
 
     def stop(self):
+        self.skip_pill.hide_now(); self.next_pill.hide_now()
         if self.player:
             p, self.last_dur = self.player.position()
             if not self.player.is_live and p > 5:
@@ -209,6 +216,34 @@ class PlayerPage(QWidget):
     def skip(self, secs):
         """Back/forward by secs. Works on VOD and, with the rewind buffer, on live streams."""
         if self.player: self.player.seek(secs)
+
+    def set_episode(self, is_episode: bool, next_label: str = ""):
+        self.series_mode = is_episode; self.has_next = bool(next_label); self.next_label = next_label
+
+    def _do_skip(self):
+        if self.player: self.player.seek(85)
+        self._skip_done = True; self.skip_pill.fade_out()
+
+    def _dismiss_skip(self): self._skip_done = True; self.skip_pill.fade_out()
+    def _dismiss_next(self): self._next_off = True; self.next_pill.fade_out()
+
+    def _pills(self, pos, dur):
+        """Skip intro (first minutes of an episode, shown for a few seconds) and Next episode (last 25 s)."""
+        now = time.time(); v = self.video_rect()
+        skip = self.series_mode and 3 <= pos <= 200 and not self._skip_done
+        if skip:
+            if self._skip_seen is None: self._skip_seen = now
+            skip = now - self._skip_seen <= 12
+        if skip:
+            self.skip_pill.set_text("SKIP INTRO"); self.skip_pill.place_bottom_right(v)
+            if not self.skip_pill.isVisible(): self.skip_pill.pop()
+        elif self.skip_pill.isVisible(): self.skip_pill.fade_out()
+        rem = dur - pos
+        nxt = self.has_next and not self._next_off and 0 < rem <= 25
+        if nxt:
+            self.next_pill.set_text(f"NEXT  \u00b7  {self.next_label}  \u00b7  {int(rem)}s   (right-click to stay)"); self.next_pill.place_bottom_right(v, 120 if not skip else 190)
+            if not self.next_pill.isVisible(): self.next_pill.pop()
+        elif self.next_pill.isVisible(): self.next_pill.fade_out()
 
     def go_live(self):
         if self.player: self.player.go_live()
@@ -279,6 +314,7 @@ class PlayerPage(QWidget):
             self.status.setText("Playback failed"); self.failed.emit("The stream stopped and could not be reconnected. See the log for details.")
         elif r == "ended":
             self.status.setText("Finished")
+            if self.has_next and not self._next_off: self.next_requested.emit()
         elif self.status.text().startswith(("Stream stalled", "Trying backup", "Reloading")) and self.player.position()[0] > 3:
             self.status.setText("")
 
@@ -292,6 +328,10 @@ class PlayerPage(QWidget):
             self.b_live.setText("● LIVE" if behind < 3 else f"−{int(behind)}s  ▶ LIVE"); self.b_live.setStyleSheet(theme.acc(("color:#e0262d;" if behind < 3 else "color:#f2f2f4; background:#8f1a1f;") + " font-weight:800; font-size:12px; min-width:70px;"))
         else:
             self.b_live.setVisible(False)
+        if not p.is_live and dur > 0 and self.isVisible():
+            self._pills(pos, dur)
+        elif self.skip_pill.isVisible() or self.next_pill.isVisible():
+            self.skip_pill.hide_now(); self.next_pill.hide_now()
         if not p.is_live and dur > 0:
             self.time.setText(f"{_fmt(pos)} / {_fmt(dur)}")
             if not self._seeking: self.seek.setValue(int(pos / dur * 1000))

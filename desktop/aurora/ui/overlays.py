@@ -2,7 +2,7 @@
 They are tiny frameless tool windows (a child widget can't be drawn over a native video window), never take focus, and fade in/out."""
 from __future__ import annotations
 import time
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QRectF
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QRectF, Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
 from .widgets import ProgressBar
 from .glyphs import draw_glyph
@@ -109,3 +109,25 @@ class CenterOSD(OverlayWindow):
 
     def flash(self, kind: str, video: QRect):
         self.kind = kind; self.update(); self.move(video.center().x() - 66, video.center().y() - 66); self.pop(0.8)
+
+
+
+class ActionPill(OverlayWindow):
+    """Small clickable pill over the video (Skip intro / Next episode). Left click = act, right click = dismiss."""
+    clicked = Signal()
+    dismissed = Signal()
+
+    def __init__(self, parent):
+        super().__init__(parent); self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setStyleSheet("QFrame#pill { background: rgba(14,9,11,232); border: 1px solid rgba(235,221,196,0.45); border-radius: 12px; } QLabel { background: transparent; color: #EBDDC4; font-size: 15px; font-weight: 600; letter-spacing: 0.5px; }")
+        outer = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0); f = QFrame(); f.setObjectName("pill"); outer.addWidget(f)
+        l = QHBoxLayout(f); l.setContentsMargins(22, 12, 22, 12); self.lbl = QLabel(""); l.addWidget(self.lbl); self.setCursor(Qt.PointingHandCursor)
+
+    def set_text(self, t: str):
+        if self.lbl.text() != t: self.lbl.setText(t); self.adjustSize()
+
+    def place_bottom_right(self, video: QRect, lift: int = 120):
+        self.adjustSize(); self.move(video.right() - self.width() - 40, video.bottom() - self.height() - lift)
+
+    def mousePressEvent(self, e):
+        (self.clicked if e.button() == Qt.LeftButton else self.dismissed).emit()

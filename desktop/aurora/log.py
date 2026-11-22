@@ -21,5 +21,11 @@ def setup() -> logging.Logger:
     log = logging.getLogger("aurora.startup")
     log.info("91 TV %s starting", __version__)
     log.info("Python %s | %s | frozen=%s", sys.version.split()[0], platform.platform(), getattr(sys, "frozen", False))
-    sys.excepthook = lambda t, v, tb: logging.getLogger("aurora.crash").critical("Unhandled exception", exc_info=(t, v, tb))
+    def _hook(t, v, tb):
+        import traceback
+        logging.getLogger("aurora.crash").critical("Unhandled exception", exc_info=(t, v, tb))
+        try:
+            from . import report; report.note_exception("".join(traceback.format_exception(t, v, tb))[-4000:])
+        except Exception: pass
+    sys.excepthook = _hook
     return root

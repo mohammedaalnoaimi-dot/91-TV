@@ -218,3 +218,31 @@ class ActivationDialog(QDialog):
     def _buy(self):
         from PySide6.QtGui import QDesktopServices; from PySide6.QtCore import QUrl
         QDesktopServices.openUrl(QUrl("https://ninetyonetv.com/#pricing"))
+
+
+class CrashDialog(QDialog):
+    """Shown on the next start after an unexpected close. Sending is optional and only happens when the button is pressed."""
+    sent = Signal(bool)
+
+    def __init__(self, trace: str, key: str, plan: str = "", parent=None):
+        super().__init__(parent)
+        from PySide6.QtWidgets import QPlainTextEdit
+        self.trace, self.key, self.plan = trace, key, plan
+        self.setWindowTitle("91 TV"); self.setMinimumWidth(640)
+        lay = QVBoxLayout(self)
+        h = QLabel("91 TV closed unexpectedly last time"); h.setObjectName("h1"); lay.addWidget(h)
+        n = QLabel("Send the report to 91 TV support so we can fix it. It goes with your activation code, so we know who you are. Nothing is sent unless you press the button."); n.setWordWrap(True); n.setObjectName("muted"); lay.addWidget(n)
+        box = QPlainTextEdit(trace[-3000:]); box.setReadOnly(True); box.setMinimumHeight(180); lay.addWidget(box)
+        row = QHBoxLayout(); row.addStretch()
+        self.b_send = QPushButton("Send report to support"); self.b_send.setDefault(True); b_go = QPushButton("Continue")
+        row.addWidget(self.b_send); row.addWidget(b_go); lay.addLayout(row)
+        b_go.clicked.connect(self.accept); self.b_send.clicked.connect(self._send); self.sent.connect(self._after)
+
+    def _send(self):
+        import threading
+        from .. import report
+        self.b_send.setEnabled(False); self.b_send.setText("Sending…")
+        threading.Thread(target=lambda: self.sent.emit(report.send(self.trace, self.key, self.plan)), daemon=True).start()
+
+    def _after(self, ok: bool):
+        self.b_send.setText("Report sent. Thank you!" if ok else "Could not send. Try again"); self.b_send.setEnabled(not ok)

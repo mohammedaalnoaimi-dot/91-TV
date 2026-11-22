@@ -5,7 +5,7 @@ from PyInstaller.utils.hooks import collect_submodules, copy_metadata
 mpv_dll = os.path.join("build", "mpv", "libmpv-2.dll")
 binaries = [(mpv_dll, ".")] if os.path.exists(mpv_dll) else []
 datas = [("assets", "assets")] + copy_metadata("keyring") + copy_metadata("python-mpv")
-hidden = collect_submodules("keyring.backends") + ["mpv", "win32ctypes.pywin32.pywintypes", "win32ctypes.pywin32.win32cred"]
+hidden = collect_submodules("keyring.backends") + ["PySide6.QtMultimedia", "PySide6.QtMultimediaWidgets", "mpv", "win32ctypes.pywin32.pywintypes", "win32ctypes.pywin32.win32cred"]
 
 a = Analysis(["main.py"], pathex=["."], binaries=binaries, datas=datas, hiddenimports=hidden, hookspath=[], runtime_hooks=[],
              excludes=["tkinter", "unittest", "PySide6.QtWebEngineCore", "PySide6.QtQml", "PySide6.QtQuick"], noarchive=False)
