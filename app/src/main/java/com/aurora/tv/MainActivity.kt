@@ -2165,6 +2165,30 @@ class MainActivity : Activity() {
         if (playerRoot != null && cur?.kind == "episode") { ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, if (nextCountdown) 500L else 1500L) }
     }
     private val nextBtnTick = Runnable { updateNextBtn() }
+    // ---- live: "−9s ▶ LIVE" badge (same as the Windows app). Pausing live TV keeps what the buffer holds; the badge counts how far behind live you are ----
+    private var liveBadge: TextView? = null
+    private var liveBehindBase = 0L      // ms already behind live from earlier pauses
+    private var livePausedAt = 0L        // wall-clock when the current pause began (0 = playing)
+    private fun liveBehindMs(): Long = liveBehindBase + (if (livePausedAt > 0L) System.currentTimeMillis() - livePausedAt else 0L)
+    private fun liveResetBehind() { liveBehindBase = 0L; livePausedAt = 0L }
+    private fun liveTogglePause() {
+        val p = player ?: return
+        if (p.playWhenReady) { p.pause(); livePausedAt = System.currentTimeMillis(); showTitle("Paused  ·  OK or ▶ resume  ·  hold BACK to leave", 2500) }
+        else { p.play(); if (livePausedAt > 0L) { liveBehindBase += System.currentTimeMillis() - livePausedAt; livePausedAt = 0L } }
+        updateLiveBadge()
+    }
+    private fun liveGoLive() { liveResetBehind(); startCurrent(); updateLiveBadge() }
+    private fun updateLiveBadge() {
+        val b = liveBadge ?: return
+        val cur = zapList.getOrNull(zapIndex)
+        if (playerRoot == null || cur?.kind != "live") { b.visibility = View.GONE; return }
+        val behind = (liveBehindMs() / 1000).toInt()
+        val paused = livePausedAt > 0L
+        b.visibility = if (behind >= 3 || paused || titleView?.visibility == View.VISIBLE) View.VISIBLE else View.GONE
+        if (behind < 3) { b.text = "●  LIVE"; b.setTextColor(Color.parseColor("#E0262D")) } else { b.text = "−${behind}s  ▶ LIVE"; b.setTextColor(Color.WHITE) }
+        ui.removeCallbacks(liveTick); ui.postDelayed(liveTick, 500L)
+    }
+    private val liveTick = Runnable { updateLiveBadge() }
     private var chainNext = false
     private var prevLiveKey = ""
     private var numBuf = ""
@@ -2202,6 +2226,13 @@ class MainActivity : Activity() {
             isFocusable = true; isClickable = true; setOnClickListener { doSkipIntro() }
         }
         root.addView(skipBtn, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, dp(48), dp(190)) })
+        liveBadge = TextView(this).apply {
+            textSize = 20f; typeface = fMedium(); letterSpacing = 0.05f; setPadding(dp(22), dp(12), dp(22), dp(12)); visibility = View.GONE
+            premium(Color.parseColor("#CC18110F"), Color.parseColor("#CC18110F"), 12, Color.parseColor("#99EBDDC4"), GOLD, 2f, true)
+            isFocusable = true; isClickable = true; setOnClickListener { liveGoLive() }
+        }
+        root.addView(liveBadge, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply { setMargins(0, dp(28), dp(48), 0) })
+        liveResetBehind(); ui.removeCallbacks(liveTick); ui.postDelayed(liveTick, 600L)
         ui.removeCallbacks(nextBtnTick); ui.postDelayed(nextBtnTick, 1500)
         pv.subtitleView?.visibility = if (prefs.getBoolean("subs", false)) View.VISIBLE else View.GONE
         if (android.os.Build.VERSION.SDK_INT >= 26 && prefs.getInt("hdrmode", 0) != 2) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_HDR)
@@ -2282,7 +2313,7 @@ class MainActivity : Activity() {
     private fun startCurrent() {
         savePosition()
         val old = playing
-        val it = zapList[zapIndex]; playing = it; attempt = 0
+        val it = zapList[zapIndex]; playing = it; attempt = 0; liveResetBehind()
         if (it.kind == "live") { if (old != null && old.kind == "live" && old.key != it.key) prevLiveKey = old.key; prefs.edit().putString("lastLive", it.key).apply() }
         addRecent(it)
         val start = if (it.kind != "live") savedPos(it) else 0L
@@ -2366,7 +2397,7 @@ class MainActivity : Activity() {
     }
 
     private fun leavePlayer() {
-        ui.removeCallbacks(nextRun); ui.removeCallbacks(nextBtnTick); nextCard = null; nextNum = null; nextName = null; nextLbl = null; skipBtn = null; ui.removeCallbacks(numRun); numBuf = ""
+        ui.removeCallbacks(nextRun); ui.removeCallbacks(nextBtnTick); nextCard = null; nextNum = null; nextName = null; nextLbl = null; skipBtn = null; liveBadge = null; ui.removeCallbacks(liveTick); ui.removeCallbacks(numRun); numBuf = ""
         savePosition(); ui.removeCallbacks(hideTitle); player?.release(); player = null; playerRoot = null; titleView = null; playerView = null; playing = null
         if (android.os.Build.VERSION.SDK_INT >= 26) window.setColorMode(android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT)
         request4k(false)
@@ -2430,7 +2461,8 @@ class MainActivity : Activity() {
             when (keyCode) {
                 KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_DPAD_UP -> { zap(1); return true }
                 KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_DPAD_DOWN -> { zap(-1); return true }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { startCurrent(); return true }
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE, KeyEvent.KEYCODE_SPACE -> { liveTogglePause(); return true }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { if (livePausedAt > 0L) liveTogglePause() else if (liveBehindMs() >= 3000L) liveGoLive() else liveTogglePause(); return true }
                 KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MENU -> { audioDialog(); return true }
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_LAST_CHANNEL -> {
                     val i = zapList.indexOfFirst { x -> x.key == prevLiveKey }
